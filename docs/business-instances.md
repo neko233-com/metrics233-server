@@ -108,9 +108,14 @@ An Entity absent from the new snapshot has no current cumulative value; its
 historical window can still be present. Window `rate`/`increase` deliberately
 keep valid historical series across process/IP changes and counter resets.
 
-Both metric tables use 100-row fetches and a fixed-height virtual window with at
+Player regions use 100-row fetches and a fixed-height virtual window with at
 most 20 data rows in the DOM. Scrolling near the end or **Load more** fetches the
-next page. No result is dropped to create a Top10/TopK display. Cursors bind the
+next page; all regions remain available. The SQL UI instead requests the first
+10 rows with `window=1h&limit=10`: the ten Entity/operation pairs with highest
+weighted average latency in the last 60 minutes. It shows average milliseconds,
+estimated driver execution and failure counts, not raw SQL text or an assertion
+that every entry is slow. Entries without a calculable window average are omitted.
+The complete paged SQL API remains available to HTTP clients. Cursors bind the
 instance, table kind, window and evaluation timestamp, expire after 15 minutes,
 and keep all pages at the same PromQL evaluation time. This is a time anchor,
 not a database snapshot of late/backfilled writes. Queries use the existing
@@ -118,14 +123,20 @@ engine/raw-scan budgets, a 15s request deadline, and a maximum 10000-series
 business result; exceeding a budget returns an error rather than partial top-k
 data. Each cursor fetch re-evaluates the fixed instant; no unbounded result cache
 or new background worker is introduced.
-Overview panels and template reads follow workspace refresh. A loaded metric
-table keeps its evaluation time and scroll position during background refresh;
-**Refresh instance** starts a fresh table snapshot.
+Overview panels, SQL Top10 and template reads follow workspace refresh and retain
+previous content while refreshing the same scope. Region tables keep their
+evaluation time and loaded pages during background refresh; **Refresh instance**
+starts a fresh table snapshot. Switching instance or window mounts a separate
+result view so that previous-scope data is never shown under the new identity.
 
 ## API
 
-- `GET /api/v1/business/instances?limit=50&cursor=...&q=...` — stable-ID keyset
-  pages, optional whole-catalog bounded search, capacity metadata.
+- `GET /api/v1/business/instances?limit=50&cursor=...&q=...&template_id=...` — stable-ID keyset
+  pages, optional bounded search, capacity metadata. Optional `template_id` first checks
+  native-dashboard and referenced-library read permission, then pages only exact
+  live `inherit` bindings to that dashboard. Default, independent and copied-dashboard
+  bindings are excluded. Unknown templates return 404; forbidden templates return 403.
+  It never removes the instance resolver's fixed identity scope or grants catalog access.
 - `GET /api/v1/business/instances/{id}` — observed identity and current binding.
 - `GET /api/v1/business/instances/{id}/dashboard` — latest authorized native
   dashboard plus fixed variables; never writes a dashboard.

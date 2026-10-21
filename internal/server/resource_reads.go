@@ -17,15 +17,16 @@ import (
 // History requires Write; query execution, imports and mutations are separate
 // policies and are not made available by this read adapter.
 var resourceReadRoutes = map[string]bool{
+	"GET /api/v1/business/instances":                true,
 	"GET /api/v1/business/instances/{id}/dashboard": true,
-	"GET /api/v1/dashboards":             true,
-	"GET /api/dashboards/uid/{uid}":      true,
-	"GET /api/search":                    true,
-	"GET /api/v1/folders":                true,
-	"GET /api/folders":                   true,
-	"GET /api/folders/{uid}":             true,
-	"GET /api/folders/{uid}/parents":     true,
-	"GET /api/v1/dashboard-exports/{id}": true,
+	"GET /api/v1/dashboards":                        true,
+	"GET /api/dashboards/uid/{uid}":                 true,
+	"GET /api/search":                               true,
+	"GET /api/v1/folders":                           true,
+	"GET /api/folders":                              true,
+	"GET /api/folders/{uid}":                        true,
+	"GET /api/folders/{uid}/parents":                true,
+	"GET /api/v1/dashboard-exports/{id}":            true,
 }
 
 func ResourceReadRoute(route ProtectedRoute) bool {

@@ -229,9 +229,9 @@ test("Legacy native PromQL can be changed in the shared query editor", async ({
   ).toContainText("235");
   await page.goto(endpoint + "/d/missing-dashboard/unknown");
   await expect(page.getByRole("alert")).toContainText("Dashboard not found.");
-  await page.getByRole("button", { name: "Dashboards", exact: true }).click();
+  await page.getByRole("button", { name: "Template center", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Dashboards", exact: true }),
+    page.getByRole("heading", { name: "Template center", exact: true }),
   ).toBeVisible();
 });
 
@@ -1004,4 +1004,42 @@ test("Vector renderer draws 64-dimensional rows and hover values", async ({
     ),
   ).toBe(true);
   expect(errors).toEqual([]);
+});
+
+test("native editor round-trips bytes per second without changing panel identity or opaque config", async ({ page, endpoint }, info) => {
+  test.setTimeout(60000);
+  await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
+  const now = Date.now();
+  expect((await page.request.post(endpoint + "/api/v1/ingest", { data: { samples: [120000, 60000, 1000].map(offset => ({ name: "native_unit_bytes_total", labels: { job: "unit-fixture" }, timestamp: now - offset, value: (120000 - offset) * 20.48 })) } })).ok()).toBeTruthy();
+  const defaults = { unit: "bytes", custom: { preserved: true }, thresholds: { mode: "absolute", steps: [{ color: "green", value: null }, { color: "dark-red", value: 1000 }, { color: "red", value: 3000 }] } };
+  const overrides = [{ matcher: { id: "byName", options: "unused" }, properties: [{ id: "decimals", value: 4 }] }];
+  const targets = [{ refId: "A", expr: 'sum(rate(native_unit_bytes_total{job="unit-fixture"}[5m]))', instant: true }];
+  const source = { name: "Native unit editor", panels: [
+    { id: "byte-rate", title: "Byte transfer", metric: "native_unit_bytes_total", expr: targets[0].expr, aggregation: "last", visualization: "stat", unit: "bytes", config: { type: "stat", fieldConfig: { defaults, overrides }, targets, opaque: { preserved: 233 } } },
+    { id: "custom-unit", title: "Custom unit", metric: "native_unit_bytes_total", expr: "vector(23)", aggregation: "last", visualization: "stat", unit: "bytes", config: { type: "stat", fieldConfig: { defaults: { unit: "suffix:widgets" } } } },
+  ] };
+  const created = await page.request.post(endpoint + "/api/v1/dashboards", { data: source }); expect(created.ok()).toBeTruthy(); const dashboard = await created.json();
+  await page.goto(`${endpoint}/d/${dashboard.id}/unit-editor`);
+  const panel = page.getByRole("region", { name: "Byte transfer", exact: true });
+  await expect(panel.locator(".grafana-value strong")).toContainText("KiB");
+  await page.getByRole("button", { name: "Edit Byte transfer", exact: true }).click();
+  const editor = page.getByRole("dialog", { name: "Edit panel", exact: true });
+  await editor.getByLabel("Unit", { exact: true }).selectOption("binBps");
+  const patch = page.waitForRequest(request => request.method() === "PATCH" && request.url().endsWith(`/dashboards/${dashboard.id}/panels`));
+  await editor.getByRole("button", { name: "Save panel", exact: true }).click();
+  const payload = (await patch).postDataJSON(); expect(payload.panel.unit).toBe("bytes"); expect(payload.panel.display_unit).toBe("binBps");
+  await expect(editor).not.toBeVisible(); await expect(panel.locator(".grafana-value strong")).toContainText("KiB/s");
+  const saved = async () => (await (await page.request.get(endpoint + "/api/v1/dashboards")).json()).find((item: any) => item.id === dashboard.id);
+  const bytes = (await saved()).panels.find((item: any) => item.id === "byte-rate");
+  expect(bytes.unit).toBe("bytes"); expect(bytes.config.fieldConfig.defaults.unit).toBe("binBps");
+  expect(bytes.config.fieldConfig.defaults.thresholds).toEqual(defaults.thresholds); expect(bytes.config.fieldConfig.defaults.custom).toEqual(defaults.custom); expect(bytes.config.fieldConfig.overrides).toEqual(overrides); expect(bytes.config.targets).toEqual(targets); expect(bytes.config.opaque).toEqual({ preserved: 233 });
+  await page.reload(); await page.getByRole("button", { name: "Edit Byte transfer", exact: true }).click();
+  await expect(editor.getByLabel("Unit", { exact: true })).toHaveValue("binBps"); await editor.getByLabel("Unit", { exact: true }).selectOption("bytes");
+  await editor.getByRole("button", { name: "Save panel", exact: true }).click(); await expect(editor).not.toBeVisible();
+  const reset = (await saved()).panels.find((item: any) => item.id === "byte-rate"); expect(reset.unit).toBe("bytes"); expect(reset.config.fieldConfig.defaults.unit).toBe("bytes"); expect(reset.config.fieldConfig.overrides).toEqual(overrides); expect(reset.config.fieldConfig.defaults.thresholds).toEqual(defaults.thresholds);
+  await expect(panel.locator(".grafana-value strong")).not.toContainText("/s");
+  await page.getByRole("button", { name: "Edit Custom unit", exact: true }).click(); await expect(editor.getByLabel("Unit", { exact: true })).toHaveValue("__preserve_custom_unit__");
+  await editor.getByLabel("Panel title", { exact: true }).fill("Custom retained"); await editor.getByRole("button", { name: "Save panel", exact: true }).click(); await expect(editor).not.toBeVisible();
+  const untouched = (await saved()).panels.find((item: any) => item.id === "custom-unit"); expect(untouched.config.fieldConfig.defaults.unit).toBe("suffix:widgets");
+  await page.screenshot({ path: info.outputPath("native-byte-rate-unit.png"), fullPage: true });
 });

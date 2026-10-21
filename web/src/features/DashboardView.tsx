@@ -1,4 +1,4 @@
-import { t as tr } from "../i18n";
+import { getLocale, t as tr } from "../i18n";
 import { lazy, Suspense, useState } from "react";
 import { Plus, RefreshCw, Pencil } from "lucide-react";
 import {
@@ -37,31 +37,29 @@ import {
 import { DashboardVariablesEditor } from "../components/DashboardVariablesEditor";
 import { layoutPanels } from "../grafana/layout";
 import { queryValues } from "../grafana/variables";
+import { isBusinessTemplateCandidate } from "./business-template-model";
+import { nativePanelUnitEdit, nativePanelUnitSelection, preserveCustomUnit } from "./native-panel-units";
 import {
   DashboardLayoutButton,
   DashboardLayoutEditor,
 } from "./DashboardLayoutEditor";
 const GrafanaPanel = lazy(() => import("../grafana/GrafanaPanel"));
+const BusinessTemplatePreview = lazy(() => import("./BusinessTemplatePreview"));
 const PanelQueriesEditor = lazy(() =>
   import("../components/PanelQueriesEditor").then((module) => ({
     default: module.PanelQueriesEditor,
   })),
 );
-export function DashboardView({
-  dashboard,
-  stats,
-  targets,
-  metrics,
-  tick,
-  range,
-  onRange,
-  refresh,
-  refreshChoice,
-  onRefreshChoice,
-  reload,
-  notify,
-  onNavigate,
-}: {
+export function DashboardView(props: DashboardViewProps) {
+  return isBusinessTemplateCandidate(props.dashboard) ? (
+    <Suspense fallback={<p role="status">{tr("Loading metrics…")}</p>}>
+      <BusinessTemplatePreview key={props.dashboard.id} {...props}>
+        <DashboardContent {...props} />
+      </BusinessTemplatePreview>
+    </Suspense>
+  ) : <DashboardContent {...props} />;
+}
+type DashboardViewProps = {
   dashboard: Dashboard;
   stats: Stats | null;
   targets: Target[];
@@ -75,7 +73,22 @@ export function DashboardView({
   onRefreshChoice: (value: string) => void;
   reload: () => Promise<void>;
   notify: (s: string, error?: boolean) => void;
-}) {
+};
+function DashboardContent({
+  dashboard,
+  stats,
+  targets,
+  metrics,
+  tick,
+  range,
+  onRange,
+  refresh,
+  refreshChoice,
+  onRefreshChoice,
+  reload,
+  notify,
+  onNavigate,
+}: DashboardViewProps) {
   const { canEdit } = useSession();
   const [editor, setEditor] = useState<{
     panel: Panel | "new";
@@ -423,6 +436,7 @@ export function DashboardView({
               expr,
               aggregation,
               unit,
+              display_unit,
               visualization,
               labels,
               thresholds,
@@ -440,6 +454,7 @@ export function DashboardView({
                 expr,
                 aggregation,
                 unit,
+                display_unit,
                 visualization,
                 labels,
                 thresholds,
@@ -513,13 +528,13 @@ function PanelEditor({
   panel?: Panel;
   metrics: Metric[];
   onClose: () => void;
-  onSave: (p: Panel & {thresholds?: {warning:number;critical:number}|null}) => Promise<void>;
+  onSave: (p: Panel & {thresholds?: {warning:number;critical:number}|null; display_unit?: "" | "binBps"}) => Promise<void>;
 }) {
   const [title, setTitle] = useState(panel?.title || "");
   const [metric, setMetric] = useState(panel?.metric || metrics[0]?.name || "");
   const [expr, setExpr] = useState(panel?.expr || "");
   const [aggregation, setAggregation] = useState(panel?.aggregation || "last");
-  const [unit, setUnit] = useState(panel?.unit || "");
+  const [unit, setUnit] = useState(() => nativePanelUnitSelection(panel));
   const [visualization, setVisualization] = useState(
     panel?.visualization || "timeseries",
   );
@@ -557,7 +572,7 @@ function PanelEditor({
               expr,
               expressions: expr ? [expr] : undefined,
               aggregation,
-              unit,
+              ...nativePanelUnitEdit(panel, unit),
               visualization,
               labels: parseLabels(labels),
               thresholds: warning===initialWarning && critical===initialCritical ? undefined : warning==="" && critical==="" ? null : { warning:Number(warning),critical:Number(critical) },
@@ -654,8 +669,10 @@ function PanelEditor({
           )}
           <label>
             {tr("Unit")}
-            <select value={unit} onChange={(e) => setUnit(e.target.value)}>
+            <select aria-label={tr("Unit")} value={unit} onChange={(e) => setUnit(e.target.value)}>
               <option value="">{tr("Auto / number")}</option>
+              <option value="binBps">{getLocale() === "zh" ? "字节/秒" : "Bytes/second"}</option>
+              {nativePanelUnitSelection(panel) === preserveCustomUnit && <option value={preserveCustomUnit}>{getLocale() === "zh" ? "保留自定义单位" : "Keep custom unit"} ({panel?.config?.fieldConfig?.defaults?.unit})</option>}
               {["bytes", "seconds", "uptime", "percent", "count", "ops"].map((u) => (
                 <option key={u} value={u}>
                   {tr(u)}

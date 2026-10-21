@@ -92,11 +92,11 @@ type View =
 type AppView = View | "app";
 const baseNavigation = [
   { id: "overview", name: "Overview", icon: LayoutDashboard },
-  { id: "dashboards", name: "Dashboards", icon: ChartNoAxesColumn },
+  { id: "dashboards", name: "Template center", icon: ChartNoAxesColumn },
   { id: "explore", name: "Explore", icon: Search },
   { id: "collectors", name: "Collectors", icon: Server },
   { id: "reporting-sources", name: "Reporting sources", icon: Network },
-  { id: "business", name: "Business monitoring", icon: Activity },
+  { id: "business", name: "Dashboards", icon: Activity },
   { id: "alerts", name: "Alerts", icon: Bell },
   { id: "cli", name: "Command line", icon: Terminal },
 ] as const;
@@ -104,9 +104,9 @@ export default function App() {
   const routeLoaded = useRef(false);
   const [initialRange] = useState(() => {
     try {
-      return { value: rangeFromURL() || "30m", error: "" };
+      return { value: rangeFromURL() || "1h", error: "" };
     } catch (error) {
-      return { value: "30m", error: message(error) };
+      return { value: "1h", error: message(error) };
     }
   });
   const [rangeError, setRangeError] = useState(initialRange.error);
@@ -417,10 +417,10 @@ export default function App() {
         const next =
           rangeFromURL(
             new URLSearchParams(location.search),
-            rangeFromDashboard(dashboard.grafana) || "30m",
+            rangeFromDashboard(dashboard.grafana) || "1h",
           ) ||
           rangeFromDashboard(dashboard.grafana) ||
-          "30m";
+          "1h";
         setRange(next);
         setRangeError("");
       } catch (error) {
@@ -439,7 +439,7 @@ export default function App() {
         : undefined;
       setDashboardRouteMissing(Boolean(uid && !dashboard));
       try {
-        const fallback = rangeFromDashboard(dashboard?.grafana) || "30m";
+        const fallback = rangeFromDashboard(dashboard?.grafana) || "1h";
         const next =
           rangeFromURL(new URLSearchParams(location.search), fallback) ||
           fallback;
@@ -485,9 +485,16 @@ export default function App() {
   function openDashboard(d: Dashboard) {
     setRefreshOverride(null);
     setDashboardID(d.id);
-    history.replaceState({}, "", `/d/${encodeURIComponent(dashboardUID(d))}/${encodeURIComponent(d.name)}`);
+    // Carry an explicit URL/user time choice between dashboards, without
+    // carrying another dashboard's scoped variable values.
+    const params = new URLSearchParams();
+    const currentParams = new URLSearchParams(location.search);
+    for (const key of ["from", "to", "time", "time.window", "timezone"])
+      if (currentParams.has(key)) params.set(key, currentParams.get(key)!);
+    history.replaceState({}, "", `/d/${encodeURIComponent(dashboardUID(d))}/${encodeURIComponent(d.name)}${params.size ? `?${params}` : ""}`);
     try {
-      const next = rangeFromDashboard(d.grafana) || "30m";
+      const fallback = rangeFromDashboard(d.grafana) || "1h";
+      const next = rangeFromURL(params, fallback) || fallback;
       setRange(next);
       setRangeError("");
       updateWorkspaceTimeRange(next);

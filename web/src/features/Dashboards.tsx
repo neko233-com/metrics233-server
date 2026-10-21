@@ -11,7 +11,7 @@ import { grafanaImportBody } from "./grafana-import-body";
 import { Folders, FolderBreadcrumbs, FolderSelect, folderTrail } from "./Folders";
 import { LibraryPanels } from "./LibraryPanels";
 const BusinessInstances = lazy(() => import("./BusinessInstances"));
-const businessLabel = () => getLocale() === "zh" ? "业务虚拟仪表盘" : "Business virtual dashboards";
+const businessLabel = () => getLocale() === "zh" ? "实例仪表盘" : "Dashboard instances";
 export function Dashboards({
   dashboards,
   open,
@@ -56,7 +56,7 @@ export function Dashboards({
     <>
       <div className="page-heading">
         <div>
-          <h1>{tr("Dashboards")}</h1>
+          <h1>{tr("Template center")}</h1>
           <p>{dashboards.length} {tr("dashboards")} · {folders.length} {tr("folders")}</p>
         </div>
         {tab === "dashboards" && canEdit && <div className="toolbar">
@@ -87,7 +87,7 @@ export function Dashboards({
         event.preventDefault(); const tabs = ["dashboards", "business", "library"] as const; const index = tabs.indexOf(tab); const next = tabs[event.key === "Home" ? 0 : event.key === "End" ? 2 : (index + (event.key === "ArrowRight" ? 1 : 2)) % 3];
         setTab(next); event.currentTarget.querySelector<HTMLButtonElement>(`#${next === "dashboards" ? "dashboard-browser" : next === "business" ? "business-instances" : "library-panels"}-tab`)?.focus();
       }}>
-        <button role="tab" id="dashboard-browser-tab" aria-controls="dashboard-browser-panel" aria-selected={tab === "dashboards"} tabIndex={tab === "dashboards" ? 0 : -1} onClick={() => setTab("dashboards")}>{tr("Dashboards")}</button>
+        <button role="tab" id="dashboard-browser-tab" aria-controls="dashboard-browser-panel" aria-selected={tab === "dashboards"} tabIndex={tab === "dashboards" ? 0 : -1} onClick={() => setTab("dashboards")}>{tr("Templates")}</button>
         <button role="tab" id="business-instances-tab" aria-controls="business-instances-panel" aria-selected={tab === "business"} tabIndex={tab === "business" ? 0 : -1} onClick={() => setTab("business")}>{businessLabel()}</button>
         <button role="tab" id="library-panels-tab" aria-controls="library-panels-panel" aria-selected={tab === "library"} tabIndex={tab === "library" ? 0 : -1} onClick={() => setTab("library")}>{tr("Library panels")}</button>
       </div>

@@ -113,6 +113,20 @@ func (s *Store) BusinessInstances(ctx context.Context, after string, limit int) 
 	return s.FindBusinessInstances(ctx, after, "", limit)
 }
 func (s *Store) FindBusinessInstances(ctx context.Context, after, query string, limit int) (BusinessInstancePage, error) {
+	return s.findBusinessInstances(ctx, after, query, "", limit)
+}
+
+// FindBusinessInstancesForTemplate pages only live inherit bindings. A copied or
+// independently edited dashboard is not an instance of the original template.
+// The caller must authorize reading the template before looking up its bindings.
+func (s *Store) FindBusinessInstancesForTemplate(ctx context.Context, after, query, templateID string, limit int) (BusinessInstancePage, error) {
+	if templateID == "" || len(templateID) > 200 || strings.ContainsAny(templateID, "\x00\r\n") {
+		return BusinessInstancePage{}, errors.New("invalid template_id")
+	}
+	return s.findBusinessInstances(ctx, after, query, templateID, limit)
+}
+
+func (s *Store) findBusinessInstances(ctx context.Context, after, query, templateID string, limit int) (BusinessInstancePage, error) {
 	page := BusinessInstancePage{Items: []model.BusinessInstance{}, Capacity: BusinessInstanceLimit}
 	if limit < 1 || limit > 100 {
 		return page, errors.New("limit must be 1–100")
@@ -125,7 +139,7 @@ func (s *Store) FindBusinessInstances(ctx context.Context, after, query string, 
 			return page, errors.New("invalid instance cursor")
 		}
 	}
-	rows, err := s.DB.QueryContext(ctx, `SELECT `+businessColumns+` FROM business_instances WHERE id>? AND (?='' OR instr(lower(identity),lower(?))>0 OR instr(reported_ip,?)>0 OR instr(observed_ip,?)>0) ORDER BY id LIMIT ?`, after, query, query, query, query, limit+1)
+	rows, err := s.DB.QueryContext(ctx, `SELECT `+businessColumns+` FROM business_instances WHERE id>? AND (?='' OR (binding_mode='inherit' AND dashboard_id=?)) AND (?='' OR instr(lower(identity),lower(?))>0 OR instr(reported_ip,?)>0 OR instr(observed_ip,?)>0) ORDER BY id LIMIT ?`, after, templateID, templateID, query, query, query, query, limit+1)
 	if err != nil {
 		return page, err
 	}

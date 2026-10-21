@@ -49,7 +49,8 @@ test("Business JSON push creates a scoped dashboard with real gauge and counter 
   expect(ingested.ok()).toBeTruthy();
   expect((await ingested.json()).accepted).toBe(12);
   await page.goto(endpoint + "/#business");
-  await expect(page.getByRole("heading", { name: "Business monitoring", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
+  await page.getByText("Connect metrics or create a template", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Create business dashboard", exact: true })).toBeDisabled();
   await page.getByLabel("Metric", { exact: true }).selectOption("business_active_users");
   await page.getByLabel("Dashboard name", { exact: true }).fill("Production business users");
@@ -64,6 +65,7 @@ test("Business JSON push creates a scoped dashboard with real gauge and counter 
   await page.reload();
   await expect(page.getByRole("region", { name: "Current total", exact: true })).toContainText("42");
   await page.goto(endpoint + "/#business");
+  await page.getByText("Connect metrics or create a template", { exact: true }).click();
   await page.getByLabel("Metric", { exact: true }).selectOption("business_orders_total");
   await expect(page.getByLabel("Metric type", { exact: true })).toHaveValue("counter");
   await page.getByLabel("Dashboard name", { exact: true }).fill("Production orders");
@@ -83,14 +85,15 @@ test("Business onboarding is contained at 390/768/1280 and rejects malformed lab
   await page.goto(endpoint + "/#business");
   for (const width of [390, 768, 1280]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(page.getByRole("heading", { name: "Business monitoring", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     if (process.env.METRICSPANEL_QA_ARTIFACT_DIR && width !== 768) await page.screenshot({ path: path.join(process.env.METRICSPANEL_QA_ARTIFACT_DIR, `business-${width}.png`) });
   }
+  await page.getByText("Connect metrics or create a template", { exact: true }).click();
   await page.getByLabel("Metric", { exact: true }).selectOption("business_active_users");
   await page.getByText("Label filters", { exact: true }).click();
   await page.getByLabel("Labels (JSON)", { exact: true }).fill('{"bad": 1}');
   await page.getByRole("button", { name: "Create business dashboard", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Labels must be a JSON object with string values");
-  await expect(page.getByRole("heading", { name: "Business monitoring", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
 });

@@ -72,7 +72,7 @@ export function resolveTimeRange(value: TimeSelection, now = Date.now()) {
 }
 export function rangeFromURL(
   params = new URLSearchParams(location.search),
-  fallback: TimeSelection = "30m",
+  fallback: TimeSelection = "1h",
 ): TimeSelection | undefined {
   const defaults = rawSelection(fallback);
   const zone = params.get("timezone") || defaults.timezone;

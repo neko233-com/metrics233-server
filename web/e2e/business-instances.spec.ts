@@ -22,7 +22,7 @@ const test = base.extend<{}, { service: Service }>({ service: [async ({}, use) =
 async function open(page: Page, service: Service) {
   await page.addInitScript(token => { sessionStorage.setItem("metricspanel-token", token); localStorage.setItem("metricspanel-locale", "en"); }, service.token);
   await page.goto(service.url + "/#dashboards");
-  await page.getByRole("tab", { name: "Business virtual dashboards", exact: true }).click();
+  await page.getByRole("tab", { name: "Dashboard instances", exact: true }).click();
 }
 const baseLabels = (service: string, environment = "production") => ({ service, role: "logic", serverId: "0", instance: service + "-$serverId-0", environment, channel: "fixture", implementation: "go", ip: "203.0.113.18" });
 
@@ -51,7 +51,7 @@ test("real instance identity, live template and independent copy stay separate",
   const library = (await libraryResponse.json()).result;
   const template = await (await page.request.post(service.url + "/api/v1/dashboards", { headers, data: { name: "Shared live fixture", panels: [{ id: "online", title: "Shared online", metric: "game_players_online", aggregation: "last", unit: "count", visualization: "stat", expr: "sum(game_players_online{${business_scope:raw}})" }, { id: "shared-text", title: "Shared library text", metric: "game_players_online", aggregation: "last", visualization: "text", config: { type: "text", libraryPanel: { uid: library.uid, name: library.name } } }] } })).json();
   // Reload the outer workspace to obtain the newly created dashboard catalog.
-  await page.reload(); await page.getByRole("tab", { name: "Business virtual dashboards", exact: true }).click();
+  await page.reload(); await page.getByRole("tab", { name: "Dashboard instances", exact: true }).click();
   await page.getByRole("row").filter({ hasText: "production / fixture" }).getByRole("button", { name: "ui-identity · logic · 0", exact: true }).click();
   await page.getByText("Template binding", { exact: true }).click();
   await page.getByLabel("Native dashboard template", { exact: true }).selectOption(template.id);
@@ -73,7 +73,7 @@ test("real instance identity, live template and independent copy stay separate",
   expect(errors).toEqual([]);
 });
 
-test("all regions and SQL entities paginate with a bounded virtual DOM and honest missing values", async ({ page, service }, info) => {
+test("all regions stay virtualized while SQL shows only the slowest ten in the last hour", async ({ page, service }, info) => {
   test.setTimeout(90000); const headers = { Authorization: `Bearer ${service.token}` }; const labels = baseLabels("ui-tables"); const now = Date.now(); const samples: any[] = [];
   for (let i = 0; i < 235; i++) samples.push({ name: "game_players_online_by_region", labels: { ...labels, country: "Fixture", province: "Province", city: `City-${String(i).padStart(3, "0")}` }, value: i === 234 ? 0 : 1, timestamp: now - 1000 });
   samples.push({ name: "game_players_online", labels, value: 234, timestamp: now - 1000 });
@@ -98,21 +98,21 @@ test("all regions and SQL entities paginate with a bounded virtual DOM and hones
   expect(await table.locator("tbody tr:not([aria-hidden])").count()).toBeLessThanOrEqual(20);
   await expect(page.getByRole("link", { name: "IP location data: DB-IP Lite", exact: true })).toHaveAttribute("href", "https://db-ip.com");
   await page.screenshot({ path: info.outputPath("business-regions-all.png"), fullPage: true });
-  await page.getByRole("button", { name: "Entity SQL", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "100 / 160" })).toBeVisible();
-  const sql = page.getByRole("table", { name: "Entity SQL statistics", exact: true });
+  await page.getByRole("button", { name: "Slow SQL Top10", exact: true }).click();
+  await expect(page.getByLabel("Recent window", { exact: true })).toHaveValue("1h");
+  const sql = page.getByRole("table", { name: "Slow SQL Top10", exact: true });
+  await expect(sql.locator("tbody tr")).toHaveCount(10);
+  await expect(sql.getByRole("columnheader")).toHaveCount(5);
   await expect(sql.locator("tbody tr:not([aria-hidden])").first()).toContainText("entity_000");
   await expect(sql.locator("tbody tr:not([aria-hidden])").first()).toContainText("1,600");
-  await page.getByRole("button", { name: "Load more", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "160 / 160" })).toBeVisible();
-  await page.getByLabel("Scrollable results", { exact: true }).evaluate(element => { element.scrollTop = element.scrollHeight; });
-  const missing = sql.getByRole("row").filter({ hasText: "entity_159" }); await expect(missing).toBeVisible(); await expect(missing).toContainText("—");
-  expect(await sql.locator("tbody tr:not([aria-hidden])").count()).toBeLessThanOrEqual(20);
-  await page.screenshot({ path: info.outputPath("business-sql-all.png"), fullPage: true });
+  await expect(sql.locator("tbody tr").last()).toContainText("entity_009");
+  await expect(sql.getByText("entity_010", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Load more", exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath("business-sql-top10.png"), fullPage: true });
   await page.setViewportSize({ width: 390, height: 900 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
   await page.getByRole("button", { name: "Switch language", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Entity SQL · 数据库实际执行", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "慢 SQL Top10", exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath("business-sql-zh-mobile.png"), fullPage: true, animations: "disabled" });
 });
 

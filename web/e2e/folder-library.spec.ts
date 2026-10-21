@@ -97,7 +97,7 @@ async function visit(page: Page, endpoint: string) {
   await page.goto(endpoint + "/#dashboards");
   await expect(page).toHaveTitle("MetricsPanel233");
   await expect(
-    page.getByRole("heading", { name: "Dashboards", exact: true }),
+    page.getByRole("heading", { name: "Template center", exact: true }),
   ).toBeVisible();
   await expect(nav(page)).toBeVisible();
   await expect(page.locator(".dashboard-file-input")).not.toBeVisible();
@@ -557,7 +557,7 @@ test("Library models retain unsafe integers through shared updates, insertion, c
   await expect(
     page.getByText("No library panels found.", { exact: true }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Dashboards", exact: true }).click();
+  await page.getByRole("tab", { name: "Templates", exact: true }).click();
   for (const id of ["library-a", "library-b"]) {
     const exported = await rawDownload(page, id);
     expect(exported).toContain('"opaque":9007199254740993');

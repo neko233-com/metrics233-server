@@ -2,6 +2,31 @@
 
 Updated: 2026-10-21. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
+### 2026-10-21 — Template center and instance dashboards
+
+- Navigation now distinguishes reusable templates from real instance dashboards. Unbound business templates
+  preview only authorized live inherit bindings; one binding is selected automatically, multiple bindings
+  require an explicit choice. Editing the shared template never persists a preview instance's fixed scope.
+- Instance lists group explicit `release`, `test` and `shared` environments; unknown values stay separate.
+  The default time range is 60 minutes, with explicit URL/user choices preserved. Large panel sizing is
+  selectable and remembered. Refresh keeps same-scope content; changing instance clears the previous scope.
+- SQL defaults to the ten Entity/operation pairs with highest weighted average latency in the last hour,
+  with milliseconds and estimated execution/failure counts. Player regions remain complete and virtualized.
+  Background ticks skip an in-flight SQL query instead of repeatedly canceling a valid slow response.
+- Native panel editing supports bytes/second through optional `display_unit=binBps` with base `unit=bytes`.
+  Custom field settings, queries, thresholds, owner metadata and revision checks are retained.
+- Feishu cards use Chinese states, Beijing time and notification cooldown wording. Contact-point tests and
+  temporary acceptance runs are clearly marked as tests; recovery never presents a masked zero as actual
+  resource usage. Custom text, plaintext escaping, signing, encoded size limits and provider ACK checks remain.
+- Validation: 147 frontend unit tests, TypeScript/Vite/webui builds, targeted business binding/ACL and
+  panel-edit HTTP tests, server vet, full alerting/notification-template package tests and targeted Feishu
+  regressions passed. Browser checks cover seven real-query fixture panels including zero, scope switching,
+  60-minute defaults, large sizing, five-second refresh without clearing content, a 6.2-second SQL response,
+  all 235 fixture regions, SQL Top10, and bytes/second editing with persisted configuration readback.
+- These are scoped source/build/browser checks. Immutable production deployment, real reports and real
+  notification delivery are separate private-deployment acceptance layers; no new Docker/race or player
+  test-account acceptance is claimed by this entry.
+
 ### 2026-10-21 — Readable panels and metric details
 
 - Stat/gauge/bar-gauge, native time-series and simple Explore charts now use readable metric/series names.

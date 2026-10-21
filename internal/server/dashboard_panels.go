@@ -21,6 +21,7 @@ type nativePanelEdit struct {
 		Title         string            `json:"title"`
 		Visualization string            `json:"visualization"`
 		Unit          string            `json:"unit"`
+		DisplayUnit   *string           `json:"display_unit,omitempty"`
 		Metric        string            `json:"metric"`
 		Expr          string            `json:"expr"`
 		Aggregation   string            `json:"aggregation"`
@@ -110,6 +111,9 @@ func applyNativePanelEdit(d model.Dashboard, input nativePanelEdit) (model.Dashb
 	if input.Panel.ID == "" {
 		return d, errors.New("panel ID is required")
 	}
+	if input.Panel.DisplayUnit != nil && (*input.Panel.DisplayUnit != "" && *input.Panel.DisplayUnit != "binBps" || *input.Panel.DisplayUnit == "binBps" && input.Panel.Unit != "bytes") {
+		return d, errors.New("display_unit must be empty or binBps; binBps requires unit bytes")
+	}
 	p := model.Panel{}
 	if index >= 0 {
 		p = d.Panels[index]
@@ -185,7 +189,24 @@ func applyNativePanelEdit(d model.Dashboard, input nativePanelEdit) (model.Dashb
 	if unit == "count" {
 		unit = "short"
 	}
-	if p.Unit != oldUnit || index < 0 || len(defaults["unit"]) == 0 {
+	oldDisplayUnit := oldUnit
+	if oldDisplayUnit == "seconds" {
+		oldDisplayUnit = "s"
+	}
+	if oldDisplayUnit == "count" {
+		oldDisplayUnit = "short"
+	}
+	var configuredUnit string
+	_ = json.Unmarshal(defaults["unit"], &configuredUnit)
+	// Omitted display_unit retains opaque imported/custom display units. Basic
+	// units still follow an explicit base-unit change when no override existed.
+	if index < 0 || len(defaults["unit"]) == 0 || p.Unit != oldUnit && configuredUnit == oldDisplayUnit {
+		defaults["unit"] = rawValue(unit)
+	}
+	if input.Panel.DisplayUnit != nil {
+		if *input.Panel.DisplayUnit != "" {
+			unit = *input.Panel.DisplayUnit
+		}
 		defaults["unit"] = rawValue(unit)
 	}
 	fields["defaults"] = rawValue(defaults)

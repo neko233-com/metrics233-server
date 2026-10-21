@@ -31,8 +31,8 @@ export function FeishuNotificationPreview({format, title, message, disabled}: {
       <label>{text("Preview state", "预览状态")}
         <select aria-label={text("Preview state", "预览状态")} value={status} disabled={disabled || busy}
           onChange={(event) => setStatus(event.target.value as "firing" | "resolved")}>
-          <option value="firing">FIRING · {text("Firing", "触发")}</option>
-          <option value="resolved">RESOLVED · {text("Resolved", "恢复")}</option>
+          <option value="firing">{text("Firing", "触发")}</option>
+          <option value="resolved">{text("Resolved", "恢复")}</option>
         </select>
       </label>
       <button type="button" disabled={disabled || busy} onClick={async () => {

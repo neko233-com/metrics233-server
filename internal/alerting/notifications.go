@@ -127,6 +127,9 @@ func (e *Engine) deliverNotification(ctx context.Context, delivery model.Notific
 	endpoint := point.URL
 	if point.Type == "feishu" {
 		endpoint = secrets["webhook_url"]
+		if delivery.Status == "test" {
+			payload["status"] = "test"
+		}
 		if delivery.CreatedAt > 0 {
 			payload["notificationCreatedAt"] = time.UnixMilli(delivery.CreatedAt).UTC().Format(time.RFC3339Nano)
 		}

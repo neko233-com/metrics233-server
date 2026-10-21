@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
@@ -84,4 +85,117 @@ func TestNativePanelSaveExportsLegacyPromQLAfterDisplayChanges(t *testing.T) {
 	assert.Equal(t, "vector(234)", result.Dashboard.Panels[0].Expr)
 	assert.Equal(t, "gauge", result.Dashboard.Panels[0].Visualization)
 	assert.Equal(t, "Gauge", result.Dashboard.Panels[0].Title)
+}
+
+func TestNativePanelDisplayUnitPreservesConfigAndExplicitlyClearsOverride(t *testing.T) {
+	db, handler := setup(t, "")
+	ctx := context.Background()
+	d, err := db.SaveDashboard(ctx, model.Dashboard{ID: "display-unit-edit", Name: "Display unit", Panels: []model.Panel{
+		{ID: "rate", Title: "Byte rate", Unit: "bytes", Expr: "rate(gateway_bytes_received_total[5m])", Aggregation: "last", Visualization: "timeseries", Config: json.RawMessage(`{"id":1,"type":"timeseries","description":"fixture description","_metrics233_dashboard_provision_owner":"fixture-owner","opaque":1e10000,"gridPos":{"x":0,"y":0,"w":12,"h":8},"fieldConfig":{"defaults":{"unit":"ms","decimals":3,"thresholds":{"mode":"absolute","steps":[{"color":"red","value":42}]},"color":{"mode":"thresholds"}},"overrides":[{"matcher":{"id":"byName","options":"fixture"},"properties":[{"id":"decimals","value":1}]}]}}`)},
+		{ID: "other", Title: "Other", Unit: "count", Expr: "vector(7)", Aggregation: "last"},
+	}})
+	require.NoError(t, err)
+	other := d.Panels[1]
+	baseline := d.Panels[0]
+	decodeConfig := func(panel model.Panel) (map[string]json.RawMessage, map[string]json.RawMessage, map[string]json.RawMessage) {
+		t.Helper()
+		var config, fields, defaults map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(panel.Config, &config))
+		require.NoError(t, json.Unmarshal(config["fieldConfig"], &fields))
+		require.NoError(t, json.Unmarshal(fields["defaults"], &defaults))
+		return config, fields, defaults
+	}
+	baselineConfig, baselineFields, baselineDefaults := decodeConfig(baseline)
+	edit := func(unit string, display *string) {
+		t.Helper()
+		panel := map[string]any{"id": "rate", "title": "Byte rate", "unit": unit, "expr": baseline.Expr, "aggregation": "last", "visualization": "timeseries"}
+		if display != nil {
+			panel["display_unit"] = *display
+		}
+		body, err := json.Marshal(map[string]any{"action": "save", "sourceId": "rate", "panel": panel})
+		require.NoError(t, err)
+		r := httptest.NewRequest(http.MethodPatch, "/api/v1/dashboards/"+d.ID+"/panels", bytes.NewReader(body))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("If-Match", strconv.FormatInt(d.UpdatedAt, 10))
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &d))
+		require.Equal(t, other, d.Panels[1])
+		config, fields, defaults := decodeConfig(d.Panels[0])
+		for _, key := range []string{"description", "_metrics233_dashboard_provision_owner", "opaque", "gridPos"} {
+			require.Equal(t, baselineConfig[key], config[key], key)
+		}
+		require.Equal(t, baselineFields["overrides"], fields["overrides"])
+		for _, key := range []string{"thresholds", "decimals", "color"} {
+			require.Equal(t, baselineDefaults[key], defaults[key], key)
+		}
+	}
+	assertUnit := func(expected string) {
+		t.Helper()
+		_, _, defaults := decodeConfig(d.Panels[0])
+		require.JSONEq(t, strconv.Quote(expected), string(defaults["unit"]))
+	}
+	// Legacy/custom display units survive omission, including a base-unit edit.
+	edit("bytes", nil)
+	assertUnit("ms")
+	edit("seconds", nil)
+	assertUnit("ms")
+	rate, clear := "binBps", ""
+	edit("bytes", &rate)
+	assertUnit("binBps")
+	edit("bytes", nil)
+	assertUnit("binBps")
+	edit("bytes", &clear)
+	assertUnit("bytes")
+	edit("seconds", &clear)
+	assertUnit("s")
+	edit("count", &clear)
+	assertUnit("short")
+	// Existing basic-unit editing still follows the base when no custom override exists.
+	edit("percent", nil)
+	assertUnit("percent")
+}
+
+func TestNativePanelDisplayUnitRejectsInvalidInputsAndStaleCASWithoutWrites(t *testing.T) {
+	db, handler := setup(t, "fixture-management-token")
+	ctx := context.Background()
+	d, err := db.SaveDashboard(ctx, model.Dashboard{ID: "display-unit-reject", Name: "Display unit", Panels: []model.Panel{{ID: "rate", Title: "Rate", Unit: "bytes", Expr: "vector(1)", Aggregation: "last", Config: json.RawMessage(`{"id":1,"fieldConfig":{"defaults":{"unit":"bytes"},"overrides":[]}}`)}}})
+	require.NoError(t, err)
+	request := func(unit, display, token string, revision int64) *httptest.ResponseRecorder {
+		t.Helper()
+		body := `{"action":"save","sourceId":"rate","panel":{"id":"rate","title":"Rate","expr":"vector(1)","aggregation":"last","unit":` + strconv.Quote(unit) + `,"display_unit":` + display + `}}`
+		r := httptest.NewRequest(http.MethodPatch, "/api/v1/dashboards/"+d.ID+"/panels", bytes.NewBufferString(body))
+		r.Header.Set("Content-Type", "application/json")
+		if token != "" {
+			r.Header.Set("Authorization", "Bearer "+token)
+		}
+		if revision != 0 {
+			r.Header.Set("If-Match", strconv.FormatInt(revision, 10))
+		}
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		return w
+	}
+	for _, input := range []struct{ unit, display string }{
+		{"bytes", `"Bps"`}, {"bytes", `"bytes"`}, {"bytes", `"binbps"`},
+		{"seconds", `"binBps"`}, {"", `"binBps"`}, {"bytes", `17`}, {"bytes", `true`},
+	} {
+		w := request(input.unit, input.display, "fixture-management-token", d.UpdatedAt)
+		require.Equal(t, http.StatusBadRequest, w.Code, w.Body.String())
+		saved, err := db.Dashboard(ctx, d.ID)
+		require.NoError(t, err)
+		require.Equal(t, d, saved)
+	}
+	require.Equal(t, http.StatusUnauthorized, request("bytes", `"binBps"`, "", d.UpdatedAt).Code)
+	require.Equal(t, http.StatusPreconditionRequired, request("bytes", `"binBps"`, "fixture-management-token", 0).Code)
+	oldRevision := d.UpdatedAt
+	w := request("bytes", `"binBps"`, "fixture-management-token", oldRevision)
+	require.Equal(t, http.StatusOK, w.Code, w.Body.String())
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &d))
+	w = request("bytes", `""`, "fixture-management-token", oldRevision)
+	require.Equal(t, http.StatusConflict, w.Code, w.Body.String())
+	saved, err := db.Dashboard(ctx, d.ID)
+	require.NoError(t, err)
+	require.Equal(t, d, saved, "stale clear must not discard the saved override")
 }

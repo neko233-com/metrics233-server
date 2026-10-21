@@ -40,7 +40,7 @@ func TestFeishuCardDefaultsColorsRuleFactsAndNoRawLabelDump(t *testing.T) {
 			require.Equal(t, "interactive", value["msg_type"])
 			card := value["card"].(map[string]any)
 			require.Equal(t, item.color, card["header"].(map[string]any)["template"])
-			for _, expected := range []string{"example-host", "CPU", "88.50%", "10m", "5m", "1h", "85%", "UTC", "https://monitoring.example.com/base/#alerts"} {
+			for _, expected := range []string{"example-host", "CPU", "88.50%", "10分钟", "5分钟", "1小时", "85%", "北京时间", "18:00:00", "最近 60 分钟", "https://monitoring.example.com/base/#alerts"} {
 				require.Contains(t, string(body), expected)
 			}
 			for _, hidden := range []string{"private-validation-identifier", "private-manager", "NEVER-DUMP-PROMQL-EXPRESSION", "https://untrusted.example", "lark_md", "markdown"} {
@@ -87,16 +87,73 @@ func TestFeishuCardAcceptanceIsExplicitAndNeverMisstatesZeroUsage(t *testing.T) 
 	body, err := RenderFeishuNotification(payload, "interactive", "", nil, time.Now())
 	require.NoError(t, err)
 	require.Contains(t, string(body), "非资源故障")
-	require.Contains(t, string(body), "不代表资源使用率为 0")
+	require.Contains(t, string(body), "通知测试结束")
+	require.NotContains(t, string(body), "A=0")
+	require.NotContains(t, string(body), "验收时间窗")
 	delete(alert["labels"].(map[string]any), "scope")
 	body, err = RenderFeishuNotification(payload, "interactive", "", nil, time.Now())
 	require.NoError(t, err)
-	require.Contains(t, string(body), "条件已恢复；规则评估值 0 不代表资源使用率为 0")
+	require.Contains(t, string(body), "已满足恢复条件")
 	require.NotContains(t, string(body), "A=0.00%")
 	for _, raw := range []string{"http://monitoring.example", "https://user:pass@monitoring.example", "https://monitoring.example?secret=x", "https://monitoring.example#untrusted"} {
 		root, _ := url.Parse(raw)
 		require.Empty(t, trustedFeishuAlertURL(root))
 	}
+}
+
+func TestFeishuCardReadableSnapshotAndCustomText(t *testing.T) {
+	payload := feishuCardFixture("firing", "critical")
+	payload["notificationCreatedAt"] = "2026-10-21T15:59:59Z"
+	payload["message"] = "请值班同学检查数据库连接池。"
+	alert := payload["alerts"].([]any)[0].(map[string]any)
+	alert["annotations"].(map[string]any)["value_label"] = "触发时使用率"
+	body, err := RenderFeishuNotification(payload, "", "", nil, time.Date(2026, 10, 22, 2, 0, 0, 0, time.UTC))
+	require.NoError(t, err)
+	for _, expected := range []string{"持续超限", "触发时使用率 · 88.50%", "23:59:59", "请值班同学检查数据库连接池。", "通知冷却 1小时"} {
+		require.Contains(t, string(body), expected)
+	}
+	for _, hidden := range []string{"FIRING", "RESOLVED", "warning", "critical", "CD ", "UTC", "A=", "\\u003cnil\\u003e"} {
+		require.NotContains(t, string(body), hidden)
+	}
+	body, err = RenderFeishuNotification(map[string]any{"status": "test", "title": "飞书连接测试"}, "", "", nil, time.Now())
+	require.NoError(t, err)
+	require.Contains(t, string(body), "通知测试")
+	require.NotContains(t, string(body), "持续超限")
+	payload = feishuCardFixture("firing", "warning")
+	alert = payload["alerts"].([]any)[0].(map[string]any)
+	alert["annotations"].(map[string]any)["summary"] = "需要保留的自定义说明"
+	payload["commonAnnotations"] = map[string]any{"summary": "需要保留的自定义说明"}
+	payload["message"] = "需要保留的自定义说明"
+	body, err = RenderFeishuNotification(payload, "", "", nil, time.Now())
+	require.NoError(t, err)
+	require.Contains(t, string(body), "需要保留的自定义说明")
+}
+
+func TestFeishuContactPointTestUsesTestCardInsteadOfResourceAlarm(t *testing.T) {
+	ctx := context.Background()
+	s := notificationStore(t)
+	_, err := s.SaveContactPoint(ctx, model.ContactPointInput{ContactPoint: model.ContactPoint{UID: "readable-test", Name: "Operations", Type: "feishu", URL: syntheticFeishuURL}})
+	require.NoError(t, err)
+	queued, err := s.EnqueueTestNotification(ctx, "readable-test")
+	require.NoError(t, err)
+	var received string
+	e := &Engine{Store: s, notificationTransport: localFeishuTransport(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		received = string(body)
+		_, _ = io.WriteString(w, `{"code":0}`)
+	}))}
+	processed, err := e.ProcessNotification(ctx, time.Now().Add(time.Second))
+	require.NoError(t, err)
+	require.True(t, processed)
+	require.Contains(t, received, "通知测试 · 飞书通知")
+	require.Contains(t, received, "无需处理")
+	require.NotContains(t, received, "持续超限")
+	require.NotContains(t, received, "Test notification")
+	items, err := s.Notifications(ctx, "readable-test", 10)
+	require.NoError(t, err)
+	require.Equal(t, queued.ID, items[0].ID)
+	require.Equal(t, "sent", items[0].State)
 }
 
 func TestFeishuCardTLSGroupedFiringResolvedAndCooldownRequireFullACK(t *testing.T) {

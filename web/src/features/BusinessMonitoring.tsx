@@ -67,12 +67,12 @@ export default function BusinessMonitoring({ metrics, dashboards, reload, open, 
 
   return <>
     <div className="page-heading">
-      <div><h1>{text("Business monitoring", "业务监控")}</h1><p>{text("Turn application metrics into a dashboard and an alert.", "将应用业务指标连接到仪表盘与告警。")}</p></div>
+      <div><h1>{text("Dashboards", "仪表盘")}</h1></div>
       <Button disabled={busy} onClick={async () => { setError(""); try { await reload(); } catch (cause) { setError(message(cause)); } }}><RefreshCw size={16} />{text("Refresh metrics", "刷新指标")}</Button>
     </div>
     {error && <Alert severity="error" title={text("Request failed", "操作失败")}>{error}</Alert>}
     <Suspense fallback={<p role="status">{text("Loading instances…", "正在加载实例…")}</p>}><BusinessInstances dashboards={dashboards} open={open} reload={reload} tick={tick} /></Suspense>
-    <div className="business-grid">
+    <details className="business-setup"><summary>{text("Connect metrics or create a template", "接入指标或创建模板")}</summary><div className="business-grid">
       <section className="business-card" aria-labelledby="business-dashboard-title">
         <h2 id="business-dashboard-title"><Activity size={19} />{text("Build from your metrics", "使用真实指标建图")}</h2>
         <p className="subtle">{text("Choose a metric already received by this workspace. Counter rates need at least two samples in five minutes.", "选择工作区已收到的指标。计数器速率需要 5 分钟内至少两个样本。")}</p>
@@ -108,6 +108,6 @@ export default function BusinessMonitoring({ metrics, dashboards, reload, open, 
         </details>
         <p className="subtle">{text("Keep labels bounded: service, environment, region. Avoid user IDs, order IDs or secrets. Revenue metrics should state currency and units. DAU and retention require upstream deduplication; gauges alone do not calculate them.", "标签使用有界的服务、环境、区域；避免用户 ID、订单 ID 和凭据。收入指标应注明币种与单位。DAU 与留存需上游去重计算，不能直接由在线人数推算。")}</p>
       </section>
-    </div>
+    </div></details>
   </>;
 }

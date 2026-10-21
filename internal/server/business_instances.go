@@ -149,7 +149,42 @@ func (s *Server) businessRoutes(api routeRegistrar) {
 			fail(w, 400, errors.New("invalid limit"))
 			return
 		}
-		page, err := s.Store.FindBusinessInstances(r.Context(), r.URL.Query().Get("cursor"), r.URL.Query().Get("q"), limit)
+		var page store.BusinessInstancePage
+		if values, present := r.URL.Query()["template_id"]; present {
+			if len(values) != 1 || values[0] == "" || len(values[0]) > 200 || strings.ContainsAny(values[0], "\x00\r\n") {
+				fail(w, 400, errors.New("invalid template_id"))
+				return
+			}
+			template, readErr := s.Store.Dashboard(r.Context(), values[0])
+			if readErr != nil {
+				writeResourceReadError(w, readErr)
+				return
+			}
+			template, allowed, readErr := s.readableDashboard(r.Context(), template, true)
+			if readErr != nil {
+				writeResourceReadError(w, readErr)
+				return
+			}
+			if !allowed {
+				writeResourceReadError(w, identity.ErrForbidden)
+				return
+			}
+			if len(template.Grafana) != 0 {
+				fail(w, 400, errors.New("business templates must be native dashboards"))
+				return
+			}
+			page, err = s.Store.FindBusinessInstancesForTemplate(r.Context(), r.URL.Query().Get("cursor"), r.URL.Query().Get("q"), template.ID, limit)
+		} else {
+			// An explicit grant on one template never grants the whole catalog.
+			if s.Authorizer != nil {
+				principal, ok := identity.FromContext(r.Context())
+				if !ok || !principal.Role.AtLeast(identity.RoleViewer) {
+					writeResourceReadError(w, identity.ErrForbidden)
+					return
+				}
+			}
+			page, err = s.Store.FindBusinessInstances(r.Context(), r.URL.Query().Get("cursor"), r.URL.Query().Get("q"), limit)
+		}
 		if err != nil {
 			fail(w, 400, err)
 			return

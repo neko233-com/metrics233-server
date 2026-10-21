@@ -731,7 +731,7 @@ test("Native collector forms preserve credentials, scrape Redis, and use plain C
     await page.screenshot({path:testInfo.outputPath("command-line-en.png"),animations:"disabled"});
     await page.getByRole("button",{name:"Explore",exact:true}).click();
     await expect(page.getByText("Query stored metrics or a configured datasource.",{exact:true})).toBeVisible();
-    await page.getByRole("button",{name:"Dashboards",exact:true}).click();
+    await page.getByRole("button",{name:"Template center",exact:true}).click();
     await expect(page.locator(".page-heading p")).toHaveText(/^\d+ dashboards · \d+ folders$/);
     await page.getByRole("button",{name:"Collectors",exact:true}).click();
     await page.getByRole("button",{name:"Switch language",exact:true}).click();
@@ -6391,7 +6391,7 @@ test("V2 refresh defaults, URL overrides and bilingual controls schedule and sto
       .click();
     await page.setViewportSize({ width: 1536, height: 1024 });
     await picker.selectOption("7s");
-    await page.getByRole("button", { name: "Dashboards", exact: true }).click();
+    await page.getByRole("button", { name: "Template center", exact: true }).click();
     const departedCount = requests;
     await page.waitForTimeout(7400);
     expect(requests).toBe(departedCount);
@@ -6651,7 +6651,7 @@ test("SDK application events refresh real queries, notify ranges and preserve si
       animations: "disabled",
     });
     // Unmount both local panel buses, then mount them again. The global bus survives.
-    await page.getByRole("button", { name: "Dashboards", exact: true }).click();
+    await page.getByRole("button", { name: "Template center", exact: true }).click();
     await expect(first).toHaveCount(0);
     await global
       .getByRole("button", { name: "SDK global refresh", exact: true })
@@ -8032,7 +8032,7 @@ test("Grafana resource layout, SDK transforms, instant tables, units, repeat and
   });
   expect(ingest.ok()).toBe(true);
   await page.goto(endpoint);
-  await page.getByRole("button", { name: "Dashboards", exact: true }).click();
+  await page.getByRole("button", { name: "Template center", exact: true }).click();
   const panel = {
     type: "stat",
     targets: [
@@ -8239,7 +8239,7 @@ test("English and Chinese, panels, PromQL, dashboards and collector forms", asyn
   await expect(page.getByRole("dialog").getByText("sum(metricspanel_goroutines)", { exact: true })).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
   await expect(page.locator(".chart-panel .form-error")).toHaveCount(0);
-  await page.getByRole("button", { name: "Dashboards", exact: true }).click();
+  await page.getByRole("button", { name: "Template center", exact: true }).click();
   await page
     .getByRole("button", { name: "New dashboard", exact: true })
     .click();
@@ -8294,7 +8294,7 @@ test("Grafana template import, variables and desktop navigation", async ({
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.goto(endpoint);
-  await page.getByRole("button", { name: "Dashboards", exact: true }).click();
+  await page.getByRole("button", { name: "Template center", exact: true }).click();
   await page.locator("input[type=file]").setInputFiles({
     name: "grafana.json",
     mimeType: "application/json",
@@ -8376,7 +8376,7 @@ test("Workspace shell collapses the left navigation and keeps content responsive
     .poll(async () => (await sidebar.boundingBox())!.width)
     .toBeLessThanOrEqual(80);
   await expect(
-    page.getByRole("button", { name: "Dashboards", exact: true }).locator("span"),
+    page.getByRole("button", { name: "Template center", exact: true }).locator("span"),
   ).toBeHidden();
   expect(
     await page.evaluate(

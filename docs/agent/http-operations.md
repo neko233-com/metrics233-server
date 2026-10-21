@@ -6,6 +6,8 @@ For local accounts, inspect `GET /api/auth/status`, then use `POST /login` with 
 
 Read before changing. Preserve resource versions, use `If-Match` for native panel edits, and treat 409 as a request to re-read and decide again. Collector target writes currently have no CAS: read, back up privately, read again, write once and verify; an uncertain response is not permission to retry. Saved credentials are masked/write-only: omit secret changes when retaining a contact point or collector. Do not copy a masked response back as a secret.
 
+Native panel `PATCH /api/v1/dashboards/{id}/panels` accepts optional `panel.display_unit`: omission retains a custom display unit, explicit `""` restores the base-unit mapping, and `"binBps"` requires `panel.unit="bytes"`; only `config.fieldConfig.defaults.unit` changes, preserving other configuration and the existing permission/revision boundary.
+
 Preview alert queries and Feishu templates through their dedicated preview endpoints. Rule `evaluate`, scrape, contact-point test and notification delivery can have runtime/external effects and are not previews. A queued notification is not a delivered notification; inspect delivery state and the provider ACK separately.
 
 Configure pending duration, recovery duration, no-data/error behavior and notification cooldown explicitly. A dashboard risk color is a display threshold, not an alert trigger. Missing metrics do not prove recovery or zero utilization. Business instance labels identify observations and fix template variables; they never grant authentication, source allowlisting or dashboard ACLs.

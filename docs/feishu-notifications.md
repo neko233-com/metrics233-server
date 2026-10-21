@@ -36,7 +36,7 @@ Webhook 地址包含凭据，和 `signing_secret` 一起使用现有 `secrets.ke
 
 `feishu_format` 省略或为 `interactive` 时发送告警卡片；`text` 显式保留文本兼容格式。旧联系点不需要迁移数据库即可采用默认卡片。卡片使用飞书支持的经典卡片结构、`plain_text` 文本与跳转按钮：critical 触发为红色、warning/info 触发为橙色、恢复为绿色。分组最多展开 6 项资源，包含主机、资源、中文及原始严重级别、规则评估值、开始/恢复时间、本轮持续时间和创建通知时的 `for` / `keep_firing_for` / CD 配置。剩余资源通过计数提示，在告警页面查看。
 
-默认优先使用规则注释 `title` / `summary`、`threshold` / `condition`、`description` 和显式 `unit`。不解析任意 PromQL 推测阈值或单位；没有阈值注释时显示“满足规则条件”，不默认展开表达式、`managed_by`、`validation_id` 或全部标签。规则评估值未必是原始资源使用率，尤其 `BASE * (BASE > bool T)` 恢复时产生的 0 仅表示条件为假；CPU/内存/磁盘恢复且评估值为 0 时会明确说明，不冒充资源实际使用率为 0。`scope=acceptance` 的整组临时验收始终明确标记“告警链路验收，非资源故障”，时间窗关闭也不冒充实际利用率为 0。
+默认优先使用规则注释 `title` / `summary`、`threshold` / `condition`、`action` / `description` 和显式 `unit`；`value_label` 可说明评估值口径。中文卡片使用“持续超限 / 已恢复”、北京时间、持续条件及重复通知间隔；同组默认 summary 不再重复输出。不解析任意 PromQL 推测阈值或单位，也不默认展开表达式、`managed_by`、`validation_id` 或全部标签。规则评估值未必是原始资源使用率，尤其 `BASE * (BASE > bool T)` 恢复时产生的 0 仅表示条件为假；CPU/内存/磁盘恢复且评估值为 0 时显示“已满足恢复条件”，不冒充实际使用率为 0。`scope=acceptance` 的整组临时验收和联系点测试使用蓝色“通知测试”卡片，明确非资源故障、无需处理，不逐条输出验收公式和条件值。
 
 超长内容按 UTF-8 边界截断，限制编码后的完整 JSON（含签名）不超过 20 KiB。签名使用秒级发送时间，把 `timestamp + "\n" + secret` 作为 HMAC-SHA256 密钥，对空消息求摘要并 Base64 编码，每次发送重新生成。保持服务器时钟同步。签名、卡片、20 KB 限制及业务成功码见[飞书官方自定义机器人指南](https://open.feishu.cn/document/client-docs/bot-v3/add-custom-bot)。
 
