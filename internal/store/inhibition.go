@@ -482,6 +482,13 @@ func (s *Store) ValidateNotificationClaim(ctx context.Context, delivery model.No
 	if delivery.Status == "test" {
 		return true, tx.Commit()
 	}
+	validCooldown, err := validCooldownNotificationTx(ctx, tx, delivery.ID, at)
+	if err != nil {
+		return false, err
+	}
+	if !validCooldown {
+		return false, tx.Commit()
+	}
 	silences, err := activeSilencesTx(ctx, tx, at)
 	if err != nil {
 		return false, err
@@ -490,7 +497,7 @@ func (s *Store) ValidateNotificationClaim(ctx context.Context, delivery model.No
 	if err != nil {
 		return false, err
 	}
-	grouped, valid, err := validGroupNotificationTx(ctx, tx, delivery.ID, at, suppressor)
+	grouped, valid, err := validGroupNotificationTx(ctx, tx, delivery.ID, at, suppressor, true)
 	if err != nil {
 		return false, err
 	}

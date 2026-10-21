@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log/slog"
 	"math"
+	"net/http"
 	"net/url"
 	"sort"
 	"strconv"
@@ -31,10 +32,13 @@ type Engine struct {
 	Query       QueryFunc
 	GraphSource expressions.SourceQuery
 	TemplateURL *url.URL
-	groupMu     sync.RWMutex
-	mu          sync.Mutex
-	active      map[string]bool
-	slots       chan struct{}
+	// nil uses the standard transport. Kept private so local protocol fixtures
+	// can exercise TLS without sending to an external notification service.
+	notificationTransport http.RoundTripper
+	groupMu               sync.RWMutex
+	mu                    sync.Mutex
+	active                map[string]bool
+	slots                 chan struct{}
 }
 
 func New(s *store.Store, prom *promcompat.API) *Engine {

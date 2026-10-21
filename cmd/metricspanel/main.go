@@ -80,7 +80,7 @@ Usage: metricspanel <command> [flags]
   annotations  list | get | save | patch | tags | delete | graphite
   patterns     capture | list | get | search | delete (persistent vector analysis)
   alerts       list | get | save | import-grafana | preview | evaluate | history | delete | group-get | group-save | group-delete
-  contacts     list | get | save | test | delete (alert webhook contact points)
+  contacts     list | get | save | test | delete (Webhook/Feishu alert contact points)
   notifications list | retry | policy | policy-save | groups (routing and durable delivery records)
   silences list | get | save | expire | preview (label matching and timed notification muting)
   mute-timings list | get | save | delete | preview (calendar intervals with timezones)
@@ -1390,8 +1390,9 @@ func serve(args []string) error {
 	clickhouseURL := f.String("clickhouse-url", env("CLICKHOUSE_URL", "http://127.0.0.1:8123"), "ClickHouse HTTP endpoint")
 	token := f.String("token", env("METRICSPANEL_TOKEN", ""), "API token; mandatory on non-loopback interfaces")
 	authMode := f.String("auth", env("METRICSPANEL_AUTH", "token"), "authentication mode: token (single workspace Bearer) or local (users, passwords and browser sessions)")
+	ingestToken := os.Getenv("METRICSPANEL_INGEST_TOKEN") // Environment only: never put reporting credentials in process arguments.
 	identityDB := f.String("identity-db", env("METRICSPANEL_IDENTITY_DB", ""), "identity catalog path for --auth=local; default beside the control database")
-	trustedProxies := f.String("trusted-proxies", env("METRICSPANEL_TRUSTED_PROXIES", ""), "comma-separated CIDRs allowed to supply X-Forwarded-For for login rate limiting")
+	trustedProxies := f.String("trusted-proxies", env("METRICSPANEL_TRUSTED_PROXIES", ""), "comma-separated CIDRs allowed to supply X-Forwarded-For for login rate limiting and reporting source access")
 	pluginDir := f.String("plugins-dir", env("METRICSPANEL_PLUGINS_DIR", ""), "plugin packages directory; default beside the control database")
 	allowUnsigned := f.String("allow-unsigned-plugin", env("METRICSPANEL_ALLOW_UNSIGNED_PLUGINS", ""), "comma-separated development plugin IDs explicitly allowed without signatures")
 	rootURL := f.String("root-url", env("METRICSPANEL_ROOT_URL", "http://127.0.0.1:7333"), "public application URL; used for private plugin signatures")
@@ -1407,6 +1408,9 @@ func serve(args []string) error {
 	}
 	if *authMode != "token" && *authMode != "local" {
 		return errors.New("--auth must be token or local")
+	}
+	if err := server.ValidateIngestTokenConfig(*authMode, *token, ingestToken); err != nil {
+		return err
 	}
 	host, port, err := net.SplitHostPort(*listen)
 	if err != nil {
@@ -1521,6 +1525,14 @@ func serve(args []string) error {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 	srv := server.New(storage, *token, *retention)
+	if err := srv.ConfigureIngestToken(*authMode, ingestToken); err != nil {
+		listener.Close()
+		return err
+	}
+	if err := srv.ConfigureReportingProxies(strings.Split(*trustedProxies, ",")); err != nil {
+		listener.Close()
+		return err
+	}
 	srv.Alerts.TemplateURL = parsedRoot
 	srv.PublicHTTPS = parsedRoot.Scheme == "https"
 	allowed := []string{}
@@ -1596,6 +1608,14 @@ func schema() any {
 		"query_limits":   map[string]int{"max_range_days": 31, "max_series": 200, "max_samples": 250000, "max_buckets": 2000},
 	}
 	result["commands"] = append(result["commands"].([]string), "patterns capture --metric NAME [--range 30m --start MS --end MS --normalization shape|raw --aggregation last|rate --labels '{}']", "patterns list [--limit 1000]", "patterns get --id ID", "patterns search --id ID [--metric NAME --labels '{}' --limit 10 --exact --include-self]", "patterns delete --id ID", "users list", "users me", "users create --file FILE|-", "users update --id ID --file FILE|-")
+	result["environment"].(map[string]string)["METRICSPANEL_INGEST_TOKEN"] = "Environment-only ingest token, token mode only; 32–8192 printable non-whitespace ASCII characters; separate management token required"
+	result["ingest_authentication"] = map[string]any{
+		"management_token":  "METRICSPANEL_TOKEN retains workspace management and ingestion access; do not distribute it to reporting agents",
+		"ingest_only_token": "METRICSPANEL_INGEST_TOKEN; one Authorization: Bearer header; source-IP policy still applies",
+		"allowed_method":    "POST",
+		"allowed_paths":     []string{"/api/v1/ingest", "/api/v1/write", "/prometheus/api/v1/write", "/v1/metrics", "/otlp/v1/metrics"},
+		"other_paths":       "403; duplicate Authorization 401; no query/cookie credentials; unsupported in local mode",
+	}
 	routes := result["api"].(map[string][]string)
 	addDashboardResourceSchema(result, routes)
 	addDashboardHistorySchema(result, routes)
@@ -1615,7 +1635,13 @@ func schema() any {
 	result["commands"] = append(result["commands"].([]string), "alerts preview --file FILE|- [--at UNIX_MS] (read-only graph or native rule; partial errors retain frames and exit 1)")
 	routes["PUT"] = append(routes["PUT"], "/api/v1/alerts/rules/{uid}", "/api/v1/provisioning/alert-rules/{uid}")
 	routes["DELETE"] = append(routes["DELETE"], "/api/v1/alerts/rules/{uid}", "/api/v1/provisioning/alert-rules/{uid}")
-	result["alerting"] = map[string]any{"conditions": []string{"presence (returned samples fire, including zero)", "nonzero (boolean expressions)"}, "states": []string{"Normal", "Pending", "Firing", "Recovering", "NoData", "Error"}, "durability": "SQLite WAL control-plane state, timers and last 100000 transitions survive restarts", "limits": map[string]int{"rules": 1000, "instances_per_query": 1000, "concurrent_evaluations": 4}, "notifications": "webhook contact points, policy/per-rule routing and durable firing/resolved delivery with bounded retries"}
+	result["alerting"] = map[string]any{"conditions": []string{"presence (returned samples fire, including zero)", "nonzero (boolean expressions)"}, "states": []string{"Normal", "Pending", "Firing", "Recovering", "NoData", "Error"}, "durability": "SQLite WAL control-plane state, timers and last 100000 transitions survive restarts", "limits": map[string]int{"rules": 1000, "instances_per_query": 1000, "concurrent_evaluations": 4}, "notifications": "Webhook and signed Feishu contact points, policy/per-rule routing and durable firing/resolved delivery with bounded retries"}
+	result["alerting"].(map[string]any)["notification_cooldown"] = map[string]any{
+		"field": "notification_cooldown_seconds", "minimum": 0, "maximum": 604800,
+		"api_default": 0, "new_rule_ui_default": 3600,
+		"scope":               "receiver/rule/instance/severity; minimum interval between all successful firing ACKs",
+		"same_period_repeats": "at least max(rule cooldown, explicit policy repeat_interval); zero repeat disables reminders; cooldown zero retains legacy timing",
+	}
 	result["alert_recovery"] = map[string]any{"model": "threshold.conditions[0].unloadEvaluator; only allowed on the alert condition", "evaluation": "query-label fingerprints choose loading versus inverted recovery predicate; Pending/Firing with empty reason are loaded; Recovering/Normal/NoData/Error and policy reasons use loading", "durability": "runtime.instances[].result_fingerprint persists raw query identity independently of configured labels; pending/recovery timers survive restart", "queries": "loadedFingerprints decimal uint64 strings; legacy fingerprints v1 loadedDimensions frames accepted; a new list takes precedence", "provisioning": "stored models remain unchanged; alert evaluation overrides client-provided cached dimensions using persisted state", "boundaries": "all comparison/range operators; strict or inclusive boundaries follow the selected evaluator; nullable inputs remain no-data", "agent": "alerts save --file examples/alerts/graph-recovery-memory.json; get/evaluate/history and Grafana group reconciliation"}
 	result["alert_templates"] = map[string]any{"variables": []string{"$labels: query labels plus pinned reserved alertname/folder context; excludes configured rule labels", "$values: numeric captures by RefID; range frames excluded; exact/subset/superset label matches", "$value: numeric when exactly one datasource capture, otherwise stable evaluation string"}, "classic": "only indexed classic matches K0/K1/etc with labels and nullable values; condition query labels are removed", "functions": "upstream Prometheus text functions plus Grafana filterLabels/filterLabelsRe/removeLabels/removeLabelsRe/mergeLabelValues/graphLink/tableLink; query() is a no-op", "durability": "rendered instance annotations, template warnings and transition annotations persist; original templates retained in rule definitions", "errors": "parse/runtime/budget errors retain original field text and add template_errors; alert truth and health are unchanged", "limits": map[string]int{"label_bytes": 512, "annotation_bytes": 4096, "steps_per_field": 50000, "capture_work": 2000000}, "links": "externalURL/pathPrefix use serve --root-url or METRICSPANEL_ROOT_URL", "agent": "alerts save/import-grafana and get/evaluate/history expose templates and rendered values; examples/alerts/template-memory.json", "editor": "English/Chinese per-instance summary/description and expandable template warnings"}
 	groupPath := "/api/v1/provisioning/folder/{folder}/rule-groups/{group}"

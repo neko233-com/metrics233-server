@@ -27,9 +27,10 @@ type ContactPoint struct {
 // empty value or clear_secrets removes the named credential.
 type ContactPointInput struct {
 	ContactPoint
-	BearerToken  *string           `json:"bearer_token,omitempty"`
-	Headers      map[string]string `json:"headers,omitempty"`
-	ClearSecrets []string          `json:"clear_secrets,omitempty"`
+	BearerToken   *string           `json:"bearer_token,omitempty"`
+	SigningSecret *string           `json:"signing_secret,omitempty"`
+	Headers       map[string]string `json:"headers,omitempty"`
+	ClearSecrets  []string          `json:"clear_secrets,omitempty"`
 }
 
 var notificationHeaderName = regexp.MustCompile(`^[!#$%&'*+.^_\x60|~0-9A-Za-z-]+$`)
@@ -58,12 +59,20 @@ func (c ContactPoint) Validate() error {
 	if !alertUID.MatchString(c.UID) || strings.TrimSpace(c.Name) == "" || len(c.Name) > 256 {
 		return errors.New("contact point requires a valid UID and a name of 1–256 bytes")
 	}
-	if c.Type != "webhook" {
-		return errors.New("only webhook contact points are supported")
+	if c.Type != "webhook" && c.Type != "feishu" {
+		return errors.New("contact point type must be webhook or feishu")
 	}
-	u, err := url.Parse(c.URL)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Fragment != "" || len(c.URL) > 4096 {
-		return errors.New("webhook URL must be an absolute HTTP(S) URL without user credentials or a fragment")
+	if c.Type == "feishu" {
+		// A saved Feishu point exposes no URL; SaveContactPoint validates the
+		// complete URL again after merging its encrypted credentials.
+		if c.URL != "" && !ValidFeishuWebhookURL(c.URL) {
+			return errors.New("Feishu URL must be an official HTTPS custom-bot v2 webhook URL")
+		}
+	} else {
+		u, err := url.Parse(c.URL)
+		if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil || u.Fragment != "" || len(c.URL) > 4096 {
+			return errors.New("webhook URL must be an absolute HTTP(S) URL without user credentials or a fragment")
+		}
 	}
 	if c.TimeoutSeconds < 1 || c.TimeoutSeconds > 30 {
 		return errors.New("webhook timeout must be 1–30 seconds")
@@ -72,6 +81,13 @@ func (c ContactPoint) Validate() error {
 		return errors.New("contact point template expressions must be at most 65536 bytes")
 	}
 	return nil
+}
+
+var feishuHookPath = regexp.MustCompile(`^/open-apis/bot/v2/hook/[A-Za-z0-9_-]{1,256}$`)
+
+func ValidFeishuWebhookURL(raw string) bool {
+	u, err := url.Parse(raw)
+	return err == nil && u.Scheme == "https" && u.Host == "open.feishu.cn" && u.User == nil && u.RawQuery == "" && u.Fragment == "" && u.RawPath == "" && feishuHookPath.MatchString(u.Path)
 }
 
 type NotificationMatcher struct {

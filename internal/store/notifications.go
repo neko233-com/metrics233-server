@@ -28,6 +28,9 @@ CREATE INDEX IF NOT EXISTS alert_notification_ordering ON alert_notification_out
 	if err != nil {
 		return err
 	}
+	if err := s.initNotificationCooldown(); err != nil {
+		return err
+	}
 	if err := s.initSilences(); err != nil {
 		return err
 	}
@@ -90,11 +93,20 @@ func (s *Store) SaveContactPoint(ctx context.Context, input model.ContactPointIn
 	if err := input.Validate(); err != nil {
 		return model.ContactPoint{}, err
 	}
-	if len(input.Headers) > 32 || len(input.ClearSecrets) > 33 {
+	if len(input.Headers) > 32 || len(input.ClearSecrets) > 35 {
 		return model.ContactPoint{}, errors.New("contact point supports at most 32 secret headers")
 	}
 	if input.BearerToken != nil && (len(*input.BearerToken) > 16384 || strings.ContainsAny(*input.BearerToken, "\r\n\x00")) {
 		return model.ContactPoint{}, errors.New("invalid webhook Bearer token")
+	}
+	if input.SigningSecret != nil && (len(*input.SigningSecret) > 4096 || strings.ContainsAny(*input.SigningSecret, "\r\n\x00")) {
+		return model.ContactPoint{}, errors.New("invalid Feishu signing secret")
+	}
+	if input.Type == "feishu" && (input.BearerToken != nil || len(input.Headers) != 0) {
+		return model.ContactPoint{}, errors.New("Feishu uses its webhook URL and signing secret, not webhook authentication headers")
+	}
+	if input.Type != "feishu" && input.SigningSecret != nil {
+		return model.ContactPoint{}, errors.New("signing_secret requires a Feishu contact point")
 	}
 	for name, value := range input.Headers {
 		if !model.ValidNotificationHeader(name, value) {
@@ -135,6 +147,16 @@ func (s *Store) SaveContactPoint(ctx context.Context, input model.ContactPointIn
 			return model.ContactPoint{}, err
 		}
 	}
+	if input.Type == "feishu" {
+		for key := range secrets {
+			if key != "webhook_url" && key != "signing_secret" {
+				delete(secrets, key)
+			}
+		}
+	} else {
+		delete(secrets, "webhook_url")
+		delete(secrets, "signing_secret")
+	}
 	for _, key := range input.ClearSecrets {
 		if strings.HasPrefix(key, "header:") {
 			key = "header:" + http.CanonicalHeaderKey(strings.TrimPrefix(key, "header:"))
@@ -156,13 +178,31 @@ func (s *Store) SaveContactPoint(ctx context.Context, input model.ContactPointIn
 			secrets[key] = value
 		}
 	}
-	if len(secrets) > 33 {
+	if input.Type == "feishu" {
+		if input.URL != "" {
+			secrets["webhook_url"] = input.URL
+		}
+		if input.SigningSecret != nil {
+			if *input.SigningSecret == "" {
+				delete(secrets, "signing_secret")
+			} else {
+				secrets["signing_secret"] = *input.SigningSecret
+			}
+		}
+		if !model.ValidFeishuWebhookURL(secrets["webhook_url"]) {
+			return model.ContactPoint{}, errors.New("Feishu requires an official HTTPS custom-bot v2 webhook URL")
+		}
+	}
+	if input.Type == "webhook" && len(secrets) > 33 {
 		return model.ContactPoint{}, errors.New("contact point supports at most 32 secret headers")
 	}
 	if secrets["bearer_token"] != "" && secrets["header:Authorization"] != "" {
 		return model.ContactPoint{}, errors.New("configure either a Bearer token or an Authorization header")
 	}
 	point := input.ContactPoint
+	if point.Type == "feishu" {
+		point.URL = ""
+	}
 	point.Version = previousVersion + 1
 	point.UpdatedAt = time.Now().UnixMilli()
 	point.SecureFields = map[string]bool{}
@@ -320,6 +360,11 @@ func (s *Store) DeleteContactPoint(ctx context.Context, uid string) error {
 	if _, err := tx.ExecContext(ctx, `UPDATE alert_notification_outbox SET state='canceled',last_error='Contact point deleted' WHERE contact_point_uid=? AND state IN ('pending','sending','suppressed')`, uid); err != nil {
 		return err
 	}
+	for _, table := range []string{"alert_notification_cooldowns", "alert_notification_cooldown_receipts"} {
+		if _, err := tx.ExecContext(ctx, `DELETE FROM `+table+` WHERE receiver=?`, uid); err != nil {
+			return err
+		}
+	}
 	return tx.Commit()
 }
 
@@ -377,7 +422,12 @@ func enqueueAlertNotifications(ctx context.Context, tx *sql.Tx, rule model.Alert
 		return err
 	}
 	previouslySuppressed := map[string]bool{}
+	previouslyCooling := map[string]bool{}
 	if !active {
+		previouslyCooling, err = cooldownResolvedReceiversTx(ctx, tx, rule.UID, event.Key, startedAt)
+		if err != nil {
+			return err
+		}
 		rows, err := tx.QueryContext(ctx, `SELECT DISTINCT contact_point_uid FROM alert_notification_outbox WHERE rule_uid=? AND instance_key=? AND created_at>=? AND status='firing' AND state='suppressed'`, rule.UID, event.Key, startedAt)
 		if err != nil {
 			return err
@@ -433,6 +483,9 @@ func enqueueAlertNotifications(ctx context.Context, tx *sql.Tx, rule model.Alert
 		if point.Disabled || (status == "resolved" && point.DisableResolveMessage) {
 			continue
 		}
+		if status == "resolved" && previouslyCooling[uid] {
+			continue
+		}
 		payload := webhookPayload(point, rule, event, status, startedAt, orgID)
 		if groupKey != "" {
 			if active {
@@ -450,7 +503,23 @@ func enqueueAlertNotifications(ctx context.Context, tx *sql.Tx, rule model.Alert
 			if _, err := tx.ExecContext(ctx, `UPDATE alert_notification_outbox SET state='suppressed',last_error=?,next_attempt_at=? WHERE id=?`, suppressionMessage, mutedUntil, id); err != nil {
 				return err
 			}
-		} else if !active {
+		}
+		if active {
+			until, err := notificationCooldownUntilTx(ctx, tx, uid, rule.UID, event.Key, event.Labels["severity"], startedAt, event.Timestamp, rule.NotificationCooldownSeconds, 0)
+			if err != nil {
+				return err
+			}
+			if rule.NotificationCooldownSeconds > 0 {
+				if err := deferNotificationCooldownTx(ctx, tx, id, startedAt, until); err != nil {
+					return err
+				}
+			}
+		} else {
+			if rule.NotificationCooldownSeconds > 0 {
+				if err := deferNotificationCooldownTx(ctx, tx, id, startedAt, 0); err != nil {
+					return err
+				}
+			}
 			cancel := mutedUntil > 0
 			if previouslySuppressed[uid] && !cancel {
 				var delivered int
@@ -465,6 +534,9 @@ func enqueueAlertNotifications(ctx context.Context, tx *sql.Tx, rule model.Alert
 				}
 			}
 		}
+	}
+	if !active {
+		return pruneResolvedCooldownReceiptsTx(ctx, tx, rule.UID, event.Key, startedAt)
 	}
 	return nil
 }
@@ -578,6 +650,11 @@ func insertNotificationTx(ctx context.Context, tx *sql.Tx, eventID int64, uid, r
 	}
 	id, err := result.LastInsertId()
 	if err != nil {
+		return 0, err
+	}
+	// All ungrouped firing producers, including silence resumes, share the
+	// same successful-ACK minimum interval. Group members gate separately.
+	if err := trackUngroupedFiringCooldownTx(ctx, tx, id, uid, rule, key, status, raw, at); err != nil {
 		return 0, err
 	}
 	if err := snapshotNotificationTemplatesTx(ctx, tx, id, uid); err != nil {
@@ -695,7 +772,15 @@ func (s *Store) ClaimNotification(ctx context.Context, at int64) (model.Notifica
 		if candidateStatus == "test" {
 			break
 		}
-		grouped, valid, err := validGroupNotificationTx(ctx, tx, id, at, suppressor)
+		validCooldown, err := validCooldownNotificationTx(ctx, tx, id, at)
+		if err != nil {
+			return model.NotificationDelivery{}, nil, err
+		}
+		if !validCooldown {
+			id = 0
+			continue
+		}
+		grouped, valid, err := validGroupNotificationTx(ctx, tx, id, at, suppressor, false)
 		if err != nil {
 			return model.NotificationDelivery{}, nil, err
 		}
@@ -768,6 +853,11 @@ func (s *Store) FinishNotification(ctx context.Context, delivery model.Notificat
 		return err
 	}
 	if count > 0 {
+		if state == "sent" {
+			if err := recordNotificationCooldownTx(ctx, tx, delivery, at); err != nil {
+				return err
+			}
+		}
 		if err := s.reconcileReceiverSourceTerminalTx(ctx, tx, at); err != nil {
 			return err
 		}

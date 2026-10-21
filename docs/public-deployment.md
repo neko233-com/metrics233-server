@@ -8,6 +8,10 @@ isolation are outside the current product scope.
 
 - The service is single-workspace; roles are global to that workspace.
 - Non-loopback listeners always require `METRICSPANEL_TOKEN` with at least 16 characters.
+- In token mode, configure a distinct environment-only `METRICSPANEL_INGEST_TOKEN` for external reporting agents.
+  It requires 32–8192 printable ASCII characters without whitespace and a separate 16+ character management token;
+  it cannot read metrics, manage contact points or unblock its IP. Never give agents the management token.
+  Local mode explicitly rejects the ingest-only variable. See [reporting access](reporting-access.md).
 - Local-account mode adds per-user passwords, HttpOnly sessions and Admin/Editor/Viewer roles.
 - The built-in HTTP server does not terminate TLS. Put a reverse proxy in front of it.
 - `/api/health` is public and returns only `commit`, `database` and `version`. `/api/v1/health` and all metric,

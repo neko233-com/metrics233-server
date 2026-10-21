@@ -85,6 +85,70 @@ const test = base.extend<{}, { endpoint: string }>({
   ],
 });
 
+test("Feishu contact points keep endpoint and signing secret encrypted through edits", async ({ page, endpoint }) => {
+  const webhook = "https://open.feishu.cn/open-apis/bot/v2/hook/ui-test-fixture";
+  const secret = "feishu-ui-signing-fixture";
+  await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
+  await page.goto(endpoint + "/#alerts");
+  await page.getByRole("tab", { name: "Notifications", exact: true }).click();
+  const contacts = page.getByRole("region", { name: "Contact points", exact: true });
+  await contacts.getByRole("button", { name: "Add contact point", exact: true }).click();
+  let dialog = page.getByRole("dialog", { name: "Add contact point", exact: true });
+  await dialog.getByLabel("Notification type", { exact: true }).selectOption("feishu");
+  await dialog.getByLabel("Contact point name", { exact: true }).fill("Feishu encrypted fixture");
+  await dialog.getByLabel("Webhook URL", { exact: true }).fill(webhook);
+  await dialog.getByLabel("Signing secret", { exact: true }).fill(secret);
+  await expect(dialog.getByLabel("Webhook URL", { exact: true })).toHaveAttribute("type", "password");
+  await dialog.getByRole("button", { name: "Save contact point", exact: true }).click();
+  await expect(dialog).not.toBeVisible();
+  const readPoint = async () => {
+    const response = await page.request.get(endpoint + "/api/v1/alerting/contact-points");
+    expect(response.ok()).toBeTruthy();
+    const raw = await response.text();
+    expect(raw).not.toContain(webhook);
+    expect(raw).not.toContain(secret);
+    return JSON.parse(raw).find((point: any) => point.name.startsWith("Feishu encrypted fixture"));
+  };
+  let point = await readPoint();
+  expect(point.type).toBe("feishu");
+  expect(point.url).toBe("");
+  expect(point.secure_fields.webhook_url).toBe(true);
+  expect(point.secure_fields.signing_secret).toBe(true);
+  const uid = point.uid;
+  try {
+    let row = contacts.getByRole("row").filter({ hasText: "Feishu encrypted fixture" });
+    await expect(row).toContainText("Encrypted Feishu bot endpoint");
+    await row.getByRole("button", { name: "Edit", exact: true }).click();
+    dialog = page.getByRole("dialog", { name: "Edit contact point", exact: true });
+    await expect(dialog.getByLabel("Webhook URL", { exact: true })).toHaveValue("");
+    await expect(dialog.getByLabel("Signing secret", { exact: true })).toHaveValue("");
+    await dialog.getByLabel("Contact point name", { exact: true }).fill("Feishu encrypted fixture renamed");
+    await dialog.getByRole("button", { name: "Save contact point", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    point = await readPoint();
+    expect(point.secure_fields.webhook_url).toBe(true);
+    expect(point.secure_fields.signing_secret).toBe(true);
+    row = contacts.getByRole("row").filter({ hasText: "Feishu encrypted fixture renamed" });
+    await row.getByRole("button", { name: "Edit", exact: true }).click();
+    dialog = page.getByRole("dialog", { name: "Edit contact point", exact: true });
+    await dialog.getByLabel("Remove stored signing secret", { exact: true }).check();
+    await dialog.getByRole("button", { name: "Save contact point", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    point = await readPoint();
+    expect(point.secure_fields.webhook_url).toBe(true);
+    expect(point.secure_fields.signing_secret || false).toBe(false);
+    await row.getByRole("button", { name: "Edit", exact: true }).click();
+    dialog = page.getByRole("dialog", { name: "Edit contact point", exact: true });
+    await dialog.getByLabel("Webhook URL", { exact: true }).fill("http://open.feishu.cn/open-apis/bot/v2/hook/ui-test-fixture");
+    await dialog.getByRole("button", { name: "Save contact point", exact: true }).click();
+    await expect(dialog.getByRole("alert")).toHaveText("Use the official HTTPS Feishu bot webhook URL");
+    await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+    expect((await readPoint()).secure_fields.webhook_url).toBe(true);
+  } finally {
+    await page.request.delete(endpoint + "/api/v1/alerting/contact-points/" + uid);
+  }
+});
+
 test("Desktop webhook management preserves encrypted credentials, delivers tests and persists label routing", async ({
   page,
   endpoint,

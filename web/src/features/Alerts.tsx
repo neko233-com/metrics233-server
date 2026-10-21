@@ -54,6 +54,7 @@ type Rule = {
   interval_seconds: number;
   for_seconds: number;
   keep_firing_for_seconds: number;
+  notification_cooldown_seconds?: number;
   no_data_state: string;
   error_state: string;
   missing_series_evaluations: number;
@@ -450,6 +451,10 @@ export function Alerts({
                               <b>{rule.keep_firing_for_seconds}s</b>
                             </span>
                             <span>
+                              {getLocale() === "zh" ? "通知冷却" : "Notification cooldown"}{" "}
+                              <b>{rule.notification_cooldown_seconds ?? 0}s</b>
+                            </span>
+                            <span>
                               {t("Evaluation")}{" "}
                               <b>{rule.runtime.duration_ms}ms</b>
                             </span>
@@ -709,6 +714,9 @@ function AlertEditor({
     [interval, setInterval] = useState(original?.interval_seconds || 30),
     [pending, setPending] = useState(original?.for_seconds || 0),
     [keep, setKeep] = useState(original?.keep_firing_for_seconds || 0),
+    [notificationCooldown, setNotificationCooldown] = useState(
+      String(original ? (original.notification_cooldown_seconds ?? 0) : 3600),
+    ),
     [noData, setNoData] = useState(original?.no_data_state || "OK"),
     [errorState, setErrorState] = useState(original?.error_state || "Error"),
     [labelJSON, setLabelJSON] = useState(
@@ -780,6 +788,18 @@ function AlertEditor({
           setBusy(true);
           setError("");
           try {
+            const cooldownSeconds = Number(notificationCooldown);
+            if (
+              notificationCooldown.trim() === "" ||
+              !Number.isInteger(cooldownSeconds) ||
+              cooldownSeconds < 0 ||
+              cooldownSeconds > 604800
+            )
+              throw new Error(
+                getLocale() === "zh"
+                  ? "通知冷却必须为 0–604800 之间的整数秒数。"
+                  : "Notification cooldown must be an integer from 0 to 604800 seconds.",
+              );
             if (execution === "grafana")
               validateAlertEditorGraph(JSON.parse(graphJSON));
             const { runtime: _, ...config } = original || ({} as RuleView);
@@ -792,6 +812,7 @@ function AlertEditor({
               interval_seconds: interval,
               for_seconds: pending,
               keep_firing_for_seconds: keep,
+              notification_cooldown_seconds: cooldownSeconds,
               no_data_state: noData,
               error_state: errorState,
               labels: JSON.parse(labelJSON),
@@ -958,6 +979,7 @@ function AlertEditor({
               max={604800}
               required
               value={pending}
+              aria-describedby="alert-state-timer-help"
               onChange={(e) => setPending(Number(e.target.value))}
             />
           </label>
@@ -969,10 +991,44 @@ function AlertEditor({
               max={604800}
               required
               value={keep}
+              aria-describedby="alert-state-timer-help"
               onChange={(e) => setKeep(Number(e.target.value))}
             />
           </label>
         </div>
+        <p className="muted" id="alert-state-timer-help">
+          {getLocale() === "zh"
+            ? "触发等待：条件持续满足多久后才告警；CPU、磁盘高值可设 300 秒过滤短暂尖峰。恢复等待：条件恢复后继续保持告警多久，可设 300 秒平滑短暂恢复。这两项控制告警状态，通知冷却控制发送频率。"
+            : "Pending period waits for a sustained condition before firing; 300 seconds can filter brief CPU or disk spikes. Keep firing holds the alert after the condition clears; 300 seconds can smooth brief recoveries. These timers control alert state; notification cooldown controls delivery frequency."}
+        </p>
+        <label>
+          {getLocale() === "zh" ? "通知冷却（秒）" : "Notification cooldown (s)"}
+          <input
+            type="number"
+            min={0}
+            max={604800}
+            step={1}
+            required
+            aria-describedby="alert-notification-cooldown-help"
+            value={notificationCooldown}
+            onChange={(event) => setNotificationCooldown(event.target.value)}
+          />
+        </label>
+        <p className="muted" id="alert-notification-cooldown-help">
+          {getLocale() === "zh"
+            ? "默认 3600 秒（1 小时）。同一规则、实例、接收方和严重级的告警通知，从上次成功发送起至少间隔此时间，包括短暂恢复后的再次触发和持续告警的周期提醒；0 关闭，最长 7 天。首次、新实例和严重级升级不受此冷却限制。持续告警不会随每次评估重复通知。"
+            : "Default: 3600 seconds (1 hour). Notifications for the same rule, instance, receiver and severity wait at least this long after the last successful delivery, including alerts after brief recoveries and periodic reminders; 0 disables cooldown, up to 7 days. First alerts, new instances and severity increases bypass this cooldown. Sustained alerts do not notify on every evaluation."}
+        </p>
+        <details className="alert-extra">
+          <summary>
+            {getLocale() === "zh" ? "通知冷却如何生效" : "How notification cooldown works"}
+          </summary>
+          <p className="muted">
+            {getLocale() === "zh"
+              ? "冷却只延迟发送，不延迟页面上的告警状态；发送失败仍会重试。等待期间已恢复则取消该次延迟告警，也不单独发送没有对应告警的恢复通知。重复提醒同时受冷却下限约束，实际间隔取规则冷却与通知策略重复间隔的较大值；重复间隔设为 0s 可关闭持续告警提醒。"
+              : "Cooldown delays delivery, not the visible alert state; failed deliveries still retry. Recovery while waiting cancels that delayed alert and its unmatched recovery notification. Periodic reminders also obey the cooldown minimum: their interval is the greater of the rule cooldown and the notification policy repeat interval. Set the repeat interval to 0s to disable sustained-alert reminders."}
+          </p>
+        </details>
         <div className="form-row">
           <label>
             {t("When there is no data")}

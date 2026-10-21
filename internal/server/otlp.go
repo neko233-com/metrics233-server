@@ -63,7 +63,7 @@ func (s *Server) otlpMetrics(w http.ResponseWriter, r *http.Request) {
 	}
 	samples := converted.samples
 	if len(samples) > 0 {
-		if err := s.Store.Ingest(r.Context(), samples); err != nil {
+		if err := s.ingestReported(r.Context(), samples); err != nil {
 			otlpFail(w, r, http.StatusServiceUnavailable, errors.New("metric storage unavailable; retry the request"))
 			return
 		}

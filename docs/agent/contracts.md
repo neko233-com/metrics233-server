@@ -8,11 +8,15 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 ## Authentication
 
 - `--auth=token` (default): single workspace Bearer token; non-loopback listeners require at least 16 characters.
+- `METRICSPANEL_INGEST_TOKEN` optionally separates reporting from management in token mode: environment-only,
+  32–8192 printable non-whitespace ASCII characters, distinct from a required 16+ character management token.
+  It permits only POST to the five ingest paths, never query/management/source-policy/Live/session operations;
+  source IP policy still applies. Local mode rejects this variable. See [reporting access](../reporting-access.md).
 - `--auth=local`: users, passwords and browser sessions; first run prints a one-time setup token.
 - Roles are workspace-wide: Viewer reads, Editor mutates monitoring resources, Admin controls users, datasources,
   plugins and notification configuration. Unknown mutations fail closed to Admin.
 - Session cookie: HttpOnly, SameSite=Lax, Secure under HTTPS, rotates every 24 hours.
-- `--trusted-proxies` only trusts `X-Forwarded-For` from the listed CIDRs for rate limiting.
+- `--trusted-proxies` only trusts `X-Forwarded-For` from the listed CIDRs for rate limiting and reporting-source IP policy.
 - Password login and account Basic authentication share 8 failures / 5 minutes per client IP; successful
   authentication does not consume the quota. The attempt map is capped at 4096 active client entries.
 - Explicit `--root-url` / `METRICSPANEL_ROOT_URL` establishes the local-account public origin behind HTTPS
@@ -33,6 +37,23 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
   semantics and exact label filters. It never injects samples or chooses business alert thresholds.
 - Native MySQL/MariaDB, Redis, PostgreSQL and supported service/database metrics APIs.
 - Collector secrets are encrypted; responses expose presence flags only.
+- `/#reporting-sources` observes actual accepted push batches, independently of scrape targets and internal self-metrics.
+  All five ingest paths use canonical client-IP policy before parsing or writing; labels never authorize a source.
+  Admin-only versioned policy supports block/allow/reset and explicit allowlist-only mode. Observations (1024 LRU)
+  and policies (4096, never observation-evicted) persist in each organization's catalog. See [reporting sources](../reporting-sources.md).
+
+## Notifications
+
+- Native contact points support generic Webhook and Feishu custom-bot v2 text notifications.
+- Feishu URL and optional signing secret are encrypted and write-only; public metadata exposes presence flags.
+- Sending requires HTTP 2xx plus an explicit JSON `code: 0`; redirects, invalid ACKs and timeouts fail delivery.
+- Local-mode configuration/test mutations require Admin. Queue acceptance (202) is separate from delivered state.
+- Rule `notification_cooldown_seconds` (0–604800; old API default 0, new UI default 3600) imposes a durable
+  successful-firing-ACK minimum interval, including explicit reminders: repeat is at least max(CD, policy repeat).
+  Pending/recovery periods and failed-delivery retries remain independent; repeat 0 still disables reminders.
+- Unacknowledged cooldown periods cannot emit orphan recovery; restart, pause/edit and disable/enable preserve ACKs.
+- See [Feishu notifications](../feishu-notifications.md) for API, secret-update and verification boundaries.
+- See [notification cooldown](../alert-notification-cooldown.md) for exact timing and retention semantics.
 
 ## Storage and vectors
 

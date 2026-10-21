@@ -148,10 +148,8 @@ func resolveNotificationGroupsTx(ctx context.Context, tx *sql.Tx, rule model.Ale
 			}
 		}
 		interval, _ := model.NotificationDuration(opts.GroupInterval)
-		next := g.NextAt
-		if !g.Dirty {
-			next = max(event.Timestamp, g.LastSentAt+interval.Milliseconds())
-		}
+		// Recovery is not delayed by a pending firing member's CD deadline.
+		next := max(event.Timestamp, g.LastSentAt+interval.Milliseconds())
 		if _, err := tx.ExecContext(ctx, `UPDATE alert_notification_groups SET dirty=1,generation=generation+1,next_at=?,resume_needed=CASE WHEN ? THEN 0 ELSE resume_needed END WHERE group_key=?`, next, muted, g.Key); err != nil {
 			return err
 		}
@@ -343,6 +341,13 @@ func reconcileNotificationGroupsTx(ctx context.Context, tx *sql.Tx, at int64, su
 		}
 		for _, member := range all {
 			acknowledged := member.Notified
+			if member.Status == "resolved" && !acknowledged && ownership.Mode != "native" {
+				var receipts int
+				if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM alert_notification_cooldown_receipts WHERE receiver=? AND rule_uid=? AND instance_key=? AND started_at=?`, g.Receiver, member.Rule, member.Key, member.StartedAt).Scan(&receipts); err != nil {
+					return err
+				}
+				acknowledged = receipts > 0
+			}
 			if member.Status == "resolved" && ownership.Mode == "native" {
 				producer, ok := ctx.Value(receiverProducerContextKey{}).(*Store)
 				if !ok {
@@ -394,6 +399,13 @@ func reconcileNotificationGroupsTx(ctx context.Context, tx *sql.Tx, at int64, su
 				until = time.UnixMilli(at).Truncate(time.Minute).Add(time.Minute).UnixMilli()
 			}
 			if until > 0 {
+				// A real silence creates one pending resume for CD-enabled
+				// members. Its durable ACK receipt still authorizes recovery.
+				if member.Status == "firing" && member.Notified {
+					if _, err := tx.ExecContext(ctx, `UPDATE alert_notification_group_members SET notified=0 WHERE group_key=? AND rule_uid=? AND instance_key=? AND EXISTS(SELECT 1 FROM alert_rules WHERE uid=? AND coalesce(json_extract(config,'$.notification_cooldown_seconds'),0)>0)`, g.Key, member.Rule, member.Key, member.Rule); err != nil {
+						return err
+					}
+				}
 				if member.Status == "resolved" {
 					if _, err := tx.ExecContext(ctx, `DELETE FROM alert_notification_group_members WHERE group_key=? AND rule_uid=? AND instance_key=?`, g.Key, member.Rule, member.Key); err != nil {
 						return err
@@ -402,6 +414,21 @@ func reconcileNotificationGroupsTx(ctx context.Context, tx *sql.Tx, at int64, su
 					mutedUntil = until
 				}
 				continue
+			}
+			if member.Status == "firing" {
+				cooldown, skip, err := groupNotificationCooldownTx(ctx, tx, g.Receiver, member, labels["severity"], at, effectiveRepeat(opts))
+				if err != nil {
+					return err
+				}
+				if skip {
+					continue
+				}
+				if cooldown > 0 {
+					if mutedUntil == 0 || cooldown < mutedUntil {
+						mutedUntil = cooldown
+					}
+					continue
+				}
 			}
 			visible = append(visible, member)
 		}
@@ -549,9 +576,10 @@ func finishGroupNotificationTx(ctx context.Context, tx *sql.Tx, id int64, state 
 	return err
 }
 
-func validGroupNotificationTx(ctx context.Context, tx *sql.Tx, id, at int64, suppressor *notificationSuppressor) (bool, bool, error) {
+func validGroupNotificationTx(ctx context.Context, tx *sql.Tx, id, at int64, suppressor *notificationSuppressor, afterClaim bool) (bool, bool, error) {
 	var key, raw string
-	err := tx.QueryRowContext(ctx, `SELECT group_key,members FROM alert_notification_group_deliveries WHERE notification_id=?`, id).Scan(&key, &raw)
+	var attempts int
+	err := tx.QueryRowContext(ctx, `SELECT d.group_key,d.members,n.attempts FROM alert_notification_group_deliveries d JOIN alert_notification_outbox n ON n.id=d.notification_id WHERE d.notification_id=?`, id).Scan(&key, &raw, &attempts)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, true, nil
 	}
@@ -616,6 +644,14 @@ func validGroupNotificationTx(ctx context.Context, tx *sql.Tx, id, at int64, sup
 			until, _, err := suppressor.check(labels)
 			if err != nil {
 				return true, false, err
+			}
+			retrying := attempts > 0 && !afterClaim || attempts > 1 && afterClaim
+			if member.Status == "firing" && !retrying {
+				cooldown, _, err := groupNotificationCooldownTx(ctx, tx, g.Receiver, member, labels["severity"], at, effectiveRepeat(opts))
+				if err != nil {
+					return true, false, err
+				}
+				until = max(until, cooldown)
 			}
 			if until > 0 {
 				invalid = true

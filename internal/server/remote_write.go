@@ -92,7 +92,7 @@ func (s *Server) remoteWrite(w http.ResponseWriter, r *http.Request) {
 	}
 	for offset := 0; offset < len(samples); offset += 10000 {
 		end := min(offset+10000, len(samples))
-		if err := s.Store.Ingest(r.Context(), samples[offset:end]); err != nil {
+		if err := s.ingestReported(r.Context(), samples[offset:end]); err != nil {
 			fail(w, http.StatusServiceUnavailable, errors.New("metric storage unavailable; retry the request"))
 			return
 		}

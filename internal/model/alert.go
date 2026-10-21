@@ -16,29 +16,30 @@ var alertUID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,100}$`)
 // AlertRule also represents a recording rule when Record is nonempty. Grafana
 // keeps the accepted provisioning payload; Execution selects its graph or Expr.
 type AlertRule struct {
-	UID                      string            `json:"uid"`
-	Title                    string            `json:"title"`
-	Expr                     string            `json:"expr"`
-	Execution                string            `json:"execution,omitempty"`
-	Condition                string            `json:"condition"` // presence (Prometheus) or nonzero (Grafana)
-	IntervalSeconds          int               `json:"interval_seconds"`
-	ForSeconds               int               `json:"for_seconds"`
-	KeepFiringForSeconds     int               `json:"keep_firing_for_seconds"`
-	NoDataState              string            `json:"no_data_state"`
-	ErrorState               string            `json:"error_state"`
-	MissingSeriesEvaluations int               `json:"missing_series_evaluations"`
-	Labels                   map[string]string `json:"labels"`
-	Annotations              map[string]string `json:"annotations"`
-	Paused                   bool              `json:"paused"`
-	Record                   string            `json:"record,omitempty"`
-	FolderUID                string            `json:"folder_uid"`
-	Group                    string            `json:"group"`
-	NotificationReceiver     string            `json:"notification_receiver,omitempty"`
-	GroupIndex               int               `json:"group_index,omitempty"`
-	Provenance               *string           `json:"provenance,omitempty"`
-	Version                  int               `json:"version"`
-	UpdatedAt                int64             `json:"updated_at"`
-	Grafana                  json.RawMessage   `json:"grafana,omitempty"`
+	UID                         string            `json:"uid"`
+	Title                       string            `json:"title"`
+	Expr                        string            `json:"expr"`
+	Execution                   string            `json:"execution,omitempty"`
+	Condition                   string            `json:"condition"` // presence (Prometheus) or nonzero (Grafana)
+	IntervalSeconds             int               `json:"interval_seconds"`
+	ForSeconds                  int               `json:"for_seconds"`
+	KeepFiringForSeconds        int               `json:"keep_firing_for_seconds"`
+	NoDataState                 string            `json:"no_data_state"`
+	ErrorState                  string            `json:"error_state"`
+	MissingSeriesEvaluations    int               `json:"missing_series_evaluations"`
+	Labels                      map[string]string `json:"labels"`
+	Annotations                 map[string]string `json:"annotations"`
+	Paused                      bool              `json:"paused"`
+	Record                      string            `json:"record,omitempty"`
+	FolderUID                   string            `json:"folder_uid"`
+	Group                       string            `json:"group"`
+	NotificationReceiver        string            `json:"notification_receiver,omitempty"`
+	NotificationCooldownSeconds int               `json:"notification_cooldown_seconds"`
+	GroupIndex                  int               `json:"group_index,omitempty"`
+	Provenance                  *string           `json:"provenance,omitempty"`
+	Version                     int               `json:"version"`
+	UpdatedAt                   int64             `json:"updated_at"`
+	Grafana                     json.RawMessage   `json:"grafana,omitempty"`
 }
 
 func (r *AlertRule) Defaults() {
@@ -103,6 +104,9 @@ func (r AlertRule) Validate() error {
 	}
 	if r.IntervalSeconds < 5 || r.IntervalSeconds > 86400 || r.ForSeconds < 0 || r.ForSeconds > 604800 || r.KeepFiringForSeconds < 0 || r.KeepFiringForSeconds > 604800 {
 		return errors.New("evaluation interval: 5–86400s; pending/recovery periods: 0–604800s")
+	}
+	if r.NotificationCooldownSeconds < 0 || r.NotificationCooldownSeconds > 604800 {
+		return errors.New("notification cooldown must be 0–604800 seconds")
 	}
 	if r.MissingSeriesEvaluations < 1 || r.MissingSeriesEvaluations > 100 {
 		return errors.New("missing_series_evaluations must be 1–100")

@@ -20,6 +20,7 @@ import (
 
 	"github.com/neko233-com/metrics233-server/internal/identity"
 	"github.com/neko233-com/metrics233-server/internal/instance"
+	"github.com/neko233-com/metrics233-server/internal/requestip"
 )
 
 type Config struct {
@@ -466,38 +467,7 @@ func sessionCookie(r *http.Request, name string) string {
 }
 
 func (h *Handler) clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		host = r.RemoteAddr
-	}
-	if !h.trustedIP(host) {
-		return host
-	}
-	headers := r.Header.Values("X-Forwarded-For")
-	for headerIndex := len(headers) - 1; headerIndex >= 0; headerIndex-- {
-		header := headers[headerIndex]
-		parts := strings.Split(header, ",")
-		for index := len(parts) - 1; index >= 0; index-- {
-			candidate := strings.TrimSpace(parts[index])
-			if net.ParseIP(candidate) != nil && !h.trustedIP(candidate) {
-				return candidate
-			}
-		}
-	}
-	return host
-}
-
-func (h *Handler) trustedIP(value string) bool {
-	ip := net.ParseIP(value)
-	if ip == nil {
-		return false
-	}
-	for _, network := range h.trusted {
-		if network.Contains(ip) {
-			return true
-		}
-	}
-	return false
+	return requestip.ClientIP(r, h.trusted)
 }
 
 func (h *Handler) sameOrigin(r *http.Request) bool {

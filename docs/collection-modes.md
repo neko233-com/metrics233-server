@@ -27,6 +27,11 @@ metricspanel targets add --file examples/collectors/redis.json
 
 ## Push
 
+In token mode, give reporting agents the dedicated `METRICSPANEL_INGEST_TOKEN`, configured separately from the
+private management `METRICSPANEL_TOKEN`. The dedicated credential can write only the five ingest endpoints and
+cannot query metrics or undo source-IP restrictions. Use one `Authorization: Bearer` header. See [reporting access](reporting-access.md)
+for startup constraints, trusted proxies, source policies and failure semantics; local mode does not accept this setting.
+
 ### Prometheus remote write
 
 `POST /api/v1/write` (alias `POST /prometheus/api/v1/write`).
@@ -35,7 +40,7 @@ metricspanel targets add --file examples/collectors/redis.json
 remote_write:
   - url: https://metrics.example.com/api/v1/write
     authorization:
-      credentials: <workspace-token>
+      credentials: <ingest-only-token>
     queue_config:
       max_samples_per_send: 10000
 ```

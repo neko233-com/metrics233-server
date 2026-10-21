@@ -16,6 +16,11 @@ Counter/Gauge instrumentation and explicit push/shutdown. The [metrics233-all ag
 pins matching server and SDK commits as Git submodules. The repository and Go module are now `metrics233-server`;
 the `metricspanel` command, `METRICSPANEL_*` settings and existing HTTP routes retain their contracts.
 
+Use [reporting-only credentials](docs/reporting-access.md) and the **Reporting sources / 上报来源** page to allow,
+block or release canonical source IPs without granting senders management access. Alerts support encrypted
+[Feishu notifications](docs/feishu-notifications.md) and a durable per-instance
+[notification cooldown](docs/alert-notification-cooldown.md); new UI rules default to one hour.
+
 The product replaces the usual Grafana + separate scraping + separate vector-search stack. Grafana import/export is
 optional migration support, not the product foundation. See the [project goals](docs/project-goals.md).
 

@@ -56,6 +56,8 @@ type Server struct {
 	requests          atomic.Uint64
 	dashboardImportMu sync.Mutex
 	sqlSources        sqlSourcePool
+	reporting         *reportingSourceAccess
+	ingestToken       string
 }
 
 func New(s *store.Store, token string, retention int) *Server {
@@ -133,7 +135,16 @@ func (s *Server) protect(next http.Handler) http.Handler {
 			fail(w, http.StatusForbidden, identity.ErrForbidden)
 			return
 		}
-		if s.Token != "" && !identity.HasPrincipal(r.Context()) {
+		if ingest, malformed := s.ingestOnlyCredential(r); ingest && !identity.HasPrincipal(r.Context()) {
+			if malformed {
+				fail(w, http.StatusUnauthorized, errors.New("one Bearer authorization field is required"))
+				return
+			}
+			if !exactMetricIngestRequest(r) {
+				fail(w, http.StatusForbidden, errors.New("ingest-only token may only report metrics"))
+				return
+			}
+		} else if s.Token != "" && !identity.HasPrincipal(r.Context()) {
 			provided := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
 			if subtle.ConstantTimeCompare([]byte(provided), []byte(s.Token)) != 1 {
 				fail(w, 401, errors.New("valid Bearer token required"))
@@ -157,7 +168,7 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 	prom := s.Prometheus
 	promRoutes := s.authorizationMux(http.NewServeMux(), RoutePrometheus, &manifest)
 	s.promAlertRoutes(promRoutes)
-	promRoutes.HandleFunc("POST /api/v1/write", s.remoteWrite)
+	promRoutes.HandleFunc("POST /api/v1/write", s.reportingIngest("remote_write", s.remoteWrite))
 	promRoutes.Handle("/", prom.Handler())
 	s.grafanaRoutes(api, promRoutes)
 	s.dashboardCatalogRoutes(api)
@@ -200,7 +211,8 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 	})
 	api.HandleFunc("GET /api/v1/stats", s.stats)
 	api.HandleFunc("GET /api/v1/query", s.query)
-	api.HandleFunc("POST /api/v1/ingest", func(w http.ResponseWriter, r *http.Request) {
+	s.reportingRoutes(api)
+	api.HandleFunc("POST /api/v1/ingest", s.reportingIngest("json", func(w http.ResponseWriter, r *http.Request) {
 		var v struct {
 			Samples []model.Sample `json:"samples"`
 		}
@@ -208,13 +220,13 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 			fail(w, 400, err)
 			return
 		}
-		if err := s.Store.Ingest(r.Context(), v.Samples); err != nil {
+		if err := s.ingestReported(r.Context(), v.Samples); err != nil {
 			fail(w, 400, err)
 			return
 		}
 		writeJSON(w, 200, map[string]int{"accepted": len(v.Samples)})
-	})
-	api.HandleFunc("POST /api/v1/write", s.remoteWrite)
+	}))
+	api.HandleFunc("POST /api/v1/write", s.reportingIngest("remote_write", s.remoteWrite))
 	api.HandleFunc("GET /api/v1/targets", func(w http.ResponseWriter, r *http.Request) {
 		v, err := s.Store.Targets(r.Context())
 		if err != nil {
@@ -327,8 +339,8 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 		s.secureHeaders(w, r)
 		writeJSON(w, 200, map[string]string{"commit": "metricspanel", "database": "ok", "version": BuildVersion})
 	})
-	mux.Handle("POST /v1/metrics", s.protect(http.HandlerFunc(s.otlpMetrics)))
-	mux.Handle("POST /otlp/v1/metrics", s.protect(http.HandlerFunc(s.otlpMetrics)))
+	mux.Handle("POST /v1/metrics", s.protect(s.reportingIngest("otlp", s.otlpMetrics)))
+	mux.Handle("POST /otlp/v1/metrics", s.protect(s.reportingIngest("otlp", s.otlpMetrics)))
 	mux.Handle("/api/", s.protect(api))
 	mux.Handle("/apis/", s.protect(api))
 	endpoints.Handle("GET /metrics", s.protect(http.HandlerFunc(s.prometheus)))
@@ -355,7 +367,13 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 		}
 		files.ServeHTTP(w, r)
 	})
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { s.requests.Add(1); mux.ServeHTTP(w, r) }), manifest
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		s.requests.Add(1)
+		if s.restrictIngestOnlyCredential(w, r) {
+			return
+		}
+		mux.ServeHTTP(w, r)
+	}), manifest
 }
 
 func resourceError(w http.ResponseWriter, err error) {

@@ -255,6 +255,12 @@ func deleteAlertRuleTx(ctx context.Context, tx *sql.Tx, uid string) error {
 	if _, err = tx.ExecContext(ctx, `DELETE FROM alert_rules WHERE uid=?`, uid); err != nil {
 		return err
 	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM alert_notification_cooldowns WHERE rule_uid=?`, uid); err != nil {
+		return err
+	}
+	if _, err = tx.ExecContext(ctx, `DELETE FROM alert_notification_cooldown_receipts WHERE rule_uid=?`, uid); err != nil {
+		return err
+	}
 	return nil
 }
 func (s *Store) AlertHistory(ctx context.Context, uid string, limit int) ([]model.AlertEvent, error) {

@@ -63,6 +63,28 @@
 
 ### P0 产品闭环
 
+- [x] **A2 — 固定上报 Token 验证**
+  - 范围：确认业务 JSON、两条 remote-write 和两条 OTLP 路由统一使用固定 Bearer Token；SDK 保留现有 `WithToken` 和链式标签/指标 API。
+  - 证据：`TestFixedTokenGuardsEveryMetricIngestTransport` 使用真实本地 HTTP 与有效协议载荷，缺少/错误 Token 均 401 且无落库；正确 Token 成功写入。URL 参数/cookie 不能替代 Bearer 头。SDK 全包通过，独立 server binary 可选测试本轮未启用。
+  - 边界：公开代理前必须配置固定 `METRICSPANEL_TOKEN`；未配置 Token 的 loopback 开发兼容行为不变，不能将该模式暴露到公网。
+
+- [~] **A3 — 安全分发上报专用凭据与来源策略**
+  - 范围：`METRICSPANEL_INGEST_TOKEN` 与管理 Token 分离，仅 token 模式，环境输入、32–8192 非空白 ASCII、独立管理 Token；五条精确 POST ingest 允许，管理/查询/解封/Live/未知路径拒绝。
+  - 已验：真实 HTTP 五协议成功、管理拒绝、错误/重复/混合头及 query/cookie 拒绝；来源封禁后专用凭据不能自解封。独立 review 覆盖策略 DB 失败读体/写库前拒绝、辅助观测失败保留原 ACK、partial RW 只计已完成批次、mapped IP/多字段代理链、组织隔离、32 并发计数、16 同版 CAS 及满策略容量事务回滚。
+  - 最终浏览器已验：两份独立随机凭据、来源一键策略及冲突刷新；完整套件 86 passed / 2 SQL 环境跳过。发布和线上第二个专用 Token 私有配置仍单独验收。契约见 `docs/reporting-access.md`，不给上报方管理 Token。
+
+- [~] **N1 — 飞书群机器人通知（可与部署代理工作并行）**
+  - 范围：在既有联系点/策略/持久化队列中支持 Feishu v2 Webhook、可选签名、凭据加密脱敏、API 角色和 UI 配置。
+  - 已验：官方空消息 HMAC、20 KiB 编码体、显式 code=0 ACK；本地真实 TLS firing/resolved/队列重试、非法 ACK/302/超时取消；数据库密文、API 保留/清除/CAS；local Viewer/Editor 不能创建/修改/测试/重试，Admin 可用。相关 Go 全包/vet、CLI 全包、前端 typecheck/build/118 unit 通过。
+  - 最终浏览器配置流程通过；版本发布、生产私有配置与真实机器人送达另由主任务验收。不得把 202 入队或 HTTP 200 当作飞书成功。
+  - 契约：`docs/feishu-notifications.md`；本轮没有向用户实际 Webhook 发送消息，也不在公开文件保存真实地址/签名。
+
+- [~] **N2 — 告警通知冷却与防抖（与 N1 并行收口）**
+  - 范围：规则 `notification_cooldown_seconds` 为 0–604800 秒；旧 API/旧规则默认 0，新建 UI 默认 3600 秒。保持持续 Firing 默认不重复，显式 repeat、for、恢复等待与失败重试分别控制。
+  - 已验：成功 ACK 与 sent 同事务持久化，分组/非分组恢复后延迟、跨重启、首次/新实例/新接收者/severity 不受阻；未 ACK 周期提前恢复不发孤立恢复；失败保留原 ID 按退避重试；规则编辑、暂停和联系点停启不清锚点；历史清理后恢复回执保留。同周期提醒取至少 max(CD,repeat)，repeat10s/CD300s 红→绿；CD0 保留 10s，repeat0 不被 CD 唤醒成隐式提醒，静默恢复提醒及正常恢复分别验证。
+  - 最新 owning 验证：alerting/server/localauth/model/CLI 全包通过（18.485/34.672/4.625/0.068/5.093 秒），相关七包 vet 与 diff check 通过。真实 UI 字段/默认值/旧值保留已通过最终浏览器；生产规则配置由对应交付任务完成。
+  - 契约：`docs/alert-notification-cooldown.md`。CD 是所有成功 firing 的最低间隔，更短 repeat 不能绕过；本地传入调度时间验证不等于线上已连续运行一小时。
+
 - [x] **C0 — 推 + 拉双模式**
   - 范围：拉取抓取与推送接收同时可用，共享存储与角色策略。
   - 验收：Prometheus remote write、OTLP/HTTP、原生 JSON 推送与 scrape 拉取均有测试；Viewer 推送 403。
@@ -171,6 +193,10 @@
 | `dcb2415` | Agent 契约；CI 改为 tag/手动触发 |
 
 ## 历史归档
+
+- [~] **A3 — 上报来源与来源访问限制**：主导航、协议/接收计数/最近时间、Admin 一键拉黑/解除/允许、可选白名单模式。
+  五协议拒写、可信代理/伪造头、IPv4-mapped、版本冲突、重启与容量/封禁独立保留已通过；浏览器最终版、独立仅上报 Token 和发布仍单独验收。
+  契约见 `docs/reporting-sources.md`。
 
 2026-10-13 之前的 Grafana 全量 parity 计划、资源 ACL、通知队列和身份隔离工程笔记已由 git 历史保存，不再作为
 当前路线图。需要兼容性背景时阅读 [docs/grafana-compatibility.md](docs/grafana-compatibility.md)、

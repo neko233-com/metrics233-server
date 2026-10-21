@@ -440,7 +440,7 @@ func (s *Store) validateReceiverSourceTx(ctx context.Context, tx *sql.Tx, source
 		if count != 1 {
 			return ErrReceiverSourceChanged
 		}
-		_, valid, err := validGroupNotificationTx(ctx, tx, source.ID, at, suppressor)
+		_, valid, err := validGroupNotificationTx(ctx, tx, source.ID, at, suppressor, true)
 		if err != nil {
 			return err
 		}

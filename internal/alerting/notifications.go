@@ -121,13 +121,21 @@ func (e *Engine) deliverNotification(ctx context.Context, delivery model.Notific
 			}
 		}
 	}
-	body, err := json.Marshal(payload)
+	var body []byte
+	var err error
+	endpoint := point.URL
+	if point.Type == "feishu" {
+		endpoint = secrets["webhook_url"]
+		body, err = feishuNotificationPayload(payload, secrets["signing_secret"], time.Now())
+	} else {
+		body, err = json.Marshal(payload)
+	}
 	if err != nil {
 		return 0, "Cannot encode notification payload"
 	}
 	requestCtx, cancel := context.WithTimeout(ctx, time.Duration(point.TimeoutSeconds)*time.Second)
 	defer cancel()
-	req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, point.URL, bytes.NewReader(body))
+	req, err := http.NewRequestWithContext(requestCtx, http.MethodPost, endpoint, bytes.NewReader(body))
 	if err != nil {
 		return 0, "Invalid webhook request"
 	}
@@ -145,7 +153,7 @@ func (e *Engine) deliverNotification(ctx context.Context, delivery model.Notific
 	if token := secrets["bearer_token"]; token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
-	client := &http.Client{Timeout: time.Duration(point.TimeoutSeconds) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	client := &http.Client{Transport: e.notificationTransport, Timeout: time.Duration(point.TimeoutSeconds) * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	response, err := client.Do(req)
 	if err != nil {
 		// Transport errors can embed the URL or credentials. Persist only a
@@ -156,9 +164,26 @@ func (e *Engine) deliverNotification(ctx context.Context, delivery model.Notific
 		return 0, "Webhook request failed"
 	}
 	defer response.Body.Close()
-	_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 8192))
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 8192))
 		return response.StatusCode, fmt.Sprintf("Webhook returned HTTP %d", response.StatusCode)
+	}
+	if point.Type == "feishu" {
+		data, err := io.ReadAll(io.LimitReader(response.Body, 8193))
+		if err != nil || len(data) > 8192 {
+			return response.StatusCode, "Feishu returned an invalid acknowledgement"
+		}
+		var result struct {
+			Code *int `json:"code"`
+		}
+		if json.Unmarshal(data, &result) != nil || result.Code == nil {
+			return response.StatusCode, "Feishu returned an invalid acknowledgement"
+		}
+		if *result.Code != 0 {
+			return response.StatusCode, fmt.Sprintf("Feishu rejected notification (code %d)", *result.Code)
+		}
+	} else {
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 8192))
 	}
 	return response.StatusCode, ""
 }

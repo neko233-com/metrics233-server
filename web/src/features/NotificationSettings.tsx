@@ -33,7 +33,7 @@ import {
 type ContactPoint = {
   uid: string;
   name: string;
-  type: "webhook";
+  type: "webhook" | "feishu";
   url: string;
   disabled: boolean;
   disable_resolve_message: boolean;
@@ -189,8 +189,8 @@ export function NotificationSettings({
                 </h2>
                 <p>
                   {text(
-                    "Send alert transitions to an HTTP webhook.",
-                    "通过 HTTP Webhook 发送告警状态变化。",
+                    "Send alert transitions to a webhook or Feishu bot.",
+                    "通过 Webhook 或飞书机器人发送告警状态变化。",
                   )}
                 </p>
               </div>
@@ -221,10 +221,12 @@ export function NotificationSettings({
                         </td>
                         <td>
                           <div className="mono notification-secondary">
-                            {point.url}
+                            {point.type === "feishu"
+                              ? text("Encrypted Feishu bot endpoint", "飞书机器人地址已加密")
+                              : point.url}
                           </div>
                           <div className="notification-secondary">
-                            Webhook · {point.timeout_seconds}
+                            {point.type === "feishu" ? text("Feishu", "飞书") : "Webhook"} · {point.timeout_seconds}
                             {text("s timeout", " 秒超时")}
                             {point.secure_fields &&
                             Object.values(point.secure_fields).some(Boolean)
@@ -675,8 +677,13 @@ function ContactPointEditor({
   onSaved: () => void;
 }) {
   const original = point === "new" ? null : point;
+  const [type, setType] = useState<ContactPoint["type"]>(original?.type || "webhook");
   const [name, setName] = useState(original?.name || "");
   const [url, setURL] = useState(original?.url || "");
+  const [signingSecret, setSigningSecret] = useState("");
+  const [clearSigningSecret, setClearSigningSecret] = useState(false);
+  const storedFeishu = type === "feishu" && original?.type === "feishu";
+  const keepStoredURL = storedFeishu && original.secure_fields?.webhook_url && !url.trim();
   const [titleTemplate, setTitleTemplate] = useState(
     original?.title_template || "",
   );
@@ -713,26 +720,22 @@ function ContactPointEditor({
         onSubmit={async (event) => {
           event.preventDefault();
           setError("");
-          let endpoint: URL;
-          try {
-            endpoint = new URL(url);
-          } catch {
-            setError(
-              text(
-                "Enter a valid HTTP or HTTPS webhook URL",
-                "请输入有效的 HTTP 或 HTTPS Webhook 地址",
-              ),
-            );
-            return;
-          }
-          if (!["http:", "https:"].includes(endpoint.protocol)) {
-            setError(
-              text(
-                "Webhook URL must use HTTP or HTTPS",
-                "Webhook 地址必须使用 HTTP 或 HTTPS",
-              ),
-            );
-            return;
+          if (!keepStoredURL) {
+            let endpoint: URL;
+            try {
+              endpoint = new URL(url.trim());
+            } catch {
+              setError(text("Enter a valid webhook URL", "请输入有效的 Webhook 地址"));
+              return;
+            }
+            if (!["http:", "https:"].includes(endpoint.protocol)) {
+              setError(text("Webhook URL must use HTTP or HTTPS", "Webhook 地址必须使用 HTTP 或 HTTPS"));
+              return;
+            }
+            if (type === "feishu" && (endpoint.protocol !== "https:" || endpoint.hostname !== "open.feishu.cn" || endpoint.port || endpoint.username || endpoint.password || endpoint.search || endpoint.hash || !/^\/open-apis\/bot\/v2\/hook\/[^/]+$/.test(endpoint.pathname))) {
+              setError(text("Use the official HTTPS Feishu bot webhook URL", "请输入飞书官方 HTTPS 机器人 Webhook 地址"));
+              return;
+            }
           }
           const activeHeaders = headers.filter((header) => !header.removed);
           const headerNames = activeHeaders.map((header) =>
@@ -745,7 +748,8 @@ function ContactPointEditor({
           const clearSecrets = headers
             .filter((header) => header.stored && header.removed)
             .map((header) => `header:${header.key}`);
-          if (clearToken) clearSecrets.push("bearer_token");
+          if (type === "webhook" && clearToken) clearSecrets.push("bearer_token");
+          if (type === "feishu" && clearSigningSecret) clearSecrets.push("signing_secret");
           const changedHeaders = Object.fromEntries(
             activeHeaders
               .filter((header) => !header.stored || header.value !== "")
@@ -762,20 +766,21 @@ function ContactPointEditor({
                 body: jsonBody({
                   ...(original ? { uid: original.uid } : {}),
                   name: name.trim(),
-                  type: "webhook",
-                  url,
+                  type,
+                  url: url.trim(),
                   timeout_seconds: timeout,
                   disabled,
                   disable_resolve_message: disableResolve,
                   title_template: titleTemplate,
                   message_template: messageTemplate,
                   version: original?.version || 0,
-                  ...(token && !clearToken ? { bearer_token: token } : {}),
-                  ...(Object.keys(changedHeaders).length
+                  ...(type === "feishu" && signingSecret && !clearSigningSecret ? { signing_secret: signingSecret } : {}),
+                  ...(type === "webhook" && token && !clearToken ? { bearer_token: token } : {}),
+                  ...(type === "webhook" && Object.keys(changedHeaders).length
                     ? { headers: changedHeaders }
                     : {}),
                   ...(clearSecrets.length
-                    ? { clear_secrets: clearSecrets }
+                    ? { clear_secrets: type === "feishu" ? clearSecrets.filter((key) => key === "signing_secret") : clearSecrets }
                     : {}),
                 }),
               },
@@ -801,15 +806,31 @@ function ContactPointEditor({
           />
         </label>
         <label>
+          {text("Notification type", "通知类型")}
+          <select aria-label={text("Notification type", "通知类型")} value={type} disabled={busy} onChange={(event) => {
+            setType(event.target.value as ContactPoint["type"]);
+            setURL("");
+            setToken("");
+            setSigningSecret("");
+            setClearSigningSecret(false);
+            setClearToken(false);
+            setHeaders([]);
+          }}>
+            <option value="webhook">HTTP Webhook</option>
+            <option value="feishu">{text("Feishu bot", "飞书机器人")}</option>
+          </select>
+        </label>
+        <label>
           {text("Webhook URL", "Webhook 地址")}
           <input
-            required
-            type="url"
+            required={!keepStoredURL}
+            type={type === "feishu" ? "password" : "url"}
+            autoComplete={type === "feishu" ? "new-password" : "off"}
             maxLength={4096}
             value={url}
             disabled={busy}
             onChange={(event) => setURL(event.target.value)}
-            placeholder="https://example.com/alerts"
+            placeholder={keepStoredURL ? text("Stored · leave blank to keep", "已保存，留空保留") : type === "feishu" ? "https://open.feishu.cn/open-apis/bot/v2/hook/…" : "https://example.com/alerts"}
           />
         </label>
         <div className="form-row">
@@ -851,7 +872,21 @@ function ContactPointEditor({
           onTitle={setTitleTemplate}
           onMessage={setMessageTemplate}
         />
-        <fieldset>
+        {type === "feishu" ? <fieldset>
+          <legend>{text("Feishu signature", "飞书签名")}</legend>
+          <label>
+            {text("Signing secret", "签名密钥")}
+            <input aria-label={text("Signing secret", "签名密钥")} type="password" autoComplete="new-password" maxLength={4096}
+              value={signingSecret} disabled={busy || clearSigningSecret}
+              onChange={(event) => setSigningSecret(event.target.value)}
+              placeholder={storedFeishu && original.secure_fields?.signing_secret ? text("Stored · leave blank to keep", "已保存，留空保留") : text("Optional · match bot security settings", "可选，与机器人安全设置一致")} />
+            <span className="notification-help">{text("The endpoint and secret are encrypted on the server and never returned to the browser.", "机器人地址和签名在服务端加密保存，不会返回到浏览器。")}</span>
+          </label>
+          {storedFeishu && original.secure_fields?.signing_secret ? <label className="checkbox-label">
+            <input type="checkbox" checked={clearSigningSecret} disabled={busy} onChange={(event) => setClearSigningSecret(event.target.checked)} />
+            {text("Remove stored signing secret", "删除已保存的签名密钥")}
+          </label> : null}
+        </fieldset> : <><fieldset>
           <legend>{text("Authentication", "身份验证")}</legend>
           <label>
             {text("Bearer token", "Bearer 令牌")}
@@ -976,6 +1011,7 @@ function ContactPointEditor({
             {text("Add header", "添加请求头")}
           </button>
         </fieldset>
+        </>}
         {error && (
           <p className="form-error" role="alert">
             {error}

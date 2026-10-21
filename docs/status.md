@@ -86,6 +86,10 @@ exporter or Grafana feature is supported, or universal production certification.
 | 2026-10-21 | Unified frozen-source Docker baseline | Runtime + Chromium + real databases twice, 535.733 s; six SQL browser passes with zero skips/retries; complete Linux vet/race rerun passed in 859.4 s after preserving the initial ten-minute timeout failure; [layers and resources](docker-validation.md) |
 | 2026-10-21 | Server module/repository migration | 649 files, including 366 Go files, matched the declared transformation; new `metrics233-server/` build context and formal Linux runtime/Chromium passed in 103.085 s; this is distinct from the earlier full race/database source baseline |
 | 2026-10-21 | SDK minimum-family toolchain check | Separate standard-library SDK passed actual Linux Go 1.23.12 vet, tests (1.164 s) and race (2.506 s), with local toolchain/network disabled and source unchanged; its optional external-server binary test skipped once per run |
+| 2026-10-21 | Fixed reporting-token rejection proof | Actual local HTTP tests use valid native business JSON, both remote-write paths and both OTLP paths: missing/wrong Bearer returns 401 and leaves metric storage empty; the correct fixed token writes successfully. Query/cookie credentials do not substitute for the header. SDK v0.1.0 already has `WithToken`; its package tests passed, with the optional external-server case skipped in this run |
+| 2026-10-21 | Feishu notification implementation | Encrypted/write-only bot URL and signing secret; official v2 signing, bounded text, business ACK, timeout/redirect/retry; real local TLS firing/resolved and test-queue fixtures plus native API and local-account role checks passed. UI typecheck/build and 118 unit tests passed; this unit's browser, immutable release and actual robot configuration are tracked separately below |
+| 2026-10-21 | Durable alert-notification cooldown | Per-receiver/rule/instance/severity successful ACK imposes the firing minimum interval, including explicit reminders; grouped/ungrouped restart, early recovery, retry, new identity/receiver, rule/contact changes, repeat floor and retained recovery receipt tests passed. API bounds/readback passed; UI browser and production rule configuration remain separate gates |
+| 2026-10-21 | Ingest-only fixed credential and source review | Independent environment-only reporting token writes only five exact POST routes; query/management/unblock/Live/unknown access rejected. Real HTTP tests and independent policy-DB failure, metadata failure, partial-write, mapped-IP, organization and concurrent/capacity regressions passed; no production credentials read |
 
 ## Next units (ordered)
 
@@ -139,3 +143,36 @@ an isolated disposable build volume; the cached image and unrelated shared cache
 deployment configuration, addresses or credentials belong in this public ledger. No new tag/release CI result,
 public DNS/TLS deployment, live production exporter, long-duration SLO or host disaster-recovery acceptance is
 inferred from these local checks.
+
+## 2026-10-21 fixed token and Feishu notification unit
+
+- **目标：** 固定 Token 保护所有指标上报入口，并在既有通知策略/队列中支持飞书群机器人。
+- **做了什么：** 确认固定 `METRICSPANEL_TOKEN` 已有完整 Bearer 链路，新增五入口有效载荷的真实 HTTP 拒写/落库回归；SDK 只补同值配置说明，API 不变。新增 `feishu` 联系点、地址和签名密文存储、脱敏读取、保留/清除/CAS 语义、官方 HMAC 签名、20 KiB JSON 限制、明确 `code: 0` 成功判定，以及 TLS、重试、超时、取消、恢复通知和 Admin 写权限回归。UI 提供 Feishu 类型和只写凭据字段。接口见 [Feishu notifications](feishu-notifications.md)。
+- **验证：** `go test ./internal/alerting ./internal/server ./internal/localauth ./internal/model -count=1 -timeout=180s` 全部通过（10.263 / 25.482 / 3.007 / 0.051 秒）；随后新增的飞书 firing/resolved 和 local 账号权限用例通过针对性重跑（alerting 1.370 秒、localauth 0.559 秒）。`go test ./cmd/metricspanel -count=1 -timeout=180s` 通过（3.624 秒）；相关五包 `go vet`、`git diff --check` 通过。SDK `go test ./... -count=1` 通过（1.176 秒），可选独立二进制用例本轮未启用。UI `tsc`、正式 build、118 单测通过，新增浏览器配置流程待主任务用最终 webui 二进制验收。
+- **后续：** 完成该浏览器文件，再由发布任务构建和发布不可变服务端产物；生产机器人私有配置与真实发群由操作者执行。当前后端测试只向本地合成 TLS 接收端发送。
+- **总进度：** 保持加权 **94%**，权重仍合计 100%；本单元不把新增功能的局部验收扩大为通用容量、全量协议或公网可用性认证。
+- **边界：** loopback 开发模式未配置 Token 时仍允许本地访问；将其公开到 HTTPS 代理前必须配置固定 Token。固定 token 具有 workspace 管理/读写权限，并非只写或每租户隔离凭据。飞书队列 202 仅代表接受，HTTP 200 也不等于投递成功；本轮尚未宣称真实飞书发送或新版本线上验收。
+
+## 2026-10-21 alert notification cooldown unit
+
+- **目标：** 避免资源告警恢复后短暂抖动反复通知，且不吞首次告警、严重级别升级、恢复或真正的失败重试。
+- **做了什么：** 增加规则 `notification_cooldown_seconds`（0–604800；旧配置为 0、新建 UI 默认 3600），成功 firing ACK 与 sent 同事务持久化。分组按成员筛选，非分组持久化延迟并在发送前复核活跃周期；未送达周期提前恢复取消待发 firing 和孤立恢复。编辑/暂停/停启不清 ACK；最长七天锚点与独立活动周期回执保留，避免普通历史清理破坏恢复。新增 CLI schema 与 [时间契约](alert-notification-cooldown.md)。
+- **验证：** `TestNotificationCooldown*` 调度测试覆盖实际本地 HTTP、分组/非分组、重启、失败、历史清理和静默恢复提醒；原生 API 验证 0/3600/604800 和越界拒绝。原版 same-period 豁免先由 repeat10s/CD300s 真实红测复现，再修复为 10、299 秒不发、300 秒发；CD0 仍按 10 秒，4h repeat 不提前，repeat0 不变成隐式提醒，503 重试保留原 ID/5 秒退避，真正恢复不被旧 CD next_at 延后。最新专属测试通过（2.522 秒）。最终 `go test ./internal/alerting ./internal/server ./internal/localauth ./internal/model ./internal/requestip ./cmd/metricspanel -count=1 -timeout=180s` 全通过（18.485/34.672/4.625/0.068 秒；requestip 无独立测试文件；CLI 5.093 秒），相关七包 `go vet`、`git diff --check` 通过。
+- **后续：** 规则 UI 浏览器核对新建 3600、编辑旧规则 0 保留、字段提交；随后与飞书、固定 Token 同一新版本发布。生产资源规则的冷却值由操作者按实际规则配置，不自动改业务阈值。
+- **总进度：** 保持加权 **94%**，权重合计 100%。这些局部新功能没有抹去容量、外部依赖和目标环境的验收边界。
+- **边界：** 持续 Firing 默认就不 repeat；`repeat_interval: 0s` 是关闭提醒，不是零延迟循环。非零 CD 是所有成功 firing 的最低间隔，显式同周期提醒至少 max(CD,repeat)；CD0 保留旧时序。CD 不是跨实例的全局消息频率上限。确定性测试推进调度时间验证一小时边界，不冒充已在线等待一小时或已向真实群发送。
+
+## 2026-10-21 ingest-only credential and reporting-source review unit
+
+- **目标：** 可以安全地把固定上报凭据交给业务程序，而不授予查询、修改来源策略或通知配置的权限。
+- **做了什么：** 新增仅环境输入的 `METRICSPANEL_INGEST_TOKEN`，要求 token 模式、独立管理 Token、32–8192 非空白 ASCII。精确五 POST ingest 路由允许，匹配该凭据的其余地址/方法统一 403；错误、重复/混合 Authorization 和 query/cookie 替代均拒绝。管理 Token 保留原功能；local 配置专用变量启动前拒绝，且不创建存储。同步 SDK 配置说明，SDK API 不变。见 [reporting access](reporting-access.md)。
+- **独立复查：** 未在新增来源策略中确认额外绕过。五路策略表失效返回 503 且未读体/调用后端，错 Token 先 401；辅助观测 trigger 失败不改变实际落库 ACK；remote-write 第二批失败只累计完成的 10000 样本。IPv4-mapped/多字段 XFF/非可信伪头、物理组织隔离/伪 org 头、32 并发观测计数、16 同版策略 CAS 单赢家、满 4096 条策略后失败不能顺带关闭 allowlist，均有可执行回归。
+- **验证：** 专属 server/CLI 凭据与来源测试通过（1.731/0.053 秒）；store `go test ./internal/store -run '^TestReporting' -count=1 -timeout=90s` 通过（0.336 秒）。最终完整相关包及 vet 结果见上一单元，保留这些局部证据与旧 Docker/race 基线的区别。
+- **后续：** 最终浏览器分别使用随机管理/专用凭据核对来源列表、上报和防自解封；不可变版本发布和线上私有第二 Token 由主任务执行。本地没有读取线上 Token，也没有把真实地址/凭据写入公开仓库。
+- **总进度/边界：** 加权仍 **94%**。来源观测是有界辅助目录，不是完整访问审计；已入场请求不承诺因后来封禁而撤回。共享上报 Token 也不是每应用可独立吊销账号，不能把权限收窄测试称为通用安全认证。
+
+## 2026-10-21 final feature browser acceptance
+
+- **目标/结果：** 最终合并的飞书、CD、来源控制和仅上报凭据通过完整 Windows Go 全包测试，以及最终嵌入式 UI 的 Chromium 套件：**86 passed / 2 SQL-environment skipped / 0 failed**，单 worker、无重试，6.5 分钟。SQL 集成先前独立 Docker 证据保持原归属，不把跳过算作通过。
+- **实际交互：** 飞书加密字段保留/清除与队列、CD 新默认/旧零值/范围、来源拉黑/解除/允许名单/409 刷新、独立凭据不能解封，以及 390/768/1280 布局已验收。源 IP 的 NAT 和地址变化边界保持明确。
+- **后续/边界：** 不可变 v0.2.2 产物、tag CI、生产升级及真实飞书回执分别记录；本条不把本地机器人夹具称为真实群送达。加权仍 **94%**，通用容量与外部服务长期运行未由这些功能测试认证。

@@ -21,6 +21,7 @@ import {
   LogOut,
   Menu,
   Monitor,
+  Network,
   PanelLeftClose,
   PanelLeftOpen,
   Puzzle,
@@ -71,6 +72,7 @@ const DashboardView = lazy(() => import("./features/DashboardView").then((module
 const Dashboards = lazy(() => import("./features/Dashboards").then((module) => ({ default: module.Dashboards })));
 const Explore = lazy(() => import("./features/Explore").then((module) => ({ default: module.Explore })));
 const Collectors = lazy(() => import("./features/Collectors").then((module) => ({ default: module.Collectors })));
+const ReportingSources = lazy(() => import("./features/ReportingSources"));
 const AgentCLI = lazy(() => import("./features/AgentCLI").then((module) => ({ default: module.AgentCLI })));
 const TemplateView = lazy(() => import("./features/TemplateView").then((module) => ({ default: module.TemplateView })));
 const Alerts = lazy(() => import("./features/Alerts").then((module) => ({ default: module.Alerts })));
@@ -81,6 +83,7 @@ type View =
   | "dashboard"
   | "explore"
   | "collectors"
+  | "reporting-sources"
   | "business"
   | "alerts"
   | "plugins"
@@ -92,6 +95,7 @@ const baseNavigation = [
   { id: "dashboards", name: "Dashboards", icon: ChartNoAxesColumn },
   { id: "explore", name: "Explore", icon: Search },
   { id: "collectors", name: "Collectors", icon: Server },
+  { id: "reporting-sources", name: "Reporting sources", icon: Network },
   { id: "business", name: "Business monitoring", icon: Activity },
   { id: "alerts", name: "Alerts", icon: Bell },
   { id: "cli", name: "Command line", icon: Terminal },
@@ -953,6 +957,7 @@ export default function App() {
           {view === "collectors" && (
             <Collectors targets={targets} reload={load} notify={notify} />
           )}
+          {view === "reporting-sources" && <ReportingSources notify={notify} />}
           {view === "cli" && <AgentCLI />}
           {view === "plugins" && <Plugins notify={notify} />}
           {view === "app" && (
