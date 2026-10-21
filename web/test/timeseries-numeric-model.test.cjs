@@ -1,0 +1,131 @@
+const { test } = require("node:test");
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const vm = require("node:vm");
+const ts = require("typescript");
+function load(file, requireModule = () => { throw new Error("Unexpected import"); }, extra = {}) {
+  const exports = {};
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(file, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, { exports, require: requireModule, Float64Array, Uint32Array, Uint8Array, DOMException, performance, ...extra });
+  return exports;
+}
+const numeric = load("src/render/timeseries/numeric-model.ts");
+const model = load("src/render/timeseries/plot-model.ts", (name) => {
+  if (name === "./numeric-model") return numeric;
+  if (name === "../../i18n") return { t: (value) => value };
+  if (name === "../frame-budget") return { nextFrame: async () => {} };
+  if (name === "@grafana/data") return { createTheme: () => ({}), getFieldDisplayName: (field, frame) => {
+    assert.ok(frame.fields.includes(field), "metadata field identity must belong to its cloned frame");
+    return field.name;
+  },
+    getFieldSeriesColor: () => ({ color: "#f00" }) };
+  throw new Error("Unexpected import: " + name);
+});
+const source = (times, ...columns) => ({ times: Float64Array.from(times), columns: columns.map((values) => Float64Array.from(values)) });
+const settings = (count, stack = "none", axis = "y") => Array.from({ length: count }, () => ({ axis, stack, stackGroup: "A" }));
+const request = (sources, series = settings(sources.reduce((sum, value) => sum + value.columns.length, 0)), targetRows = 1000,
+  start = 0, end = 1e15) => ({ sources, series, targetRows, start, end });
+const values = (result) => Array.from(result.columns, (column) => Array.from(column));
+const plain = (value) => JSON.parse(JSON.stringify(value));
+
+test("100k rows retain narrow spikes, troughs, endpoints and gap boundaries in every series", () => {
+  const count = 100000;
+  const x = Float64Array.from({ length: count }, (_, row) => row);
+  const a = new Float64Array(count), b = new Float64Array(count);
+  a[54321] = 999; a[54322] = -888;
+  b[32123] = 777; b[32124] = -666;
+  a.fill(NaN, 70000, 71000); b.fill(NaN, 12000, 12003);
+  const result = numeric.prepareNumericModel(request([{ times: x, columns: [a, b] }], settings(2), 512));
+  const selected = Array.from(result.columns[0]);
+  for (const row of [0, 99999, 54321, 54322, 32123, 32124, 69999, 70000, 70999, 71000, 11999, 12000, 12002, 12003])
+    assert.ok(selected.includes(row), `sample ${row} retained`);
+  assert.ok(selected.length <= 512 + 8);
+  assert.equal(result.inputRows, count);
+  assert.equal(result.alignedRows, count);
+  assert.equal(Math.max(...result.columns[1].filter(Number.isFinite)), 999);
+  assert.equal(Math.min(...result.columns[2].filter(Number.isFinite)), -666);
+});
+
+test("unaligned, unsorted duplicate times keep the latest finite value and missing cells", () => {
+  const result = numeric.prepareNumericModel(request([
+    source([3, 1, 2, 2, NaN], [30, 10, 20, 22, 999]), source([2, 4, 2], [200, 400, NaN]),
+  ]));
+  assert.deepEqual(values(result), [[1, 2, 3, 4], [10, 22, 30, NaN], [NaN, 200, NaN, 400]]);
+});
+
+test("the extrema union shares one pixel budget across twenty series", () => {
+  const count = 100000, budget = 1024;
+  const x = Float64Array.from({ length: count }, (_, row) => row);
+  const columns = Array.from({ length: 20 }, (_, series) => Float64Array.from(x,
+    (row) => Math.sin(row / (37 + series))));
+  const result = numeric.prepareNumericModel(request([{ times: x, columns }], settings(20), budget));
+  assert.ok(result.columns[0].length <= budget, `${result.columns[0].length} exceeds shared ${budget} row budget`);
+  assert.equal(result.columns.length, 21);
+});
+
+test("stacking runs before sampling and retains gaps, axes and independent groups", () => {
+  const series = [...settings(2, "percent"), ...settings(1, "normal", "y2")];
+  const result = numeric.prepareNumericModel(request([
+    source([1, 2, 3], [20, NaN, -1], [80, 10, 0], [500, 600, 700]),
+  ], series));
+  assert.deepEqual(values(result), [[1, 2, 3], [20, NaN, 0], [100, 100, 0], [500, 600, 700]]);
+});
+
+test("viewport sampling includes neighbouring points and retains the full model legend last value", () => {
+  const result = numeric.prepareNumericModel(request([source([0, 10, 20, 30, 40, 50], [0, 1, 2, 3, 4, 99])], settings(1), 100, 15, 35));
+  assert.deepEqual(values(result), [[10, 20, 30, 40], [1, 2, 3, 4]]);
+  assert.deepEqual(Array.from(result.lastValues), [99]);
+});
+
+test("many gaps exceed the soft pixel target rather than join disconnected samples", () => {
+  const x = Float64Array.from({ length: 1000 }, (_, row) => row);
+  const y = Float64Array.from(x, (row) => row % 2 ? NaN : row);
+  const result = numeric.prepareNumericModel(request([{ times: x, columns: [y] }], settings(1), 100));
+  assert.equal(result.columns[0].length, 1000);
+  assert.ok(Number.isNaN(result.columns[1][1]));
+});
+
+test("empty frames and all-missing values stay valid", () => {
+  assert.deepEqual(values(numeric.prepareNumericModel(request([]))), [[]]);
+  const result = numeric.prepareNumericModel(request([source([1, 2], [NaN, NaN])]));
+  assert.deepEqual(values(result), [[1, 2], [NaN, NaN]]);
+  assert.ok(Number.isNaN(result.lastValues[0]));
+});
+
+test("packing preserves source DataFrames, distinguishes null from zero and aligns comparisons", async () => {
+  const frames = [{ refId: "A", length: 3, meta: { timeCompare: { isTimeShiftQuery: true, diffMs: -1000 } },
+    fields: [{ name: "Time", type: "time", values: [0, 1000, null], config: {} },
+      { name: "Value", type: "number", values: [0, null, 5], config: { custom: { stacking: { mode: "percent" } } } }] }];
+  const before = JSON.stringify(frames);
+  const spec = model.describePlot(frames);
+  const packed = model.packPlot(spec);
+  const sliced = await model.packPlotInSlices(spec, new AbortController().signal);
+  assert.deepEqual(packed, sliced);
+  assert.deepEqual(Array.from(packed[0].times), [1000, 2000, NaN]);
+  assert.deepEqual(Array.from(packed[0].columns[0]), [0, NaN, 5]);
+  const completed = model.preparePlotSync(spec, { targetRows: 100, start: 0, end: 3000 });
+  assert.equal(completed.series[0].name, "Value (Comparison)");
+  assert.equal(completed.series[0].dashed, true);
+  assert.deepEqual(plain(completed.data), [[1000, 2000], [0, null]]);
+  assert.equal(JSON.stringify(frames), before);
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(model.packPlotInSlices(spec, controller.signal), { name: "AbortError" });
+});
+
+test("Worker protocol transfers owned buffers in both directions and matches synchronous output", () => {
+  const originalTimes = [1, 2, 3], originalValues = [8, NaN, 9];
+  const packet = request([source(originalTimes, originalValues)]);
+  const transferred = packet.sources.flatMap((entry) => [entry.times.buffer, ...entry.columns.map((column) => column.buffer)]);
+  const workerInput = structuredClone(packet, { transfer: transferred });
+  transferred.forEach((buffer) => assert.equal(buffer.byteLength, 0));
+  let response;
+  const worker = { postMessage: (message, options) => {
+    assert.equal(options.transfer.length, 2);
+    response = structuredClone(message, { transfer: Array.from(options.transfer) });
+  } };
+  load("src/render/timeseries/numeric-model.worker.ts", () => numeric, { self: worker });
+  worker.onmessage({ data: workerInput });
+  assert.deepEqual(values(response.result), values(numeric.prepareNumericModel(request([source(originalTimes, originalValues)]))));
+  assert.deepEqual(originalValues, [8, NaN, 9]);
+});

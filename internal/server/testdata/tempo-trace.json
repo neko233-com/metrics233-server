@@ -1,0 +1,18 @@
+{
+  "batches": [
+    {
+      "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "checkout"}}]},
+      "scopeSpans": [{"scope": {"name": "metricspanel-protocol-fixture"}, "spans": [
+        {"traceId": "0123456789abcdef0123456789abcdef", "spanId": "0000000000000001", "name": "POST /checkout", "kind": "SPAN_KIND_SERVER", "startTimeUnixNano": "1791633600000000000", "endTimeUnixNano": "1791633600120500000", "status": {"code": "STATUS_CODE_OK"}, "attributes": [{"key": "http.request.method", "value": {"stringValue": "POST"}}]},
+        {"traceId": "0123456789abcdef0123456789abcdef", "spanId": "0000000000000003", "parentSpanId": "0000000000000002", "name": "connection wait", "startTimeUnixNano": "1791633600015000000", "endTimeUnixNano": "1791633600020000000", "status": {"code": 0}},
+        {"traceId": "0123456789abcdef0123456789abcdef", "spanId": "0000000000000004", "parentSpanId": "0000000000000001", "name": "publish order", "startTimeUnixNano": "1791633600020000000", "endTimeUnixNano": "1791633600030000000", "status": {"code": 1}}
+      ]}]
+    },
+    {
+      "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "orders-db"}}]},
+      "instrumentationLibrarySpans": [{"spans": [
+        {"traceId": "ASNFZ4mrze8BI0VniavN7w==", "spanId": "AAAAAAAAAAI=", "parentSpanId": "AAAAAAAAAAE=", "name": "INSERT orders", "kind": 3, "startTimeUnixNano": "1791633600010000000", "endTimeUnixNano": "1791633600035250000", "status": {"code": 2, "message": "database deadline exceeded"}, "attributes": [{"key": "db.system.name", "value": {"stringValue": "mysql"}}, {"key": "error", "value": {"boolValue": true}}]}
+      ]}]
+    }
+  ]
+}

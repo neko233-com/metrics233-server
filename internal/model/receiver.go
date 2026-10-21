@@ -5,7 +5,7 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/neko233-com/MetricsPanel233/internal/receivers"
+	"github.com/neko233-com/metrics233-server/internal/receivers"
 )
 
 var ErrInvalidReceiver = errors.New("invalid receiver configuration")

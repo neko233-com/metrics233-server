@@ -22,9 +22,9 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/genproto/pluginv2"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-plugin"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/querycontext"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/querycontext"
+	"github.com/neko233-com/metrics233-server/internal/store"
 	"google.golang.org/grpc"
 )
 
@@ -82,10 +82,31 @@ func (m *Manager) ensureRoot() error {
 func (m *Manager) directory(p model.Plugin) string {
 	return filepath.Join(m.Root, p.PackageID, filepath.FromSlash(p.AssetPath))
 }
+func (m *Manager) packageRoot(id string) (string, error) {
+	if !model.PluginID.MatchString(id) {
+		return "", errors.New("invalid registered plugin package")
+	}
+	// Another manager may have created the shared root after this manager was
+	// constructed. Resolve both sides of containment checks from the same root:
+	// Windows short names and directory aliases need not have the same spelling.
+	canonical, err := filepath.EvalSymlinks(m.Root)
+	if err != nil {
+		return "", err
+	}
+	canonical, err = filepath.Abs(canonical)
+	if err != nil {
+		return "", err
+	}
+	root := filepath.Join(canonical, id)
+	if !within(canonical, root) {
+		return "", errors.New("invalid registered plugin package")
+	}
+	return root, nil
+}
 func (m *Manager) verifyFiles(p model.Plugin) error {
-	root := filepath.Join(m.Root, p.PackageID)
-	if !model.PluginID.MatchString(p.PackageID) || !within(m.Root, root) {
-		return errors.New("invalid registered plugin package")
+	root, err := m.packageRoot(p.PackageID)
+	if err != nil {
+		return err
 	}
 	for name, expected := range p.Files {
 		if !safeName(name) {
@@ -139,7 +160,10 @@ func (m *Manager) Asset(ctx context.Context, id, name string) ([]byte, error) {
 	if !exists {
 		return nil, sql.ErrNoRows
 	}
-	root := filepath.Join(m.Root, p.PackageID)
+	root, err := m.packageRoot(p.PackageID)
+	if err != nil {
+		return nil, err
+	}
 	file := filepath.Join(root, filepath.FromSlash(relative))
 	resolved, err := filepath.EvalSymlinks(file)
 	if err != nil {

@@ -10,8 +10,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 // Grafana-compatible dashboard endpoints allow existing dashboard-as-code tools

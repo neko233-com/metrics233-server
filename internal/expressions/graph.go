@@ -9,7 +9,7 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/neko233-com/MetricsPanel233/internal/sqlframes"
+	"github.com/neko233-com/metrics233-server/internal/sqlframes"
 )
 
 func IsSource(uid string) bool { return uid == "__expr__" || uid == "-100" || uid == "Expression" }

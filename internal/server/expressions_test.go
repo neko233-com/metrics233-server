@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/notificationtemplate"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/notificationtemplate"
 )
 
 var errSavedTemplateRender = errors.New("notification template rendering failed for the saved version")

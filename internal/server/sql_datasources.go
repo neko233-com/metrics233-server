@@ -22,7 +22,7 @@ import (
 	"github.com/grafana/grafana-plugin-sdk-go/backend/gtime"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 	"github.com/lib/pq"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 const postgresSourceID = "grafana-postgresql-datasource"

@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/server"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/server"
+	"github.com/neko233-com/metrics233-server/internal/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -233,6 +233,7 @@ func TestHTTPAuthenticationOriginPrecedesSessionMetadata(t *testing.T) {
 	for _, tc := range []struct{ origin, site string }{
 		{"http://foreign.test", ""}, {"https://example.test", ""}, {"null", ""},
 		{"http://example.test/path", ""}, {"http://u:p@example.test", ""}, {"", "cross-site"},
+		{"http://example.test?", ""},
 	} {
 		r := cookieRequest("/api/user", key)
 		if tc.origin != "" {
@@ -353,7 +354,7 @@ func TestHTTPAuthenticationConfigurationAndUnavailableErrorRedaction(t *testing.
 	f := newHTTPAuthenticationFixture(t)
 	_, err := NewHTTPAuthenticator(nil, HTTPAuthenticationConfig{})
 	require.Error(t, err)
-	for _, c := range []HTTPAuthenticationConfig{{CookieName: "bad\nname"}, {RotationInterval: time.Second}, {RotationInterval: -time.Minute}} {
+	for _, c := range []HTTPAuthenticationConfig{{CookieName: "bad\nname"}, {RotationInterval: time.Second}, {RotationInterval: -time.Minute}, {PublicOrigin: "https://example.test?"}, {PublicOrigin: "https://user:password@example.test"}, {PublicOrigin: "https://example.test/path"}, {PublicOrigin: "file:///example.test"}} {
 		_, err := NewHTTPAuthenticator(f.catalog, c)
 		require.Error(t, err)
 	}

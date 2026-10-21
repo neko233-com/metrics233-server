@@ -18,12 +18,12 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/live"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/querycontext"
-	"github.com/neko233-com/MetricsPanel233/internal/server"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/live"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/querycontext"
+	"github.com/neko233-com/metrics233-server/internal/server"
+	"github.com/neko233-com/metrics233-server/internal/store"
 	"github.com/stretchr/testify/require"
 )
 
@@ -367,11 +367,12 @@ func TestOrganizationLiveRealTransportSameChannelIsolation(t *testing.T) {
 	var mu sync.Mutex
 	counts := [2]int{}
 	markers := [2][]string{}
+	watchErrors := [2]error{}
 	done := []chan error{make(chan error, 1), make(chan error, 1)}
 	for index, endpoint := range servers {
 		index, endpoint := index, endpoint
 		go func() {
-			done[index] <- live.Watch(watchCtx, live.WatchOptions{Endpoint: endpoint.URL, Channel: "ds/same/counter", Header: http.Header{"X-Grafana-Org-Id": {"999"}}}, func(event live.Event) error {
+			watchErr := live.Watch(watchCtx, live.WatchOptions{Endpoint: endpoint.URL, Channel: "ds/same/counter", Header: http.Header{"X-Grafana-Org-Id": {"999"}}}, func(event live.Event) error {
 				mu.Lock()
 				defer mu.Unlock()
 				counts[index]++
@@ -383,13 +384,23 @@ func TestOrganizationLiveRealTransportSameChannelIsolation(t *testing.T) {
 				}
 				return nil
 			})
+			mu.Lock()
+			watchErrors[index] = watchErr
+			mu.Unlock()
+			done[index] <- watchErr
 		}()
 	}
 	require.Eventually(t, func() bool {
 		mu.Lock()
 		defer mu.Unlock()
-		return counts[0] >= 3 && counts[1] >= 3
+		return (counts[0] >= 3 && counts[1] >= 3) || watchErrors[0] != nil || watchErrors[1] != nil
 	}, 15*time.Second, 20*time.Millisecond)
+	mu.Lock()
+	startupErrors := watchErrors
+	mu.Unlock()
+	for _, watchErr := range startupErrors {
+		require.NoError(t, watchErr, "Live transport must subscribe before testing tenant isolation")
+	}
 	_, err = primary.Live.Publish(identity.WithPrincipal(ctx, actor(1)), "ds/same/counter", []byte(`{"marker":"org-one-only"}`))
 	require.NoError(t, err)
 	_, err = secondary.Live.Publish(identity.WithPrincipal(ctx, actor(2)), "ds/same/counter", []byte(`{"marker":"org-two-only"}`))

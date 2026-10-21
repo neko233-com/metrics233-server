@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 func remoteWriteFixture(timestamp int64) *prompb.WriteRequest {
@@ -87,7 +87,7 @@ func TestRemoteWriteRejectsMalformedAndUnsupportedBodies(t *testing.T) {
 	}
 }
 
-func TestRemoteWriteSkipsSeriesWithoutMetricName(t *testing.T) {
+func TestRemoteWriteRejectsSamplesWithoutMetricName(t *testing.T) {
 	store, handler := setup(t, "")
 	now := time.Now().UnixMilli()
 	raw, err := proto.Marshal(&prompb.WriteRequest{Timeseries: []prompb.TimeSeries{{
@@ -98,7 +98,7 @@ func TestRemoteWriteSkipsSeriesWithoutMetricName(t *testing.T) {
 	request := httptest.NewRequest("POST", "/api/v1/write", bytes.NewReader(raw))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
-	require.Equal(t, 204, response.Code, response.Body.String())
+	require.Equal(t, 400, response.Code, response.Body.String())
 	assert.Equal(t, "0", response.Header().Get("X-Accepted-Samples"))
 	metrics, err := store.Metrics(context.Background())
 	require.NoError(t, err)

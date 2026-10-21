@@ -79,6 +79,20 @@ function errors(page: Page) {
   });
   return issues;
 }
+async function largeFrameResponses(page: Page, queries: { from: string; to: string }[] = []) {
+  const count = 100000;
+  await page.route("**/api/ds/query**", async (route) => {
+    const body = route.request().postDataJSON();
+    queries.push({ from: body.from, to: body.to });
+    const from = Number(body.from), to = Number(body.to);
+    const times = Array.from({ length: count }, (_, row) => from + Math.round(row * (to - from) / (count - 1)));
+    const samples = Array.from({ length: count }, (_, row) => row === 54321 ? 9999 : row === 54322 ? -8888 :
+      row >= 70000 && row < 71000 ? null : Math.sin(row / 37));
+    await route.fulfill({ json: { results: { A: { status: 200, frames: [{ schema: { refId: "A", fields: [
+      { name: "Time", type: "time", config: {} }, { name: "Signal", type: "number", config: {} },
+    ] }, data: { values: [times, samples] } }] } } } });
+  });
+}
 async function open(page: Page, endpoint: string, title: string, panels: ReturnType<typeof panel>[], withVariable = false) {
   await page.addInitScript(() => {
     localStorage.setItem("metricspanel-locale", "en");
@@ -103,7 +117,7 @@ async function open(page: Page, endpoint: string, title: string, panels: ReturnT
   expect(create.ok(), await create.text()).toBeTruthy();
   const saved = await create.json();
   await page.goto(`${endpoint}/d/${saved.id}/time-series?from=${start}&to=${end}&timezone=utc`);
-  await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: title, exact: true, level: 1 })).toBeVisible();
   return saved;
 }
 async function colorCounts(plot: Locator, palette = colors) {
@@ -281,7 +295,7 @@ test("time series canvas tracks viewport width and panel height without overflow
   });
   expect(resized.ok(), await resized.text()).toBeTruthy();
   await page.reload();
-  await expect(page.getByRole("heading", { name: "Responsive series", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Responsive series", exact: true, level: 1 })).toBeVisible();
   await expect(region.locator(".uplot canvas")).toBeVisible();
   await expect.poll(async () => (await layout()).canvasHeight).toBeGreaterThan(before + 20);
   const current = await layout();
@@ -323,5 +337,93 @@ test("comparison frames align on the current time range and retain dashed stylin
   expect(stored[1].schema.fields[1].config.custom.lineStyle).toBeUndefined();
   expect(stored[1].schema.meta.timeCompare.diffMs).toBe(-86400000);
   await saveScreenshot(page, "time-series-comparison-desktop.png");
+  expect(issues).toEqual([]);
+});
+
+test("large frames use transferable Workers, preserve spikes and gaps, requery zoom and release jobs", async ({ page, endpoint }) => {
+  test.setTimeout(60000);
+  const issues = errors(page), queries: { from: string; to: string }[] = [];
+  await page.addInitScript(() => {
+    const stats = { created: 0, terminated: 0, detached: 0, results: [] as { peak: number; trough: number; gaps: number; rows: number }[] };
+    (window as any).__renderWorkerStats = stats;
+    const NativeWorker = window.Worker;
+    window.Worker = class extends NativeWorker {
+      constructor(url: string | URL, options?: WorkerOptions) {
+        super(url, options); stats.created++;
+        this.addEventListener("message", (event) => {
+          const values = event.data.result?.columns?.[1] as Float64Array | undefined;
+          if (!values) return;
+          let peak = -Infinity, trough = Infinity, gaps = 0;
+          for (const value of values) {
+            if (!Number.isFinite(value)) gaps++;
+            else { peak = Math.max(peak, value); trough = Math.min(trough, value); }
+          }
+          stats.results.push({ peak, trough, gaps, rows: values.length });
+        });
+      }
+      postMessage(message: any, transfer: Transferable[]): void {
+        super.postMessage(message, transfer);
+        stats.detached += transfer.filter((buffer) => buffer instanceof ArrayBuffer && buffer.byteLength === 0).length;
+      }
+      terminate(): void { stats.terminated++; super.terminate(); }
+    };
+  });
+  const count = 100000;
+  await largeFrameResponses(page, queries);
+  const current = panel(7, "Worker series", 1);
+  current.config.targets = [{ refId: "A", expr: "worker_signal", datasource: { uid: "metricspanel", type: "prometheus" } }] as any;
+  await open(page, endpoint, "Worker lifecycle", [current]);
+  const region = page.getByRole("region", { name: "Worker series", exact: true });
+  await expect(region).toHaveAttribute("data-preparation", "worker");
+  await expect(region).toHaveAttribute("aria-busy", "false");
+  await expect(region.locator("canvas")).toBeVisible();
+  const stats = await page.evaluate(() => (window as any).__renderWorkerStats);
+  expect(stats.detached).toBeGreaterThanOrEqual(2);
+  expect(stats.results.at(-1).peak).toBe(9999);
+  expect(stats.results.at(-1).trough).toBe(-8888);
+  expect(stats.results.at(-1).gaps).toBeGreaterThan(0);
+  expect(stats.results.at(-1).rows).toBeLessThan(4000);
+  await expect(region).toHaveAttribute("data-input-rows", String(count));
+  const initialJobs = stats.created;
+  const hover = await region.locator(".u-over").boundingBox();
+  await page.mouse.move(hover!.x + hover!.width * 0.5, hover!.y + hover!.height * 0.5);
+  await expect(region.locator(".grafana-timeseries-tooltip")).toBeVisible();
+  expect(await page.evaluate(() => (window as any).__renderWorkerStats.created)).toBe(initialJobs);
+  const prior = queries.length;
+  await region.getByLabel("Zoom scope", { exact: true }).selectOption("panel");
+  await page.mouse.move(hover!.x + hover!.width * 0.2, hover!.y + hover!.height * 0.4);
+  await page.mouse.down();
+  await page.mouse.move(hover!.x + hover!.width * 0.7, hover!.y + hover!.height * 0.4, { steps: 6 });
+  await page.mouse.up();
+  await expect.poll(() => queries.length).toBeGreaterThan(prior);
+  expect(Number(queries.at(-1)!.from)).toBeGreaterThan(start);
+  expect(Number(queries.at(-1)!.to)).toBeLessThan(end);
+  await expect(region).toHaveAttribute("aria-busy", "false");
+  await expect(region).toHaveAttribute("data-preparation", "worker");
+  await expect.poll(() => page.evaluate(() => {
+    const current = (window as any).__renderWorkerStats;
+    return current.terminated >= current.created;
+  })).toBe(true);
+  await saveScreenshot(page, "time-series-worker-100k.png");
+  expect(issues).toEqual([]);
+});
+
+test("large frames remain usable when Workers are unavailable", async ({ page, endpoint }) => {
+  const issues = errors(page);
+  await page.addInitScript(() => Object.defineProperty(window, "Worker", { value: undefined }));
+  await largeFrameResponses(page);
+  const current = panel(7, "Fallback series", 1);
+  current.config.targets = [{ refId: "A", expr: "worker_signal", datasource: { uid: "metricspanel", type: "prometheus" } }] as any;
+  await open(page, endpoint, "Worker fallback", [current]);
+  const region = page.getByRole("region", { name: "Fallback series", exact: true });
+  await expect(region).toHaveAttribute("data-preparation", "fallback");
+  await expect(region).toHaveAttribute("aria-busy", "false");
+  await expect(region.locator("canvas")).toBeVisible();
+  await expect(region).toHaveAttribute("data-input-rows", "100000");
+  expect(Number(await region.getAttribute("data-rendered-rows"))).toBeLessThan(4000);
+  await region.locator(".native-timeseries-legend-item button").click({ modifiers: ["Control"] });
+  await expect(region.locator(".native-timeseries-legend-item button")).toHaveAttribute("aria-pressed", "false");
+  await region.locator(".native-timeseries-legend-item button").click();
+  await expect(region.locator(".native-timeseries-legend-item button")).toHaveAttribute("aria-pressed", "true");
   expect(issues).toEqual([]);
 });

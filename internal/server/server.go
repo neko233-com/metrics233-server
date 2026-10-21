@@ -22,16 +22,16 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/neko233-com/MetricsPanel233/internal/alerting"
-	"github.com/neko233-com/MetricsPanel233/internal/collector"
-	"github.com/neko233-com/MetricsPanel233/internal/grafana"
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/live"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/plugins"
-	"github.com/neko233-com/MetricsPanel233/internal/promcompat"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
-	webassets "github.com/neko233-com/MetricsPanel233/web"
+	"github.com/neko233-com/metrics233-server/internal/alerting"
+	"github.com/neko233-com/metrics233-server/internal/collector"
+	"github.com/neko233-com/metrics233-server/internal/grafana"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/live"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/plugins"
+	"github.com/neko233-com/metrics233-server/internal/promcompat"
+	"github.com/neko233-com/metrics233-server/internal/store"
+	webassets "github.com/neko233-com/metrics233-server/web"
 )
 
 // BuildVersion is set by the CLI so health responses match the released binary.

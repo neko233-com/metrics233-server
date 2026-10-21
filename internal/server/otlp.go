@@ -4,21 +4,18 @@ import (
 	"compress/gzip"
 	"encoding/base64"
 	"errors"
-	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	collectormetrics "go.opentelemetry.io/proto/otlp/collector/metrics/v1"
 	commonpb "go.opentelemetry.io/proto/otlp/common/v1"
-	metricspb "go.opentelemetry.io/proto/otlp/metrics/v1"
 	resourcepb "go.opentelemetry.io/proto/otlp/resource/v1"
+	statuspb "google.golang.org/genproto/googleapis/rpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
-
-	"github.com/neko233-com/MetricsPanel233/internal/model"
 )
 
 const otlpBodyLimit = 16 << 20
@@ -26,164 +23,108 @@ const otlpBodyLimit = 16 << 20
 // OTLP/HTTP metrics receiver. Prometheus scraping and native SQL/Redis
 // collectors remain separate; all three write into the same metric store.
 func (s *Server) otlpMetrics(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("X-Accepted-Samples", "0")
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", "POST")
-		fail(w, http.StatusMethodNotAllowed, errors.New("OTLP metrics endpoint accepts POST only"))
+		otlpFail(w, r, http.StatusMethodNotAllowed, errors.New("OTLP metrics endpoint accepts POST only"))
+		return
+	}
+	media, _, mediaErr := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if r.Header.Get("Content-Type") != "" && (mediaErr != nil || (media != "application/json" && media != "application/x-protobuf")) {
+		otlpFail(w, r, http.StatusUnsupportedMediaType, errors.New("OTLP metrics requires application/json or application/x-protobuf"))
 		return
 	}
 	body, err := readOTLPBody(r)
 	if err != nil {
-		fail(w, http.StatusRequestEntityTooLarge, err)
+		status := http.StatusBadRequest
+		if errors.Is(err, errOTLPBodyLimit) {
+			status = http.StatusRequestEntityTooLarge
+		} else if errors.Is(err, errOTLPEncoding) {
+			status = http.StatusUnsupportedMediaType
+		}
+		otlpFail(w, r, status, err)
 		return
 	}
-	jsonRequest := strings.Contains(strings.ToLower(r.Header.Get("Content-Type")), "json")
+	jsonRequest := media == "application/json"
 	var request collectormetrics.ExportMetricsServiceRequest
 	if jsonRequest {
-		if err := protojson.Unmarshal(body, &request); err != nil {
-			fail(w, http.StatusBadRequest, fmt.Errorf("invalid OTLP JSON: %w", err))
+		if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, &request); err != nil {
+			otlpFail(w, r, http.StatusBadRequest, errors.New("invalid OTLP JSON"))
 			return
 		}
 	} else if err := proto.Unmarshal(body, &request); err != nil {
-		fail(w, http.StatusBadRequest, fmt.Errorf("invalid OTLP protobuf: %w", err))
+		otlpFail(w, r, http.StatusBadRequest, errors.New("invalid OTLP protobuf"))
 		return
 	}
-	samples := otlpSamples(request.ResourceMetrics)
+	converted, err := otlpSamples(request.ResourceMetrics)
+	if err != nil {
+		otlpFail(w, r, http.StatusRequestEntityTooLarge, err)
+		return
+	}
+	samples := converted.samples
 	if len(samples) > 0 {
-		for offset := 0; offset < len(samples); offset += 10000 {
-			end := min(offset+10000, len(samples))
-			if err := s.Store.Ingest(r.Context(), samples[offset:end]); err != nil {
-				fail(w, http.StatusBadRequest, err)
-				return
-			}
+		if err := s.Store.Ingest(r.Context(), samples); err != nil {
+			otlpFail(w, r, http.StatusServiceUnavailable, errors.New("metric storage unavailable; retry the request"))
+			return
 		}
+		w.Header().Set("X-Accepted-Samples", strconv.Itoa(len(samples)))
+	}
+	response := &collectormetrics.ExportMetricsServiceResponse{}
+	if converted.rejected > 0 {
+		response.PartialSuccess = &collectormetrics.ExportMetricsPartialSuccess{RejectedDataPoints: converted.rejected, ErrorMessage: converted.reason}
 	}
 	if jsonRequest {
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte("{}"))
+		data, _ := protojson.Marshal(response)
+		_, _ = w.Write(data)
 		return
 	}
-	response, _ := proto.Marshal(&collectormetrics.ExportMetricsServiceResponse{})
+	data, _ := proto.Marshal(response)
 	w.Header().Set("Content-Type", "application/x-protobuf")
-	_, _ = w.Write(response)
+	_, _ = w.Write(data)
+}
+
+var errOTLPBodyLimit = errors.New("OTLP request exceeds 16 MiB")
+var errOTLPEncoding = errors.New("unsupported OTLP Content-Encoding; use gzip or identity")
+
+func otlpFail(w http.ResponseWriter, r *http.Request, code int, err error) {
+	response := &statuspb.Status{Message: err.Error()}
+	media, _, _ := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	var body []byte
+	if media == "application/json" {
+		w.Header().Set("Content-Type", "application/json")
+		body, _ = protojson.Marshal(response)
+	} else {
+		w.Header().Set("Content-Type", "application/x-protobuf")
+		body, _ = proto.Marshal(response)
+	}
+	w.WriteHeader(code)
+	_, _ = w.Write(body)
 }
 
 func readOTLPBody(r *http.Request) ([]byte, error) {
-	raw := io.LimitReader(r.Body, otlpBodyLimit+1)
+	raw := &io.LimitedReader{R: r.Body, N: otlpBodyLimit + 1}
 	var reader io.Reader = raw
-	if strings.EqualFold(strings.TrimSpace(r.Header.Get("Content-Encoding")), "gzip") {
+	switch strings.ToLower(strings.TrimSpace(r.Header.Get("Content-Encoding"))) {
+	case "", "identity":
+	case "gzip":
 		gzipReader, err := gzip.NewReader(raw)
 		if err != nil {
 			return nil, errors.New("invalid gzip OTLP body")
 		}
 		defer gzipReader.Close()
 		reader = gzipReader
+	default:
+		return nil, errOTLPEncoding
 	}
 	data, err := io.ReadAll(io.LimitReader(reader, otlpBodyLimit+1))
-	if err != nil {
-		return nil, err
+	if len(data) > otlpBodyLimit || raw.N == 0 {
+		return nil, errOTLPBodyLimit
 	}
-	if len(data) > otlpBodyLimit {
-		return nil, errors.New("OTLP request exceeds 16 MiB")
+	if err != nil {
+		return nil, errors.New("invalid or truncated OTLP body")
 	}
 	return data, nil
-}
-
-func otlpSamples(resources []*metricspb.ResourceMetrics) []model.Sample {
-	// ResourceMetrics lives in the collector package in some proto versions;
-	// use the shared shape through an adapter below.
-	samples := []model.Sample{}
-	for _, resource := range resources {
-		resourceLabels := otlpAttributes(resource.GetResource())
-		for _, scope := range resource.GetScopeMetrics() {
-			scopeLabels := map[string]string{}
-			for key, value := range resourceLabels {
-				scopeLabels[key] = value
-			}
-			if name := scope.GetScope().GetName(); name != "" {
-				scopeLabels["otel_scope_name"] = name
-			}
-			if version := scope.GetScope().GetVersion(); version != "" {
-				scopeLabels["otel_scope_version"] = version
-			}
-			for _, metric := range scope.GetMetrics() {
-				samples = append(samples, otlpMetricSamples(metric, scopeLabels)...)
-			}
-		}
-	}
-	return samples
-}
-
-func otlpMetricSamples(metric *metricspb.Metric, base map[string]string) []model.Sample {
-	name := sanitizeMetricName(metric.GetName())
-	if name == "" {
-		return nil
-	}
-	now := time.Now().UnixMilli()
-	add := func(destination []model.Sample, pointName string, labels map[string]string, value float64, nanoseconds uint64) []model.Sample {
-		if value != value { // NaN is not a storeable sample.
-			return destination
-		}
-		timestamp := now
-		if nanoseconds > 0 {
-			timestamp = int64(nanoseconds / 1_000_000)
-		}
-		return append(destination, model.Sample{Name: pointName, Labels: labels, Value: value, Timestamp: timestamp})
-	}
-	samples := []model.Sample{}
-	if gauge := metric.GetGauge(); gauge != nil {
-		for _, point := range gauge.GetDataPoints() {
-			samples = add(samples, name, otlpLabels(base, point.GetAttributes()), otlpNumber(point), point.GetTimeUnixNano())
-		}
-	}
-	if sum := metric.GetSum(); sum != nil {
-		for _, point := range sum.GetDataPoints() {
-			samples = add(samples, name, otlpLabels(base, point.GetAttributes()), otlpNumber(point), point.GetTimeUnixNano())
-		}
-	}
-	if histogram := metric.GetHistogram(); histogram != nil {
-		for _, point := range histogram.GetDataPoints() {
-			labels := otlpLabels(base, point.GetAttributes())
-			cumulative := uint64(0)
-			for index, count := range point.GetBucketCounts() {
-				cumulative += count
-				bucket := map[string]string{"le": "+Inf"}
-				for key, value := range labels {
-					bucket[key] = value
-				}
-				if index < len(point.GetExplicitBounds()) {
-					bucket["le"] = strconv.FormatFloat(point.GetExplicitBounds()[index], 'f', -1, 64)
-				}
-				samples = add(samples, name+"_bucket", bucket, float64(cumulative), point.GetTimeUnixNano())
-			}
-			samples = add(samples, name+"_count", labels, float64(point.GetCount()), point.GetTimeUnixNano())
-			samples = add(samples, name+"_sum", labels, point.GetSum(), point.GetTimeUnixNano())
-		}
-	}
-	if summary := metric.GetSummary(); summary != nil {
-		for _, point := range summary.GetDataPoints() {
-			labels := otlpLabels(base, point.GetAttributes())
-			samples = add(samples, name+"_count", labels, float64(point.GetCount()), point.GetTimeUnixNano())
-			samples = add(samples, name+"_sum", labels, point.GetSum(), point.GetTimeUnixNano())
-			for _, quantile := range point.GetQuantileValues() {
-				quantileLabels := map[string]string{"quantile": strconv.FormatFloat(quantile.GetQuantile(), 'f', -1, 64)}
-				for key, value := range labels {
-					quantileLabels[key] = value
-				}
-				samples = add(samples, name, quantileLabels, quantile.GetValue(), point.GetTimeUnixNano())
-			}
-		}
-	}
-	return samples
-}
-
-func otlpNumber(point interface {
-	GetAsDouble() float64
-	GetAsInt() int64
-}) float64 {
-	if point.GetAsInt() != 0 {
-		return float64(point.GetAsInt())
-	}
-	return point.GetAsDouble()
 }
 
 func otlpLabels(base map[string]string, attributes []*commonpb.KeyValue) map[string]string {
@@ -230,6 +171,8 @@ func otlpAttributeValue(value *commonpb.AnyValue) (string, bool) {
 		for _, item := range typed.ArrayValue.GetValues() {
 			if text, ok := otlpAttributeValue(item); ok {
 				parts = append(parts, text)
+			} else {
+				return "", false
 			}
 		}
 		return strings.Join(parts, ","), true

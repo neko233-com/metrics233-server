@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/neko233-com/MetricsPanel233/internal/alerting"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/alerting"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 func (s *Server) exportNotificationRule(ctx context.Context, rule model.AlertRule) (alerting.GrafanaRule, error) {

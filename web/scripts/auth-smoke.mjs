@@ -142,6 +142,15 @@ try {
   check((await page.getByRole("button", { name: "Users", exact: true }).count()) === 0, "viewer cannot see Users navigation");
   check((await page.getByRole("button", { name: "Add panel", exact: true }).count()) === 0, "viewer cannot see Add panel");
 
+  const businessNavigation = page.getByRole("button", { name: "Business monitoring", exact: true });
+  check((await businessNavigation.count()) === 1, "viewer can access Business monitoring");
+  await businessNavigation.click();
+  await page.getByRole("heading", { name: "Business monitoring", exact: true }).waitFor();
+  check((await page.getByRole("button", { name: "Create business dashboard", exact: true }).count()) === 0, "viewer cannot see the business dashboard mutation");
+  const businessRoleExplanation = page.getByText("Editor or Admin role is required to create dashboards or push metrics.", { exact: true });
+  await businessRoleExplanation.waitFor();
+  check(await businessRoleExplanation.isVisible(), "business monitoring explains the required editing role");
+
   const forbidden = await page.evaluate(async () => {
     const response = await fetch("/api/v1/dashboards", {
       method: "POST",

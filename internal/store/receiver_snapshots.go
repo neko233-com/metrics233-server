@@ -13,8 +13,8 @@ import (
 	"io"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/receivers"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/receivers"
 )
 
 var (

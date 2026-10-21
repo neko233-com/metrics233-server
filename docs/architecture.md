@@ -19,7 +19,7 @@ flowchart LR
   Vite[Vite development server] -->|proxy| API
 ```
 
-In production, Vite output is embedded in the Go executable when it is built with the webui build tag. During local development, Vite serves the UI and proxies API, metrics, Prometheus and plugin asset requests to the Go service. Product pages use the shared `@grafana/ui` adapter; Grafana-specific plugin and resource behavior belongs behind a replaceable compatibility boundary.
+In production, Vite output is embedded in the Go executable when it is built with the webui build tag. During local development, Vite serves the UI and proxies API, metrics, Prometheus and plugin asset requests to the Go service. Product pages use first-party `web/src/ui` primitives; Grafana-specific plugin and resource behavior belongs behind a replaceable compatibility boundary.
 
 ## Source ownership
 
@@ -40,9 +40,11 @@ In production, Vite output is embedded in the Go executable when it is built wit
 
 Tests are also colocated with Go packages and in web/test and web/e2e.
 
-Product chrome, forms and dialogs use `@grafana/ui` 13.2.3 through the shared adapter in `web/src/ui`. The root theme
-provider and the icon asset path are part of that foundation. Built-in time-series and table panels render through
-`@grafana/ui`'s `TimeSeries` (uPlot-based) and `Table` components. The optional third-party plugin host and Grafana resource adapters
+Product chrome, forms and dialogs use the first-party primitives in `web/src/ui`. Feature pages are loaded on demand;
+opening business onboarding does not eagerly load the alert editor, SQL editor or plugin catalog. The retained SDK
+theme and time/query contracts still use `@grafana/data`; this is a measured migration boundary, not a claim of zero
+Grafana dependencies. Built-in panels render through `web/src/render` with direct uPlot, HTML and Canvas. Large
+time-series models use a transferable Worker and min/max decimation. The optional plugin host and resource adapters
 remain behind `web/src/grafana`. See the [project goals](project-goals.md).
 
 ## Authentication boundary

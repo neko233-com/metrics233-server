@@ -14,7 +14,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -45,6 +45,7 @@ func otlpFixture() *collectormetrics.ExportMetricsServiceRequest {
 
 func TestOTLPMetricsAcceptsProtobufAndJSON(t *testing.T) {
 	store, handler := setup(t, "")
+	fixture := otlpFixture()
 	for _, test := range []struct {
 		name        string
 		contentType string
@@ -62,7 +63,7 @@ func TestOTLPMetricsAcceptsProtobufAndJSON(t *testing.T) {
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest("POST", "/v1/metrics", bytes.NewReader(test.body(otlpFixture())))
+			request := httptest.NewRequest("POST", "/v1/metrics", bytes.NewReader(test.body(fixture)))
 			request.Header.Set("Content-Type", test.contentType)
 			response := httptest.NewRecorder()
 			handler.ServeHTTP(response, request)

@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neko233-com/MetricsPanel233/internal/alerting"
-	"github.com/neko233-com/MetricsPanel233/internal/server"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/alerting"
+	"github.com/neko233-com/metrics233-server/internal/server"
+	"github.com/neko233-com/metrics233-server/internal/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

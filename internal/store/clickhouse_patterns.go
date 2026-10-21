@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 const patternColumns = `id,metric,labels,window_start AS start,window_end AS end,aggregation,normalization,mean,stddev,coverage,created_at`

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 const dashboardHistoryResourceBudget = 16 * 1024 * 1024

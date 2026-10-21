@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 var ErrAnnotationConflict = errors.New("annotation idempotency key already has a different payload")

@@ -4,7 +4,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/identity"
 )
 
 // Protected surfaces reuse the existing authentication boundary. Static SPA
@@ -14,6 +14,7 @@ func protectedPath(requestPath string) bool {
 		requestPath == "/v1/metrics" ||
 		requestPath == "/otlp/v1/metrics" ||
 		strings.HasPrefix(requestPath, "/api/") ||
+		strings.HasPrefix(requestPath, "/apis/") ||
 		strings.HasPrefix(requestPath, "/prometheus/") ||
 		strings.HasPrefix(requestPath, "/public/plugins/")
 }

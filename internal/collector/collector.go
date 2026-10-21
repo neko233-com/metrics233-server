@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/store"
 )
 
 type Collector struct {

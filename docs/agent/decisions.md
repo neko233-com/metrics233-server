@@ -38,3 +38,21 @@ implemented until a sender requires it.
 
 Prioritize the game-backend set: MySQL/MariaDB, Redis, Linux/Prometheus exporters and business-service exports.
 Loki/Tempo adapters exist but are not the primary product target until the core dashboard loop is complete.
+
+## 2026-10-21 — bounded production verification
+
+The default Docker build must produce the same non-root `runtime` used in production. Databases and test fixture
+binaries require explicit `integration`/`test-backend` targets; `validation` supplies Linux GCC/race checks. Tests own
+their containers, volumes and temporary tags and never prune shared Docker caches.
+
+Business onboarding uses the existing ingest/query/dashboard roles and first-party renderer registry. Counter vs.
+Gauge is explicit because catalog names alone cannot establish metric semantics. DAU, retention, currency conversion
+and alert thresholds remain upstream business definitions.
+
+The TimeSeries Worker shares a min/max row budget across series, preserves extrema and outage boundaries, and
+re-queries on zoom. This does not remove JSON parsing cost or imply a universal frame rate. See the measured baseline.
+
+Shared plugin managers canonicalize the root at file verification time as well as construction time. A manager
+created before another manager initializes the shared directory must accept an equivalent Windows path alias while
+still rejecting symlinks that resolve outside the package. The real Live isolation test and package escape tests
+cover this boundary.

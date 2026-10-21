@@ -4,8 +4,22 @@ web/node_modules
 web/dist
 data
 bin
+dist
+# Aggregate checkout siblings are separate build contexts.
+metrics233-server
+metrics233-lib-go
 .cache
 *.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.key
+*.pem
+*.pfx
+.env
+.env.*
+.codely-cli
 *.exe
 *.log
 web/test-results

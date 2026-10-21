@@ -91,9 +91,10 @@ import/plugin compatibility layer under `web/src/grafana`.
 The login/setup pages, common dialog, user management, dashboards list, Getting Started, Table and TimeSeries use
 first-party implementations. The first-party uPlot TimeSeries renderer covers lines, comparison, legend, tooltip,
 zoom, log axes, percent stacking and multiple axes; `?renderer=compat` or localStorage restores the compatibility
-bridge when needed. The Grafana theme provider remains only for compatibility modules. Remaining work: move
-Stat/Gauge/Logs/Traces/Vector to first-party renderers and remove unused Grafana compatibility pages from the default
-bundle.
+bridge when needed. Stat, Gauge, BarGauge, Logs, Traces (including Tempo lookup), Heatmap, Histogram and Vector also
+use first-party renderers. The retained root SDK theme and time/query contracts still depend on `@grafana/data`.
+Feature pages are lazy loaded; `@grafana/ui` remains in optional compatibility chunks. Further dependency removal
+requires separate size and interoperability measurements, rather than a claim of a dependency-free bundle.
 
 ## Performance evidence
 

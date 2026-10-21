@@ -11,6 +11,7 @@ export function setLocale(value: Locale) {
   document.documentElement.lang = value === "zh" ? "zh-CN" : "en";
 }
 const zh: Record<string, string> = {
+  "Business monitoring": "业务监控",
   "Table frame": "表格结果集",
   "rows": "行",
   "Sort by column": "按列排序",

@@ -28,6 +28,9 @@ METRICSPANEL_TRUSTED_PROXIES=127.0.0.1/32 \
 ```
 
 `--root-url` must be the real public HTTPS origin. It controls `Secure` session cookies, HSTS and absolute links.
+When explicitly configured, its origin is also authoritative for local-account login, setup, logout and API
+origin checks. Preserve the public `Host` header on the HTTP upstream. `X-Forwarded-Proto` does not establish
+origin trust; listing trusted proxies enables client-IP interpretation only.
 Keep `METRICSPANEL_TOKEN` in the service environment or a root-owned env file; never pass secrets as CLI arguments.
 The service account needs read/write access only to the data directory.
 
@@ -93,7 +96,9 @@ each proxy address.
 In local-account mode:
 
 - Session cookies are `HttpOnly`, `SameSite=Lax`, `Secure` under an HTTPS `--root-url`, and rotate every 24 hours.
-- Login and setup are rate-limited per client IP (8 failures per 5 minutes; setup uses the same limiter).
+- Login and account-password Basic authentication share a client-IP budget of 8 failed passwords per 5 minutes.
+  Successful password authentication clears prior failures and does not consume this budget. Setup has its own
+  client-IP attempt budget. Bearer and service-token authentication do not consume the password budget.
 - Browser mutations require a same-origin `Origin`/`Sec-Fetch-Site`; cross-origin requests are rejected.
 - API responses set `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`,
   `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`,
@@ -142,15 +147,23 @@ Run the container with the loopback port published only to the host proxy:
 
 ```sh
 docker run -d --name metricspanel \
+  --read-only --cap-drop=ALL --security-opt=no-new-privileges \
+  --pids-limit=128 --memory=256m --cpus=1 \
+  --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   -p 127.0.0.1:7333:7333 \
   -e METRICSPANEL_TOKEN="$(openssl rand -hex 24)" \
   -e METRICSPANEL_AUTH=local \
-  -e METRICSPANEL_TRUSTED_PROXIES=127.0.0.1/32 \
+  -e METRICSPANEL_ROOT_URL=https://metrics.example.com \
   -v metricspanel-data:/data \
   metricspanel233:local
 ```
 
 Terminate TLS in front of the container. Do not publish `0.0.0.0:7333` directly to the internet.
 
-For local verification use `scripts/docker-verify.ps1`; it builds a small image and removes its container, volume,
-image, build cache and test artifacts in a `finally` block.
+Replace the example public origin, and configure `METRICSPANEL_TRUSTED_PROXIES` with only the proxy peer CIDR as
+observed from inside the container. A host proxy may appear as a Docker bridge gateway, rather than `127.0.0.1`.
+The resource limits above are a verified starting profile for the bounded test workload; measure and adjust them
+for actual series count, ingestion and query concurrency.
+
+For local verification use `scripts/dockerfile_test.ps1 -Repeat 2 -IncludeDatabaseIntegration`; it builds the formal
+runtime and removes only its own resources. See [Docker validation](docker-validation.md) for checks and boundaries.

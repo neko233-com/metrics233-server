@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/neko233-com/MetricsPanel233/internal/alertgraph"
+	"github.com/neko233-com/metrics233-server/internal/alertgraph"
 	"github.com/prometheus/prometheus/promql/parser"
 )
 

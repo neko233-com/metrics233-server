@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/store"
 )
 
 func annotationID(w http.ResponseWriter, r *http.Request) (int64, bool) {

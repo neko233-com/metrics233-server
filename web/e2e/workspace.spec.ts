@@ -6509,7 +6509,9 @@ test("SDK application events refresh real queries, notify ranges and preserve si
     await expect(second).toContainText("Panel value: 233");
     await expect(global).toContainText("App refreshes:");
     // Freeze only browser timers to separate explicit SDK events from the native five-second poll.
-    await page.clock.pauseAt(new Date());
+    // The installed browser clock can lead the host clock by a few ms. Freeze
+    // relative to that clock so pauseAt never tries to travel into its past.
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 1000));
     const readCount = async (region: typeof global, prefix: string) =>
       Number(
         (await region.getByText(new RegExp("^" + prefix)).innerText()).match(

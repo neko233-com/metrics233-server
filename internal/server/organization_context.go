@@ -2,7 +2,7 @@ package server
 
 import (
 	"context"
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/identity"
 )
 
 func (s *Server) organizationPrincipal(ctx context.Context) (identity.Principal, error) {

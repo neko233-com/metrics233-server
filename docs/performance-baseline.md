@@ -44,6 +44,11 @@ Run on the reference machine above:
 These numbers cover a warm process and a local disk. They exclude HTTP overhead, PromQL evaluation, concurrent
 writers, retention pruning and cold-start I/O.
 
+A fresh 2026-10-21 Windows run during parallel browser/Docker validation measured 2.22 s for the 100,000-sample
+ingestion test, 185 ms for the 24-hour aggregation benchmark and 12.4 ms for the 10k-pattern benchmark. These are
+single iterations on the CPU above (`go1.27.0`, no race detector), not controlled throughput comparisons. Background
+load materially affects this host; neither the older timings nor this rerun establish an operational SLO.
+
 ## Vector search behavior
 
 - SQLite always performs an exact scan: it loads candidate payloads, computes L2 distance and keeps a bounded top-K
@@ -55,14 +60,71 @@ writers, retention pruning and cold-start I/O.
 
 ## Sizing guidance
 
-Use these as starting points for small teams, then measure your own workload:
+Use the measured workload and its limitations when sizing the service:
 
 | Deployment | Recommendation |
 | --- | --- |
-| Up to ~100 collectors, 30-day retention | SQLite on local SSD is sufficient; keep the database and `secrets.key` on the same fast volume |
-| Up to ~1M active series, bursty writes | Measure first; consider ClickHouse when sustained write rate or disk growth becomes the bottleneck |
+| SQLite single-node deployment | Use a local SSD; measure actual samples/s, active series, label cardinality, retention growth and concurrent queries. Collector count alone does not determine capacity |
+| High-cardinality or bursty writes | The 100k-sample baseline does not establish a million-active-series capacity. Measure the workload and evaluate ClickHouse if storage or query latency is the bottleneck |
 | More than 50,000 saved patterns | Use ClickHouse for HNSW, or filter pattern searches by metric/label |
 | Multiple concurrent dashboard users | SQLite serializes writes; reads stay concurrent, but heavy ingest plus large queries compete for one disk |
 
 Back up the SQLite control database, its adjacent `secrets.key`, and the plugin directory together. See the
 [storage section](../README.md#storage-and-performance) for operation details.
+
+## Browser TimeSeries baseline (2026-10-21)
+
+This separate frontend measurement uses the production embedded UI and Chromium. A Playwright route supplies
+a deterministic datasource response containing sine waves, one-point peaks/troughs and a null interval. It
+measures dashboard navigation through two animation frames after the canvas is ready, including app startup,
+response transfer/JSON parsing and drawing. Server storage, PromQL execution, concurrent users and production
+network conditions are excluded. It is not an ingestion benchmark or a frontend latency SLO.
+
+Reference: Windows amd64, AMD Ryzen 9 9950X, Node v24.19.0, Chromium 156.0.8078.4, viewport 1536 × 1024.
+Final route-split embedded bundle measured at 06:56 Asia/Shanghai on 2026-10-21; tested binary SHA-256:
+`6958d9c00fb4172bec395e3f7b88bd57c8551d17a2008d4306a1e7c69de36656`.
+The first navigation and two subsequent navigations in the same browser context were measured; each creates a
+new application document and Worker. Heap values use Chromium's approximate `performance.memory` counter,
+which excludes Worker/process memory and is not a peak-memory measurement.
+
+From `web`, after `npm run build` and a Go `-tags webui` build to `bin/metricspanel.exe` (or set
+`METRICSPANEL_TEST_BINARY`):
+
+```powershell
+$env:RENDER_BENCH_POINTS = '100000'
+$env:RENDER_BENCH_SERIES = '5'
+$env:RENDER_BENCH_RUNS = '3'
+$env:RENDER_BENCH_OUTPUT = Join-Path $env:TEMP 'metricspanel-render-100k.json'
+node scripts/render-bench.mjs
+
+$env:RENDER_BENCH_POINTS = '1000000'
+$env:RENDER_BENCH_SERIES = '1'
+$env:RENDER_BENCH_OUTPUT = Join-Path $env:TEMP 'metricspanel-render-1m.json'
+node scripts/render-bench.mjs
+```
+
+| Input | API fixture size | Sampled rows | Navigation to presentation, 3 runs | Worker calculation, 3 runs | Main document JS heap |
+| --- | --- | --- | --- | --- | --- |
+| 100,000 timestamps × 5 series | 10,968,547 bytes | 2,527 | 1,043 / 877 / 861 ms | 10.5 / 11.8 / 10.7 ms | ~39.6 MB |
+| 1,000,000 timestamps × 1 series | 33,488,564 bytes | 2,540 | 1,581 / 1,395 / 1,395 ms | 19.0 / 19.4 / 17.7 ms | ~86.4 MB |
+
+The two workloads transferred 4,800,000 bytes in six buffers and 16,000,000 bytes in two buffers respectively;
+all input buffers were confirmed detached after `postMessage`. Worker roundtrip was 17.0–17.9 ms and 23.4–27.8 ms.
+The 100k workload recorded one 53 ms main-thread long task across three runs; the 1m workload recorded 53/73,
+71 and 67 ms long tasks. Moving numeric work off-thread does not remove response parsing/startup costs.
+
+The shared min/max target is approximately twice the CSS width, with all series sharing the row budget. It keeps
+extrema after stacking, endpoints, boundary neighbours and both sides of every gap. Dense gap transitions can
+exceed the target, deliberately preserving outages. Tooltips inspect sampled points; zoom requests a new
+datasource query. Full-resolution legend last values and stored/exported source frames remain available.
+
+`web/test/timeseries-numeric-model.test.cjs` verifies 100k spikes/gaps, a shared 20-series budget, irregular and
+duplicate times, stacking, viewport boundaries, source immutability and transferable-buffer roundtrips.
+`web/e2e/time-series.spec.ts` exercises the real Worker, preserved extrema/gaps, zoom requery, worker disposal
+and the unavailable-Worker fallback. Browser evidence is separate from algorithm-unit evidence.
+
+Known boundaries: Workers still require a sliced main-thread copy of numeric values; decoding large datasource
+responses still runs on the main thread. Missing/failed Workers fall back to main-thread normalization without
+a responsiveness guarantee. Optional Grafana threshold/continuous series-color modes may also compute field
+statistics on the main thread; this baseline uses the default palette. Each changed streaming frame starts a new full normalization job; append-only
+incremental processing, 200-series density and sustained 60 fps have not been established by this baseline.

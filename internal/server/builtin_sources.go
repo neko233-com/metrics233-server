@@ -13,7 +13,7 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 func isBuiltinSource(kind string) bool {
@@ -193,15 +193,18 @@ type tempoTarget struct {
 	Limit     int    `json:"limit"`
 }
 
-// Tempo search returns one table row per trace. Full trace-detail rendering is
-// intentionally not fabricated; use TraceQL search for the compatibility path.
+// Tempo search returns one row per trace; traceId queries return a span frame.
 func (s *Server) queryTempoSource(ctx context.Context, ds model.DataSource, query backend.DataQuery) (data.Frames, error) {
 	var target tempoTarget
 	if err := json.Unmarshal(query.JSON, &target); err != nil {
 		return nil, err
 	}
 	if target.TraceID != "" || target.QueryType == "traceId" {
-		return nil, errors.New("Tempo trace ID lookup is not implemented; use TraceQL search")
+		traceID := target.TraceID
+		if traceID == "" {
+			traceID = target.Query
+		}
+		return s.queryTempoTrace(ctx, ds, query, traceID)
 	}
 	expression := target.Query
 	if expression == "" {

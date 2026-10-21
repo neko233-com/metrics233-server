@@ -2,11 +2,13 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"regexp"
 	"sort"
+
+	"github.com/neko233-com/metrics233-server/internal/model"
+	promlabels "github.com/prometheus/prometheus/model/labels"
 )
 
 type Matcher struct{ Name, Value, Type string }
@@ -22,7 +24,32 @@ func (s *Store) SelectSeries(ctx context.Context, start, end int64, matchers []M
 	if s.Backend != nil {
 		return s.Backend.SelectSeries(ctx, start, end, matchers)
 	}
-	query := `SELECT name,labels FROM series WHERE EXISTS (SELECT 1 FROM samples WHERE samples.series_id=series.id AND timestamp>=? AND timestamp<=?)`
+	candidates, err := selectSQLiteSeries(ctx, s.DB, start, end, matchers)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RawSeries, 0, len(candidates))
+	for _, candidate := range candidates {
+		out = append(out, RawSeries{Name: candidate.name, Labels: candidate.labels})
+	}
+	SortSeries(out)
+	return out, nil
+}
+
+type sqliteSelectedSeries struct {
+	id     int64
+	name   string
+	labels map[string]string
+}
+
+// Match the small series catalog first. Nonmatching series can never consume
+// the raw sample budget, even when a regex/negative selector cannot use SQL.
+func selectSQLiteSeries(ctx context.Context, db metricQueryer, start, end int64, matchers []Matcher) ([]sqliteSelectedSeries, error) {
+	compiled, err := compileMatchers(matchers)
+	if err != nil {
+		return nil, err
+	}
+	query := `SELECT id,name,labels FROM series WHERE EXISTS (SELECT 1 FROM samples WHERE samples.series_id=series.id AND timestamp>=? AND timestamp<=?)`
 	args := []any{start, end}
 	for _, m := range matchers {
 		if m.Name == "__name__" && m.Type == "=" {
@@ -30,32 +57,65 @@ func (s *Store) SelectSeries(ctx context.Context, start, end int64, matchers []M
 			args = append(args, m.Value)
 		}
 	}
-	rows, err := s.DB.QueryContext(ctx, query+` ORDER BY name,labels`, args...)
+	rows, err := db.QueryContext(ctx, query+` ORDER BY id`, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []RawSeries{}
+	out := []sqliteSelectedSeries{}
 	for rows.Next() {
+		var id int64
 		var name, raw string
-		if err = rows.Scan(&name, &raw); err != nil {
+		if err = rows.Scan(&id, &name, &raw); err != nil {
 			return nil, err
 		}
 		var labels map[string]string
 		if err = json.Unmarshal([]byte(raw), &labels); err != nil {
 			return nil, err
 		}
-		if Matches(name, labels, matchers) {
+		if matchesCompiled(name, labels, compiled) {
 			if len(out) >= 10000 {
 				return nil, errors.New("discovery exceeds 10000 series; narrow selectors")
 			}
-			out = append(out, RawSeries{Name: name, Labels: labels})
+			out = append(out, sqliteSelectedSeries{id: id, name: name, labels: labels})
 		}
 	}
 	return out, rows.Err()
 }
 
 func Matches(name string, labels map[string]string, matchers []Matcher) bool {
+	compiled, err := compileMatchers(matchers)
+	return err == nil && matchesCompiled(name, labels, compiled)
+}
+
+type compiledMatcher struct {
+	Matcher
+	expression *promlabels.FastRegexMatcher
+}
+
+func compileMatchers(matchers []Matcher) ([]compiledMatcher, error) {
+	out := make([]compiledMatcher, 0, len(matchers))
+	for _, matcher := range matchers {
+		item := compiledMatcher{Matcher: matcher}
+		switch matcher.Type {
+		case "=", "!=":
+		case "=~", "!~":
+			var err error
+			// Reuse upstream anchoring, DotNL and inline-flag semantics. A plain
+			// regexp wrapper disagrees with PromQL for valid multiline labels.
+			item.expression, err = promlabels.NewFastRegexMatcher(matcher.Value)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, errors.New("invalid series matcher")
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func matchesCompiled(name string, labels map[string]string, matchers []compiledMatcher) bool {
 	for _, m := range matchers {
 		value := labels[m.Name]
 		if m.Name == "__name__" {
@@ -71,11 +131,7 @@ func Matches(name string, labels map[string]string, matchers []Matcher) bool {
 				return false
 			}
 		case "=~", "!~":
-			r, err := regexp.Compile("^(?:" + m.Value + ")$")
-			if err != nil {
-				return false
-			}
-			match := r.MatchString(value)
+			match := m.expression.MatchString(value)
 			if m.Type == "=~" && !match || m.Type == "!~" && match {
 				return false
 			}
@@ -89,21 +145,32 @@ func (s *Store) LoadSeries(ctx context.Context, start, end int64, matchers []Mat
 	if s.Backend != nil {
 		return s.Backend.LoadSeries(ctx, start, end, matchers)
 	}
-	query := `SELECT series.id,series.name,series.labels,samples.timestamp,samples.value FROM series JOIN samples ON series.id=samples.series_id WHERE samples.timestamp>=? AND samples.timestamp<=?`
-	args := []any{start, end}
-	for _, m := range matchers {
-		if m.Name == "__name__" && m.Type == "=" {
-			query += ` AND series.name=?`
-			args = append(args, m.Value)
-		}
+	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
 	}
-	query += ` ORDER BY series.id,samples.timestamp LIMIT 1000001`
-	rows, err := s.DB.QueryContext(ctx, query, args...)
+	defer tx.Rollback()
+	candidates, err := selectSQLiteSeries(ctx, tx, start, end, matchers)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]RawSeries, 0, len(candidates))
+	if len(candidates) == 0 {
+		return out, nil
+	}
+	ids := make([]int64, 0, len(candidates))
+	positions := make(map[int64]int, len(candidates))
+	for _, candidate := range candidates {
+		ids = append(ids, candidate.id)
+		positions[candidate.id] = len(out)
+		out = append(out, RawSeries{Name: candidate.name, Labels: candidate.labels, Points: []model.Point{}})
+	}
+	where, args := sqliteSampleRange(ids, start, end)
+	rows, err := tx.QueryContext(ctx, `SELECT series_id,timestamp,value FROM samples WHERE `+where+` ORDER BY series_id,timestamp LIMIT 1000001`, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	out := []RawSeries{}
 	lastID := int64(-1)
 	index := -1
 	count := 0
@@ -113,25 +180,13 @@ func (s *Store) LoadSeries(ctx context.Context, start, end int64, matchers []Mat
 			return nil, errors.New("PromQL selection exceeds 1000000 samples; narrow time range or selectors")
 		}
 		var id, ts int64
-		var name, raw string
 		var v float64
-		if err = rows.Scan(&id, &name, &raw, &ts, &v); err != nil {
+		if err = rows.Scan(&id, &ts, &v); err != nil {
 			return nil, err
 		}
 		if id != lastID {
 			lastID = id
-			var labels map[string]string
-			if err = json.Unmarshal([]byte(raw), &labels); err != nil {
-				return nil, err
-			}
-			index = -1
-			if Matches(name, labels, matchers) {
-				if len(out) >= 10000 {
-					return nil, errors.New("PromQL selection exceeds 10000 series")
-				}
-				out = append(out, RawSeries{Name: name, Labels: labels, Points: []model.Point{}})
-				index = len(out) - 1
-			}
+			index = positions[id]
 		}
 		if index >= 0 {
 			out[index].Points = append(out[index].Points, model.Point{Timestamp: ts, Value: v})

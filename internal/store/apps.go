@@ -7,7 +7,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 var ErrAppConflict = errors.New("app configuration version changed; read the current version before updating")

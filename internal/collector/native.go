@@ -2,6 +2,7 @@ package collector
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"database/sql"
@@ -20,7 +21,7 @@ import (
 
 	mysql "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 const maxBody = 4 << 20
@@ -37,10 +38,11 @@ func metricKey(value string) string {
 	return out.String()
 }
 func targetLabels(t model.Target, extra map[string]string) map[string]string {
-	labels := map[string]string{"job": t.Name, "instance": t.URL}
+	labels := map[string]string{}
 	for k, v := range extra {
 		labels[k] = v
 	}
+	labels["job"], labels["instance"] = t.Name, t.URL
 	for k, v := range t.Labels {
 		labels[k] = v
 	}
@@ -67,7 +69,7 @@ func (c *Collector) collect(ctx context.Context, t model.Target, secrets map[str
 		if err != nil {
 			return nil, err
 		}
-		return ParseExposition(strings.NewReader(string(body)), header.Get("Content-Type"), t)
+		return ParseExposition(bytes.NewReader(body), header.Get("Content-Type"), t)
 	}
 }
 func (c *Collector) readHTTP(ctx context.Context, t model.Target, secrets map[string]string, method, address, body string) ([]byte, http.Header, error) {

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 func (s *Store) initNotificationGroups() error {

@@ -13,6 +13,7 @@ import { registerOptionEditors } from "./option-editors";
 import { createLiveService } from "./live-runtime";
 import { grafanaMeta } from "./grafana-meta";
 import { isSQLDatasource } from "./sql-types";
+import { interpolateHTTPQuery, isBuiltinHTTPSource } from "./builtin-http-source";
 import { filterSourceSettings, resolveSourceSettings } from "./source-settings";
 import { isExpressionRef } from "./expression-ref";
 import { installAppEvents } from "./app-events";
@@ -351,9 +352,9 @@ async function init(): Promise<Runtime> {
     const expressionSource = new ExpressionSource(expressionSettings);
     expressionCore.setExpressionDataSourceInstance(expressionSource);
     sourceLoader.setDataSourcePluginImporter(async (meta) => {
-      if (meta.id === "prometheus")
+      if (isBuiltinHTTPSource(meta.id))
         return new Data.DataSourcePlugin(
-          LocalPrometheus,
+          LocalHTTPSource,
         ) as unknown as Data.DataSourcePlugin<Data.DataSourceApi>;
       if (meta.id === "grafana")
         return new Data.DataSourcePlugin(LocalGrafana).setQueryEditor(
@@ -529,8 +530,8 @@ async function init(): Promise<Runtime> {
         const cached = datasourceCache.get(settings.uid);
         if (cached && cached.version === version) return cached.instance;
         let instance: Data.DataSourceApi;
-        if (settings.type === "prometheus") {
-          instance = new LocalPrometheus(settings);
+        if (isBuiltinHTTPSource(settings.type)) {
+          instance = new LocalHTTPSource(settings);
         } else if (settings.type === "grafana") {
           instance = new LocalGrafana(settings);
           instance.components = { QueryEditor: GrafanaQueryEditor };
@@ -617,16 +618,18 @@ async function reloadSources() {
     meta:
       ds.type === "grafana"
         ? grafanaMeta
-        : ds.type === "prometheus"
+        : isBuiltinHTTPSource(ds.type)
           ? {
               ...grafanaMeta,
-              id: "prometheus",
-              name: "Prometheus",
+              id: ds.type,
+              name: ds.type === "tempo" ? "Tempo" : ds.type === "loki" ? "Loki" : "Prometheus",
               type: Data.PluginType.datasource,
-              metrics: true,
-              annotations: true,
-              alerting: true,
-              builtIn: false,
+              metrics: ds.type === "prometheus",
+              logs: ds.type === "loki",
+              tracing: ds.type === "tempo",
+              annotations: ds.type === "prometheus",
+              alerting: ds.type === "prometheus",
+              builtIn: true,
             }
           : isSQLDatasource(ds.type)
             ? sqlSourceCore!.sqlSourceMeta(ds.type)
@@ -725,7 +728,7 @@ export async function sdkRuntime() {
   return init();
 }
 
-class LocalPrometheus extends Data.DataSourceApi {
+class LocalHTTPSource extends Data.DataSourceApi {
   constructor(private settings: DataSourceSettings) {
     super(settings);
     const options = settings.jsonData as Data.DataSourceJsonData & {
@@ -754,19 +757,7 @@ class LocalPrometheus extends Data.DataSourceApi {
         };
         return adapter.query({
           ...request,
-          targets: request.targets.map((target) => {
-            const query = target as Data.DataQuery & {
-              expr?: string;
-              legendFormat?: string;
-            };
-            return {
-              ...query,
-              expr: interpolate(query.expr || "", values, range),
-              legendFormat: query.legendFormat
-                ? interpolate(query.legendFormat, values, range)
-                : undefined,
-            };
-          }),
+          targets: request.targets.map((target) => interpolateHTTPQuery(target, (value) => interpolate(value, values, range))),
         });
       }),
     );
@@ -778,19 +769,7 @@ class LocalPrometheus extends Data.DataSourceApi {
     const values = { ...variableValues };
     for (const [name, entry] of Object.entries(scoped || {}))
       if (entry) values[name] = entry.value;
-    return queries.map((target) => {
-      const query = target as Data.DataQuery & {
-        expr?: string;
-        legendFormat?: string;
-      };
-      return {
-        ...query,
-        expr: interpolate(query.expr || "", values, variableRange),
-        legendFormat: query.legendFormat
-          ? interpolate(query.legendFormat, values, variableRange)
-          : undefined,
-      };
-    });
+    return queries.map((target) => interpolateHTTPQuery(target, (value) => interpolate(value, values, variableRange)));
   }
   async testDatasource() {
     await api(`/api/datasources/uid/${encodeURIComponent(this.uid)}/health`);

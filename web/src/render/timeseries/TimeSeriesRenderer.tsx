@@ -8,13 +8,8 @@ import {
   useState,
 } from "react";
 import {
-  alignTimeRangeCompareData,
-  createTheme,
   formattedValueToString,
   getDisplayProcessor,
-  getFieldDisplayName,
-  getFieldSeriesColor,
-  type DataFrame,
   type Field,
 } from "@grafana/data";
 import uPlot from "uplot";
@@ -27,17 +22,14 @@ import { resolveTimeRange } from "../../grafana/time-range";
 import {
   annotationGeometry,
   changeSeriesVisibility,
-  hasTimeSeriesSamples,
-  prepareTimeSeriesFrames,
   timeSeriesLegend,
   timeSeriesTooltip,
   timeSeriesZoomSelection,
 } from "../../grafana/time-series";
 import type { RendererProps } from "../types";
+import { theme } from "./plot-model";
+import { usePlotModel } from "./use-plot-model";
 import "./TimeSeriesRenderer.css";
-
-const theme = createTheme({ colors: { mode: "dark" } });
-const COLORS = ["#5794f2", "#73bf69", "#ff9830", "#f2495c", "#b877d9", "#56a3a6", "#fade2a"];
 
 // uPlot and browser tests read pixels repeatedly. Mark 2D contexts so Chrome
 // uses a readback-friendly backing store instead of emitting a warning.
@@ -60,25 +52,6 @@ if (typeof HTMLCanvasElement !== "undefined") {
   }
 }
 
-type PlotSeries = {
-  id: string;
-  name: string;
-  field: Field;
-  values: (number | null)[];
-  color: string;
-  dashed: boolean;
-  axis: "y" | "y2";
-  axisLabel?: string;
-  log: boolean;
-  stack: "none" | "normal" | "percent";
-  stackGroup: string;
-  defaultVisible: boolean;
-};
-type PlotModel = {
-  data: uPlot.AlignedData;
-  series: PlotSeries[];
-  signature: string;
-};
 type CursorState = { index: number; left: number; top: number };
 type PlotBounds = {
   left: number;
@@ -90,122 +63,6 @@ type PlotBounds = {
 };
 
 type Props = RendererProps;
-
-function timestamp(value: unknown): number {
-  if (value instanceof Date) return value.getTime();
-  const result = Number(value);
-  return Number.isFinite(result) ? result : NaN;
-}
-
-function makePlotModel(frames: DataFrame[]): PlotModel {
-  const source = frames.flatMap((frame, frameIndex) => {
-    const time = frame.fields.find((field) => field.type === "time");
-    const values = frame.fields
-      .map((field, fieldIndex) => ({ field, fieldIndex }))
-      .filter(({ field }) => field.type === "number" || field.type === "enum");
-    if (!time || values.length === 0) return [];
-    return [{ frame, frameIndex, time, values, times: Array.from(time.values, timestamp) }];
-  });
-  const referenceTimes = source[0]?.times || [];
-  const alignedAndSorted = source.every((entry) =>
-    entry.times.length === referenceTimes.length &&
-    entry.times.every((value, index) => value === referenceTimes[index] && Number.isFinite(value)) &&
-    entry.times.every((value, index) => index === 0 || value > entry.times[index - 1]),
-  );
-  let x: number[];
-  if (alignedAndSorted) {
-    x = referenceTimes;
-  } else {
-    const allTimes = new Set<number>();
-    source.forEach((entry) => entry.times.forEach((value) => {
-      if (Number.isFinite(value)) allTimes.add(value);
-    }));
-    x = Array.from(allTimes).sort((left, right) => left - right);
-  }
-  const positions = new Map(x.map((value, index) => [value, index]));
-  const names = new Set<string>();
-  const series: PlotSeries[] = [];
-  for (const entry of source) {
-    const comparison =
-      (entry.frame.meta as { timeCompare?: { isTimeShiftQuery?: boolean } } | undefined)
-        ?.timeCompare?.isTimeShiftQuery === true;
-    for (const { field, fieldIndex } of entry.values) {
-      let name = comparison
-        ? (field.name || getFieldDisplayName(field, entry.frame, frames)).replace(/\s*\((?:comparison|比较)\)$/i, "")
-        : getFieldDisplayName(field, entry.frame, frames);
-      if (comparison) name += ` (${t("Comparison")})`;
-      if (names.has(name)) name += " (" + (entry.frame.refId || String(entry.frameIndex + 1)) + ")";
-      names.add(name);
-      const values: (number | null)[] = Array.from({ length: x.length }, () => null);
-      for (let row = 0; row < entry.times.length; row += 1) {
-        const position = positions.get(entry.times[row]);
-        const raw = field.values[row];
-        if (raw == null) continue;
-        const value = Number(raw);
-        if (position !== undefined && Number.isFinite(value)) values[position] = value;
-      }
-      let color = COLORS[series.length % COLORS.length];
-      try {
-        color = getFieldSeriesColor(field, theme).color || color;
-      } catch {
-        // Invalid plugin-provided color metadata should not prevent chart rendering.
-      }
-      const custom = (field.config.custom || {}) as {
-        axisPlacement?: string;
-        axisLabel?: string;
-        scaleDistribution?: { type?: string };
-        stacking?: { mode?: string; group?: string };
-        hideFrom?: { viz?: boolean };
-      };
-      const stackMode = custom.stacking?.mode;
-      series.push({
-        id: entry.frame.refId + ":" + fieldIndex + ":" + name,
-        name,
-        field,
-        values,
-        color,
-        dashed: comparison,
-        axis: custom.axisPlacement === "right" ? "y2" : "y",
-        axisLabel: custom.axisLabel,
-        log: custom.scaleDistribution?.type === "log",
-        stack: stackMode === "percent" ? "percent" : stackMode === "normal" ? "normal" : "none",
-        stackGroup: custom.stacking?.group || "default",
-        defaultVisible: !custom.hideFrom?.viz,
-      });
-    }
-  }
-  applyStacking(series, x.length);
-  const signature = series.map((item) => item.id + ":" + item.color).join("|");
-  return { data: [x, ...series.map((item) => item.values)], series, signature };
-}
-
-function applyStacking(series: PlotSeries[], length: number) {
-  const groups = new Map<string, PlotSeries[]>();
-  for (const item of series) {
-    if (item.stack === "none") continue;
-    const key = `${item.axis}:${item.stackGroup}`;
-    groups.set(key, [...(groups.get(key) || []), item]);
-  }
-  for (const members of groups.values()) {
-    const mode = members[0].stack;
-    for (let index = 0; index < length; index += 1) {
-      const raw = members.map((item) => item.values[index]);
-      const total = mode === "percent"
-        ? raw.reduce<number>((sum, value) => sum + Math.max(0, value ?? 0), 0)
-        : 0;
-      let cumulative = 0;
-      for (let member = 0; member < members.length; member += 1) {
-        const value = raw[member];
-        if (value == null) continue;
-        const part = mode === "percent"
-          ? total > 0 ? Math.max(0, value) / total * 100 : 0
-          : value;
-        cumulative += part;
-        members[member].values[index] = cumulative;
-      }
-    }
-  }
-}
 
 function formatValue(field: Field, value: unknown, timezone: string): string {
   if (value == null) return "—";
@@ -315,20 +172,15 @@ export default function TimeSeriesRenderer({
   const [cursor, setCursor] = useState<CursorState | undefined>(undefined);
   const [visible, setVisible] = useState<string[] | null>(null);
   const [legendSort, setLegendSort] = useState<"name" | "value">("name");
-  const resolved = resolveTimeRange(range);
+  // Cursor and legend state must not advance a relative "now" range and start
+  // a new normalization job. Resolve again when query frames or range change.
+  const resolved = useMemo(() => resolveTimeRange(range), [range, frames]);
   onRangeRef.current = onRange;
   rangeRef.current = resolved;
   const options = panel.config?.options || {};
-  // Defer heavy frame normalization so cursor/legend input keeps priority.
+  // Metadata is cheap; large numeric jobs run off-thread after a sliced copy.
   const deferredFrames = useDeferredValue(frames);
-  const baseFrames = useMemo(
-    () =>
-      prepareTimeSeriesFrames(deferredFrames, (frame, diff) =>
-        alignTimeRangeCompareData(frame, diff, theme),
-      ),
-    [deferredFrames, getLocale()],
-  );
-  const model = useMemo(() => makePlotModel(baseFrames), [baseFrames]);
+  const { model, processing, preparationFailed } = usePlotModel(deferredFrames, size.width, resolved.start, resolved.end);
   const ids = useMemo(() => model.series.map((item) => item.id), [model]);
   const defaultVisible = useMemo(
     () => model.series.filter((item) => item.defaultVisible).map((item) => item.id),
@@ -345,7 +197,7 @@ export default function TimeSeriesRenderer({
   const rightLabel = rightSeries.find((item) => item.axisLabel)?.axisLabel;
   const leftLog = leftSeries.some((item) => item.log);
   const rightLog = rightSeries.some((item) => item.log);
-  const hasSamples = hasTimeSeriesSamples(baseFrames);
+  const hasSamples = model.data[0].length > 0;
   const canRender = size.width > 0 && size.height > 0 && model.series.length > 0 && model.data[0].length > 0;
   const onZoom = useCallback((from: number, to: number) => {
     const next = timeSeriesZoomSelection({ from, to }, rangeRef.current?.timezone || "browser");
@@ -498,7 +350,7 @@ export default function TimeSeriesRenderer({
       setPlot(undefined);
       next.destroy();
     };
-  }, [canRender, model.signature]);
+  }, [canRender, model.signature, resolved.timezone, getLocale()]);
 
   useLayoutEffect(() => {
     const chart = plotRef.current;
@@ -554,7 +406,7 @@ export default function TimeSeriesRenderer({
         value: item.values[cursor.index],
         y: item.values[cursor.index] == null
           ? Infinity
-          : Math.abs((plot?.valToPos(item.values[cursor.index]!, "y") || 0) - cursor.top),
+          : Math.abs((plot?.valToPos(item.values[cursor.index]!, item.axis) || 0) - cursor.top),
       }))
       .filter(({ item, value }) => activeSet.has(item.id) && value != null &&
         (!tooltip.hideZeros || value !== 0));
@@ -574,12 +426,7 @@ export default function TimeSeriesRenderer({
     const result = [...model.series];
     return result.sort((left, right) => {
       if (legendSort === "name") return left.name.localeCompare(right.name);
-      const last = (values: (number | null)[]) => {
-        for (let index = values.length - 1; index >= 0; index -= 1)
-          if (values[index] != null) return values[index]!;
-        return Number.NEGATIVE_INFINITY;
-      };
-      return last(right.values) - last(left.values);
+      return (right.lastValue ?? Number.NEGATIVE_INFINITY) - (left.lastValue ?? Number.NEGATIVE_INFINITY);
     });
   }, [legendSort, model]);
 
@@ -588,6 +435,11 @@ export default function TimeSeriesRenderer({
       className="chart-panel native-timeseries-panel"
       data-panel-id={panel.id}
       data-series-count={model.series.length}
+      data-input-rows={model.inputRows}
+      data-aligned-rows={model.alignedRows}
+      data-rendered-rows={model.data[0].length}
+      data-preparation={model.preparation}
+      aria-busy={loading || processing}
       aria-label={t(panel.title)}
     >
       <div className="panel-heading">
@@ -616,8 +468,8 @@ export default function TimeSeriesRenderer({
         </div>
       </div>
       {timeInfo ? <p className="panel-time-info">{timeInfo}</p> : null}
-      {annotationError || queryError ? (
-        <p role="alert" className="form-error">{t(annotationError || queryError || "")}</p>
+      {annotationError || queryError || preparationFailed ? (
+        <p role="alert" className="form-error">{t(annotationError || queryError || "Chart error")}</p>
       ) : null}
       <div className="native-timeseries-viewport">
         <div className="native-timeseries-plot-host" ref={host} onDoubleClick={() => onZoom(resolved.start, resolved.end)} />
@@ -653,7 +505,7 @@ export default function TimeSeriesRenderer({
         ) : null}
         {!hasSamples ? (
           <div className="native-timeseries-empty" role="status">
-            {loading ? t("Loading metrics…") : t("No samples in this time range")}
+            {loading || processing ? t("Loading metrics…") : t("No samples in this time range")}
           </div>
         ) : null}
       </div>
@@ -670,15 +522,7 @@ export default function TimeSeriesRenderer({
             </button>
           </div>
           <div className="native-timeseries-legend-list">
-            {sortedLegend.map((item) => {
-              let last: number | null = null;
-              for (let index = item.values.length - 1; index >= 0; index -= 1) {
-                if (item.values[index] != null) {
-                  last = item.values[index];
-                  break;
-                }
-              }
-              return (
+            {sortedLegend.map((item) => (
                 <div key={item.id} className="native-timeseries-legend-item">
                   <button
                     type="button"
@@ -695,10 +539,9 @@ export default function TimeSeriesRenderer({
                     <i style={{ background: item.color }} data-testid="series-icon" />
                     <span>{item.name}</span>
                   </button>
-                  <strong>{formatValue(item.field, last, resolved.timezone)}</strong>
+                  <strong>{formatValue(item.field, item.lastValue, resolved.timezone)}</strong>
                 </div>
-              );
-            })}
+              ))}
           </div>
         </div>
       ) : null}

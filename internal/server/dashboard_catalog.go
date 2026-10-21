@@ -9,7 +9,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"github.com/neko233-com/MetricsPanel233/internal/grafana"
+	"github.com/neko233-com/metrics233-server/internal/grafana"
 )
 
 type boundDashboardRequest struct {

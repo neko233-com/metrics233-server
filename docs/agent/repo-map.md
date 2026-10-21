@@ -36,8 +36,8 @@ cd web && node scripts/auth-smoke.mjs
 cd web && node scripts/ui-smoke.mjs
 cd web && node scripts/render-bench.mjs
 
-# Linux container smoke with cleanup
-pwsh -File scripts/docker-verify.ps1 -Port 17333
+# Linux production runtime and optional database checks, isolated cleanup
+pwsh -File scripts/dockerfile_test.ps1 -Repeat 2 -Browser -IncludeDatabaseIntegration
 ```
 
 ## Key generated/ignored paths

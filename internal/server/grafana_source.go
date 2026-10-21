@@ -15,8 +15,8 @@ import (
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	webassets "github.com/neko233-com/MetricsPanel233/web"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	webassets "github.com/neko233-com/metrics233-server/web"
 )
 
 func builtinGrafanaDataSource(orgIDs ...int64) model.DataSource {

@@ -124,6 +124,44 @@ async function editor(page: Page) {
   return page.getByRole("dialog", { name: "Dashboard variables", exact: true });
 }
 
+test("Opening a variable dialog cannot defer autofocus into a field the user is editing", async ({ page, endpoint }) => {
+  await init(page);
+  const created = await page.request.post(endpoint + "/api/v1/dashboards", { data: {
+    name: "Variable focus race", variables: [variable("count", "custom", "Current : 233, Alternate : 466", "233")], panels: [],
+  } });
+  expect(created.ok(), await created.text()).toBeTruthy();
+  const saved = await created.json();
+  await page.goto(`${endpoint}/d/${saved.id}/variable-focus-race`);
+  await expect(page.getByRole("button", { name: "Variables", exact: true })).toBeVisible();
+  // Hold deferred app frames until a different field has focus. The previous
+  // dialog's two RAF autofocus callbacks reliably stole it at this boundary.
+  await page.evaluate(() => {
+    const raf = window.requestAnimationFrame, cancel = window.cancelAnimationFrame;
+    const callbacks = new Map<number, FrameRequestCallback>();
+    let id = 1000000;
+    window.requestAnimationFrame = (callback) => { callbacks.set(++id, callback); return id; };
+    window.cancelAnimationFrame = (value) => { if (!callbacks.delete(value)) cancel(value); };
+    (window as unknown as { flushVariableDialogFrames: () => void }).flushVariableDialogFrames = () => {
+      window.requestAnimationFrame = raf;
+      window.cancelAnimationFrame = cancel;
+      for (const callback of callbacks.values()) callback(performance.now());
+      callbacks.clear();
+    };
+  });
+  const dialog = await editor(page);
+  const query = dialog.getByLabel("Variable query", { exact: true });
+  await query.focus();
+  await page.evaluate(() => (window as unknown as { flushVariableDialogFrames: () => void }).flushVariableDialogFrames());
+  await expect(query).toBeFocused();
+  await query.fill("Revised : 699, Alternate : 466");
+  await expect(dialog.getByLabel("Variable name", { exact: true })).toHaveValue("count");
+  await dialog.getByLabel("Variable default selection", { exact: true }).fill("699");
+  await dialog.getByRole("button", { name: "Preview values", exact: true }).click();
+  await expect(dialog.locator(".variable-preview")).toContainText("Revised");
+  await expect(dialog.locator(".variable-preview")).toContainText("699");
+  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+});
+
 test("Native dashboard variable editing, defaults, URL restoration and snapshot use effective values", async ({
   page,
   endpoint,

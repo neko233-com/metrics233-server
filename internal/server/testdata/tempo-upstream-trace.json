@@ -1,0 +1,22 @@
+{
+  "resourceSpans": [
+    {
+      "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "mythical-requester"}}]},
+      "scopeSpans": [{"spans": [
+        {"traceId": "6Lbf+fjUSyjxsivDvS9naA==", "spanId": "kAf+pIRVStc=", "name": "requester", "kind": "SPAN_KIND_CLIENT", "startTimeUnixNano": "1658325672496201216", "endTimeUnixNano": "1658325672511518720", "status": {"code": "STATUS_CODE_ERROR"}}
+      ]}]
+    },
+    {
+      "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "mythical-requester"}}]},
+      "scopeSpans": [{"spans": [
+        {"traceId": "6Lbf+fjUSyjxsivDvS9naA==", "spanId": "H8vBui/9k+s=", "parentSpanId": "kAf+pIRVStc=", "name": "tcp.connect", "kind": "SPAN_KIND_INTERNAL", "startTimeUnixNano": "1658325672496666880", "endTimeUnixNano": "1658325672498567424"}
+      ]}]
+    },
+    {
+      "resource": {"attributes": [{"key": "service.name", "value": {"stringValue": "mythical-server"}}]},
+      "scopeSpans": [{"spans": [
+        {"traceId": "6Lbf+fjUSyjxsivDvS9naA==", "spanId": "KJg4Ps+hpCE=", "parentSpanId": "kAf+pIRVStc=", "name": "POST /:endpoint", "kind": "SPAN_KIND_SERVER", "startTimeUnixNano": "1658325672499550976", "endTimeUnixNano": "1658325672506860544", "status": {"code": "STATUS_CODE_ERROR"}}
+      ]}]
+    }
+  ]
+}

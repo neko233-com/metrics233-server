@@ -1,14 +1,16 @@
 package collector
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"math"
 	"mime"
 	"strconv"
+	"strings"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	prommodel "github.com/prometheus/common/model"
@@ -77,7 +79,16 @@ func ParseExposition(r io.Reader, contentType string, target model.Target) ([]mo
 		if stamp != nil {
 			timestamp = *stamp
 		}
-		out = append(out, model.Sample{Name: name, Labels: targetLabels(target, extra), Value: value, Timestamp: timestamp})
+		sampleLabels := targetLabels(target, extra)
+		// Distribution identity is protocol data. A configured target label must
+		// not turn every histogram bucket/summary quantile into the same series.
+		if bound, ok := extra["le"]; ok && strings.HasSuffix(name, "_bucket") {
+			sampleLabels["le"] = bound
+		}
+		if quantile, ok := extra["quantile"]; ok {
+			sampleLabels["quantile"] = quantile
+		}
+		out = append(out, model.Sample{Name: name, Labels: sampleLabels, Value: value, Timestamp: timestamp})
 		if len(out) > 10000 {
 			return nil, fmt.Errorf("exporter exceeds 10000 samples per scrape")
 		}
@@ -91,13 +102,21 @@ func ParseExposition(r io.Reader, contentType string, target model.Target) ([]mo
 // ParsePrometheus accepts the Prometheus 0.0.4 text exposition format, including
 // classic histograms and summaries. Target labels win over exporter labels.
 func ParsePrometheus(r io.Reader, target model.Target) ([]model.Sample, error) {
+	body, err := io.ReadAll(io.LimitReader(r, maxBody+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(body) > maxBody {
+		return nil, fmt.Errorf("exporter exceeds 4 MiB limit")
+	}
 	parser := expfmt.NewTextParser(prommodel.LegacyValidation)
-	families, err := parser.TextToMetricFamilies(r)
+	families, err := parser.TextToMetricFamilies(bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
 	now := time.Now().UnixMilli()
 	out := []model.Sample{}
+	sampleLimit := false
 	for name, family := range families {
 		for _, m := range family.Metric {
 			labels := map[string]string{}
@@ -118,6 +137,10 @@ func ParsePrometheus(r io.Reader, target model.Target) ([]model.Sample, error) {
 			}
 			add := func(metric string, value float64, key, val string) {
 				if math.IsNaN(value) || math.IsInf(value, 0) {
+					return
+				}
+				if len(out) >= 10000 {
+					sampleLimit = true
 					return
 				}
 				copyLabels := map[string]string{}
@@ -145,6 +168,9 @@ func ParsePrometheus(r io.Reader, target model.Target) ([]model.Sample, error) {
 				}
 			case dto.MetricType_HISTOGRAM:
 				h := m.GetHistogram()
+				if err := validateClassicHistogram(h); err != nil {
+					return nil, fmt.Errorf("invalid classic histogram %s: %w", name, err)
+				}
 				add(name+"_sum", h.GetSampleSum(), "", "")
 				add(name+"_count", float64(h.GetSampleCount()), "", "")
 				hasInf := false
@@ -160,6 +186,9 @@ func ParsePrometheus(r io.Reader, target model.Target) ([]model.Sample, error) {
 			default:
 				return nil, fmt.Errorf("unsupported metric family type for %s", name)
 			}
+			if sampleLimit {
+				return nil, fmt.Errorf("exporter exceeds 10000 samples per scrape")
+			}
 		}
 	}
 	if len(out) == 0 {
@@ -169,4 +198,23 @@ func ParsePrometheus(r io.Reader, target model.Target) ([]model.Sample, error) {
 		return nil, fmt.Errorf("exporter exceeds 10000 samples per scrape")
 	}
 	return out, nil
+}
+
+func validateClassicHistogram(histogram *dto.Histogram) error {
+	if histogram == nil || histogram.SampleCount == nil {
+		return fmt.Errorf("sample count is required")
+	}
+	previousBound := 0.0
+	var previousCount uint64
+	for index, bucket := range histogram.GetBucket() {
+		bound, count := bucket.GetUpperBound(), bucket.GetCumulativeCount()
+		if math.IsNaN(bound) || (index > 0 && bound <= previousBound) || count < previousCount || count > histogram.GetSampleCount() {
+			return fmt.Errorf("bucket bounds must be strictly increasing and counts non-decreasing within sample count")
+		}
+		if math.IsInf(bound, 1) && count != histogram.GetSampleCount() {
+			return fmt.Errorf("+Inf bucket must equal sample count")
+		}
+		previousBound, previousCount = bound, count
+	}
+	return nil
 }

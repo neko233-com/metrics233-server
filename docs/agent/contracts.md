@@ -13,6 +13,11 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
   plugins and notification configuration. Unknown mutations fail closed to Admin.
 - Session cookie: HttpOnly, SameSite=Lax, Secure under HTTPS, rotates every 24 hours.
 - `--trusted-proxies` only trusts `X-Forwarded-For` from the listed CIDRs for rate limiting.
+- Password login and account Basic authentication share 8 failures / 5 minutes per client IP; successful
+  authentication does not consume the quota. The attempt map is capped at 4096 active client entries.
+- Explicit `--root-url` / `METRICSPANEL_ROOT_URL` establishes the local-account public origin behind HTTPS
+  termination; preserve the public `Host`. Forwarded protocol headers never establish origin trust.
+- `/apis/` namespace routes share the authenticated role boundary; unknown mutations require Admin.
 - Public endpoints: `/api/health` (minimal), static SPA assets, login/setup. Everything else requires auth.
 
 ## Collection
@@ -24,6 +29,8 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
   32 MiB compressed / 64 MiB decoded / 100,000 samples; `__name__` selects the metric name.
 - Push: native JSON `POST /api/v1/ingest` for scripts and the agent CLI.
 - Pull and push share the metric store and the Editor/Admin ingest role policy; Viewer writes return 403.
+- Business onboarding (`/#business`) creates native dashboards from received metrics with explicit Gauge/Counter
+  semantics and exact label filters. It never injects samples or chooses business alert thresholds.
 - Native MySQL/MariaDB, Redis, PostgreSQL and supported service/database metrics APIs.
 - Collector secrets are encrypted; responses expose presence flags only.
 
@@ -33,6 +40,8 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 - ClickHouse is optional for high-volume metrics and HNSW vector search.
 - SQLite vector search is exact with a 50,000 candidate cap; ClickHouse uses approximate HNSW.
 - Retention is a configuration boundary; changing ClickHouse TTL requires an explicit `ALTER TABLE`.
+- Native SQLite non-rate queries reduce bucket-last values in SQL (5M source observations); rate retains raw points
+  (250k). PromQL never consumes display-decimated observations. See [query planning](../storage-query-planning.md).
 
 ## Renderers
 
@@ -44,8 +53,12 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 - Stat, gauge and bar gauge are first-party registry entries sharing `StatRenderer`; text/Markdown remains a
   product-owned HTML path in the panel host.
 - Logs are first-party: virtualized rows, search and label key/value filters over Loki frames.
-- Traces are first-party for Tempo search: search, sorting, optional status and `?traceId=` deep links; span detail
-  remains pending.
+- Traces are first-party for Tempo search and trace-ID lookup: hierarchy, timeline, error attributes, collapse,
+  pagination, empty/error/retry and `?traceId=` deep links. Tempo/Loki use the existing authenticated HTTP backend;
+  trace/log ingestion and local trace/log storage are outside the metric-store contract.
+- Above 50k time/numeric cells, TimeSeries prepares transferable buffers in slices and uses a Worker to normalize,
+  stack and preserve min/max/gap boundaries. All series share the soft pixel budget; zoom re-queries. JSON parsing
+  and the unavailable-Worker fallback remain main-thread work. See the measured performance baseline.
 - Heatmap, histogram and vector are first-party: canvas time-bucket heatmap, normalized bars and 64-dimension heat
   strips. Optional Grafana-only kinds (pie, candlestick, geomap, node graph, state timeline) are out of scope.
 - The Grafana bridge is allowed only for imported resources and plugins under `web/src/grafana`.
@@ -55,3 +68,7 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 Bind loopback behind an HTTPS reverse proxy. Set `--root-url` to the public HTTPS origin. Back up the control
 database, `identity.db`, `secrets.key` and `plugins/` together. Do not expose the HTTP port directly to the internet.
 See `docs/public-deployment.md`.
+
+`Dockerfile` defaults to the small non-root `runtime`; database fixtures and Linux race validation are explicit
+targets. Default Compose uses one hardened SQLite service. `compose.clickhouse.yml` explicitly selects ClickHouse;
+existing ClickHouse installations must retain that overlay, because backend switching does not migrate samples.

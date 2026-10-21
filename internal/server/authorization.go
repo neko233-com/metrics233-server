@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/identity"
 )
 
 // RouteSurface distinguishes the Prometheus prefix from the native/Grafana API

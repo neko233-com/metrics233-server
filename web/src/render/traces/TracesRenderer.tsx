@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Pencil, Search, Trash2 } from "lucide-react";
 import { t } from "../../i18n";
 import { resolveTimeRange } from "../../grafana/time-range";
+import { interpolate } from "../../api";
 import type { RendererProps } from "../types";
+import TraceDetail from "./TraceDetail";
 import "./TracesRenderer.css";
 
 type TraceRow = {
@@ -23,6 +25,7 @@ function fieldByName(frame: RendererProps["frames"][number], names: string[]) {
 function traceRows(frames: RendererProps["frames"]): TraceRow[] {
   const rows: TraceRow[] = [];
   for (const frame of frames) {
+    if (fieldByName(frame, ["spanID"])) continue;
     const ids = fieldByName(frame, ["traceID", "traceId", "id"]);
     const services = fieldByName(frame, ["rootServiceName", "service", "serviceName"]);
     const names = fieldByName(frame, ["rootTraceName", "name", "traceName", "operation"]);
@@ -57,6 +60,7 @@ function durationText(value: number) {
 export default function TracesRenderer({
   panel,
   frames,
+  values,
   range,
   timeInfo,
   loading,
@@ -66,7 +70,7 @@ export default function TracesRenderer({
   onRemove,
 }: RendererProps) {
   const config = panel.config;
-  const resolved = resolveTimeRange(range);
+  const resolved = useMemo(() => resolveTimeRange(range), [range]);
   const rows = useMemo(() => traceRows(frames), [frames]);
   const hasStatus = useMemo(() => rows.some((row) => row.status), [rows]);
   const [query, setQuery] = useState(() => {
@@ -76,6 +80,22 @@ export default function TracesRenderer({
       return "";
     }
   });
+  const [selectedTrace, setSelectedTrace] = useState(() => new URLSearchParams(location.search).get("traceId") || "");
+  const target = config?.targets?.find((item) => !item.hide && (typeof item.datasource === "object" ? item.datasource?.type === "tempo" : false)) || config?.targets?.find((item) => !item.hide);
+  const datasource = target?.datasource || config?.datasource;
+  const rawUID = typeof datasource === "string" ? datasource : datasource?.uid || "";
+  const datasourceUID = rawUID && rawUID !== "grafana" && rawUID !== "metricspanel" && rawUID !== "-- Mixed --" && (typeof datasource !== "object" || !datasource.type || datasource.type === "tempo") ? interpolate(rawUID, values, range) : "";
+  const spanFrame = frames.find((frame) => fieldByName(frame, ["spanID"]));
+  const embeddedTraceID = String(spanFrame ? fieldByName(spanFrame, ["traceID"])?.values[0] || "" : "");
+  useEffect(() => {
+    const sync = () => {
+      const id = new URLSearchParams(location.search).get("traceId") || "";
+      setSelectedTrace(id);
+      setQuery(id);
+    };
+    addEventListener("popstate", sync);
+    return () => removeEventListener("popstate", sync);
+  }, []);
   const [sort, setSort] = useState<"duration" | "start">("start");
   const [descending, setDescending] = useState(true);
   const filtered = useMemo(() => {
@@ -112,6 +132,13 @@ export default function TracesRenderer({
     } catch {
       return `?traceId=${encodeURIComponent(id)}`;
     }
+  };
+  const chooseTrace = (id: string) => {
+    const url = new URL(location.href);
+    if (id) url.searchParams.set("traceId", id); else url.searchParams.delete("traceId");
+    history.pushState({}, "", url);
+    setSelectedTrace(id);
+    setQuery(id);
   };
   const sortBy = (next: "duration" | "start") => {
     if (sort === next) setDescending((current) => !current);
@@ -162,7 +189,8 @@ export default function TracesRenderer({
           {t(queryError)}
         </p>
       ) : null}
-      <div className="native-traces-toolbar">
+      {selectedTrace || embeddedTraceID ? <TraceDetail key={datasourceUID} traceID={selectedTrace || embeddedTraceID} datasourceUID={datasourceUID} frames={frames} from={resolved.start} to={resolved.end} onClose={spanFrame ? undefined : () => chooseTrace("")} /> : null}
+      {!spanFrame ? <><div className="native-traces-toolbar">
         <label className="native-traces-search">
           <Search size={14} aria-hidden="true" />
           <input
@@ -216,7 +244,12 @@ export default function TracesRenderer({
               {filtered.map((row) => (
                 <tr key={row.id} data-trace-id={row.id}>
                   <td>
-                    <a href={traceLink(row.id)}>{row.id}</a>
+                    <a href={traceLink(row.id)} onClick={(event) => {
+                      if (event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey) {
+                        event.preventDefault();
+                        chooseTrace(row.id);
+                      }
+                    }}>{row.id}</a>
                   </td>
                   <td>{row.service || "—"}</td>
                   <td className="native-traces-name">{row.name || "—"}</td>
@@ -254,6 +287,7 @@ export default function TracesRenderer({
           </p>
         )}
       </div>
+      </> : null}
     </section>
   );
 }

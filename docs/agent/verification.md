@@ -36,12 +36,13 @@ dynamic panel height. Fix persistent failures; a single retry is configured for 
 ## Docker Linux
 
 ```sh
-pwsh -File scripts/docker-verify.ps1 -Port 17333
+pwsh -File scripts/dockerfile_test.ps1 -Repeat 2 -Browser -IncludeDatabaseIntegration
 ```
 
-The script builds a small Linux runtime image, verifies first-run setup/login/roles/health against the container,
-then removes its container, volume, image, build cache, test artifacts and temporary directory. Keep the local
-increment under 1 GiB.
+The script builds the formal `runtime` target, verifies hardened token/local containers, business metric protocols,
+roles, restart and backup/restore, and can run the database integration suite. `docker-verify.ps1` remains a compatible
+entry point. It removes only resources created by that run; it never prunes global images or build caches, or deletes
+other browser test results. See [Docker validation](../docker-validation.md) for budgets and evidence boundaries.
 
 ## Release CI
 

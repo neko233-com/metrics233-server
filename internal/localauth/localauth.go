@@ -1,6 +1,7 @@
 package localauth
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -11,15 +12,14 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/instance"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/instance"
 )
 
 type Config struct {
@@ -43,8 +43,10 @@ type Handler struct {
 	session       http.Handler
 	setupRequired atomic.Bool
 	setupToken    string
+	setupMu       sync.RWMutex
 	limiter       *attemptLimiter
 	trusted       []*net.IPNet
+	passwordWork  chan struct{}
 }
 
 func New(cfg Config) (*Handler, error) {
@@ -74,7 +76,7 @@ func New(cfg Config) (*Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	h := &Handler{cfg: cfg, session: session, limiter: newAttemptLimiter(8, 5*time.Minute)}
+	h := &Handler{cfg: cfg, session: session, limiter: newAttemptLimiter(8, 5*time.Minute), passwordWork: make(chan struct{}, 1)}
 	for _, cidr := range cfg.TrustedProxies {
 		_, network, err := net.ParseCIDR(strings.TrimSpace(cidr))
 		if err != nil {
@@ -95,7 +97,11 @@ func New(cfg Config) (*Handler, error) {
 
 // SetupToken is returned exactly once per process while no account exists.
 // Callers print it to the operator console and never log it elsewhere.
-func (h *Handler) SetupToken() string { return h.setupToken }
+func (h *Handler) SetupToken() string {
+	h.setupMu.RLock()
+	defer h.setupMu.RUnlock()
+	return h.setupToken
+}
 
 func (h *Handler) SetupRequired() bool { return h.setupRequired.Load() }
 
@@ -169,7 +175,24 @@ func (h *Handler) authenticate(r *http.Request) (*http.Request, identity.Princip
 	if principal, ok := h.legacyPrincipal(r); ok {
 		return r.WithContext(identity.WithPrincipal(r.Context(), principal)), principal, nil
 	}
+	login, _, isBasic := r.BasicAuth()
+	var release func()
+	if isBasic && login != "api_key" {
+		var err error
+		release, err = h.beginPasswordAttempt(r)
+		if err != nil {
+			return nil, identity.Principal{}, err
+		}
+		defer release()
+	}
 	authenticated, err := h.cfg.Authenticator.AuthenticateRequest(r)
+	if release != nil {
+		if err == nil {
+			h.limiter.reset(h.clientIP(r))
+		} else if errors.Is(err, identity.ErrUnauthenticated) {
+			h.limiter.allow(h.clientIP(r))
+		}
+	}
 	if err != nil {
 		return nil, identity.Principal{}, err
 	}
@@ -220,6 +243,9 @@ func (h *Handler) status(w http.ResponseWriter, r *http.Request) {
 		view := h.view(r.Context(), principal)
 		response.Authenticated = true
 		response.User = &view
+	} else if errors.Is(err, errPasswordRateLimited) {
+		writeAuthError(w, err)
+		return
 	}
 	writeJSON(w, http.StatusOK, response)
 }
@@ -283,14 +309,14 @@ func (h *Handler) grafanaOrganizations(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) grafanaPing(w http.ResponseWriter, r *http.Request) {
 	if _, _, err := h.authenticate(r); err != nil {
-		writeAuthError(w, identity.ErrUnauthenticated)
+		writeAuthError(w, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"message": "Logged in"})
 }
 
 func (h *Handler) logoutAPI(w http.ResponseWriter, r *http.Request) {
-	if !sameOrigin(r) {
+	if !h.sameOrigin(r) {
 		writeAuthError(w, identity.ErrForbidden)
 		return
 	}
@@ -313,22 +339,38 @@ func (h *Handler) view(ctx context.Context, p identity.Principal) userView {
 }
 
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
-	if !h.limiter.allow(h.clientIP(r)) {
-		w.Header().Set("Retry-After", "300")
-		writeJSON(w, http.StatusTooManyRequests, map[string]any{"message": "Too many login attempts. Try again later."})
+	if err := h.cfg.Authenticator.CheckRequestOrigin(r); err != nil {
+		writeAuthError(w, err)
 		return
 	}
+	// Consume only the bounded transport body before acquiring password work.
+	// A slow client must not hold the shared authentication gate while sending
+	// JSON; the session adapter still performs its original strict decoding.
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, 64<<10))
+	if err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"message": "Invalid session request"})
+		return
+	}
+	defer clear(body)
+	r.Body = io.NopCloser(bytes.NewReader(body))
+	release, err := h.beginPasswordAttempt(r)
+	if err != nil {
+		writeAuthError(w, err)
+		return
+	}
+	defer release()
 	recorder := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 	h.session.ServeHTTP(recorder, r)
-	if recorder.status < 400 {
+	if recorder.status >= 200 && recorder.status < 300 {
 		h.limiter.reset(h.clientIP(r))
-	} else {
+	} else if recorder.status == http.StatusUnauthorized {
+		h.limiter.allow(h.clientIP(r))
 		slog.Warn("local login failed", "remote", h.clientIP(r), "status", recorder.status)
 	}
 }
 
 func (h *Handler) logout(w http.ResponseWriter, r *http.Request) {
-	if !sameOrigin(r) {
+	if !h.sameOrigin(r) {
 		writeAuthError(w, identity.ErrForbidden)
 		return
 	}
@@ -353,7 +395,7 @@ func (h *Handler) setup(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusConflict, map[string]any{"message": "Instance is already initialized"})
 		return
 	}
-	if !sameOrigin(r) {
+	if !h.sameOrigin(r) {
 		writeAuthError(w, identity.ErrForbidden)
 		return
 	}
@@ -367,7 +409,8 @@ func (h *Handler) setup(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusBadRequest, map[string]any{"message": err.Error()})
 		return
 	}
-	if h.setupToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(h.setupToken)) != 1 {
+	setupToken := h.SetupToken()
+	if setupToken == "" || subtle.ConstantTimeCompare([]byte(input.Token), []byte(setupToken)) != 1 {
 		writeJSON(w, http.StatusUnauthorized, map[string]any{"message": "Invalid setup token"})
 		return
 	}
@@ -388,7 +431,9 @@ func (h *Handler) setup(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h.setupRequired.Store(false)
+	h.setupMu.Lock()
 	h.setupToken = ""
+	h.setupMu.Unlock()
 	h.limiter.reset("setup|" + h.clientIP(r))
 	slog.Info("local administrator created", "login", user.Login, "remote", h.clientIP(r))
 	h.writeSessionCookie(w, session, key)
@@ -428,7 +473,9 @@ func (h *Handler) clientIP(r *http.Request) string {
 	if !h.trustedIP(host) {
 		return host
 	}
-	for _, header := range r.Header.Values("X-Forwarded-For") {
+	headers := r.Header.Values("X-Forwarded-For")
+	for headerIndex := len(headers) - 1; headerIndex >= 0; headerIndex-- {
+		header := headers[headerIndex]
 		parts := strings.Split(header, ",")
 		for index := len(parts) - 1; index >= 0; index-- {
 			candidate := strings.TrimSpace(parts[index])
@@ -453,26 +500,37 @@ func (h *Handler) trustedIP(value string) bool {
 	return false
 }
 
-func sameOrigin(r *http.Request) bool {
-	if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
-		return false
+func (h *Handler) sameOrigin(r *http.Request) bool {
+	return h.cfg.Authenticator.CheckRequestOrigin(r) == nil
+}
+
+var errPasswordRateLimited = errors.New("password authentication is rate limited")
+
+// Serialize checks with password work so parallel requests cannot all pass an
+// empty failure counter before their expensive verifications finish. Argon2
+// already runs one at a time globally; this adds no KDF concurrency reduction.
+func (h *Handler) beginPasswordAttempt(r *http.Request) (func(), error) {
+	if err := h.cfg.Authenticator.CheckRequestOrigin(r); err != nil {
+		return nil, err
 	}
-	origins := r.Header.Values("Origin")
-	if len(origins) == 0 {
-		return true
+	if err := r.Context().Err(); err != nil {
+		return nil, err
 	}
-	if len(origins) != 1 {
-		return false
+	select {
+	case h.passwordWork <- struct{}{}:
+	case <-r.Context().Done():
+		return nil, r.Context().Err()
 	}
-	origin, err := url.Parse(origins[0])
-	if err != nil || origin.User != nil || origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" || origin.Opaque != "" {
-		return false
+	release := func() { <-h.passwordWork }
+	if err := r.Context().Err(); err != nil {
+		release()
+		return nil, err
 	}
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
+	if !h.limiter.available(h.clientIP(r)) {
+		release()
+		return nil, errPasswordRateLimited
 	}
-	return origin.Host == r.Host && origin.Scheme == scheme
+	return release, nil
 }
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, target any) error {
@@ -501,6 +559,9 @@ func writeJSON(w http.ResponseWriter, status int, value any) {
 func writeAuthError(w http.ResponseWriter, err error) {
 	status, code, message := http.StatusServiceUnavailable, "metricspanel.auth.unavailable", "Authentication is unavailable"
 	switch {
+	case errors.Is(err, errPasswordRateLimited):
+		status, code, message = http.StatusTooManyRequests, "metricspanel.auth.rate_limited", "Too many login attempts. Try again later."
+		w.Header().Set("Retry-After", "300")
 	case errors.Is(err, identity.ErrSessionNeedsRotation):
 		status, code, message = http.StatusUnauthorized, "metricspanel.auth.rotation_required", "Session rotation required"
 	case errors.Is(err, identity.ErrUnauthenticated):
@@ -559,6 +620,14 @@ func newAttemptLimiter(maximum int, window time.Duration) *attemptLimiter {
 }
 
 func (l *attemptLimiter) allow(key string) bool {
+	return l.check(key, true)
+}
+
+func (l *attemptLimiter) available(key string) bool {
+	return l.check(key, false)
+}
+
+func (l *attemptLimiter) check(key string, consume bool) bool {
 	now := time.Now()
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -569,7 +638,7 @@ func (l *attemptLimiter) allow(key string) bool {
 			return false
 		}
 	}
-	if len(l.entries) > 4096 {
+	if len(l.entries) >= 4096 {
 		for candidate, record := range l.entries {
 			if now.After(record.reset) {
 				delete(l.entries, candidate)
@@ -578,10 +647,18 @@ func (l *attemptLimiter) allow(key string) bool {
 	}
 	record, ok := l.entries[key]
 	if !ok {
+		if len(l.entries) >= 4096 {
+			return false
+		}
+		if !consume {
+			return true
+		}
 		record = &attemptRecord{reset: now.Add(l.window)}
 		l.entries[key] = record
 	}
-	record.count++
+	if consume {
+		record.count++
+	}
 	return true
 }
 

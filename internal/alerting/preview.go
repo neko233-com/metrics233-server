@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/neko233-com/MetricsPanel233/internal/alertgraph"
-	"github.com/neko233-com/MetricsPanel233/internal/querycontext"
+	"github.com/neko233-com/metrics233-server/internal/alertgraph"
+	"github.com/neko233-com/metrics233-server/internal/querycontext"
 )
 
 type PreviewValue struct {

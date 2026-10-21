@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/neko233-com/MetricsPanel233/internal/plugins"
+	"github.com/neko233-com/metrics233-server/internal/plugins"
 )
 
 func (s *Server) pluginCatalogRoutes(api routeRegistrar, catalog *plugins.CatalogClient) {

@@ -2,7 +2,7 @@ package grafana_test
 
 import (
 	"encoding/json"
-	"github.com/neko233-com/MetricsPanel233/internal/grafana"
+	"github.com/neko233-com/metrics233-server/internal/grafana"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

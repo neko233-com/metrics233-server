@@ -64,13 +64,13 @@ node scripts/auth-smoke.mjs   # local accounts: setup, roles, 403, session, logo
 ## Linux container verification
 
 ```powershell
-pwsh -File scripts/docker-verify.ps1 -Port 17333
+pwsh -File scripts/dockerfile_test.ps1 -Repeat 2 -Browser -IncludeDatabaseIntegration
 ```
 
-The script cross-compiles the Linux binary, builds a minimal Alpine runtime image (about 42 MiB), starts it with
-`--auth=local` and SQLite, verifies first-run setup, login, roles, a Viewer 403 and `metricspanel health`, then removes
-the container, volume, image, build cache, `web/test-results` and its temporary directory in a `finally` block.
-The image is checked against a 1 GiB budget before it starts. It does not touch unrelated Docker resources.
+The script builds the formal production runtime and validates confined token/local containers, business ingest,
+query, sessions/roles, restart and offline encrypted backup recovery. Optional browser checks include real SQL
+against the database fixture. It removes only resources created by that run; shared build caches and other browser
+outputs remain. See [Docker validation](docker-validation.md) for the measured size/memory and their boundaries.
 
 ## Change workflow
 
@@ -80,8 +80,7 @@ The image is checked against a 1 GiB budget before it starts. It does not touch 
 4. Add or update focused tests when behavior changes, and update docs when public behavior or a compatibility claim changes.
 5. Run the relevant validation level and report exactly what it covers.
 
-Product UI builds on the shared `@grafana/ui` adapter in `web/src/ui`; import components from there rather than
-adding new hand-written primitives. Grafana plugin hosting and resource conversion stay behind the compatibility
+Product UI builds on first-party primitives in `web/src/ui`; reuse them. Grafana plugin hosting and resource conversion stay behind the compatibility
 boundary described in the project goals.
 
 ## Release binaries
@@ -96,7 +95,11 @@ pwsh -File scripts/build-release.ps1 -Version 0.1.1
 VERSION=0.1.1 ./scripts/build-release.sh
 ```
 
-Both scripts build the frontend once, then cross-compile with `CGO_ENABLED=0` and the `webui` tag. Output goes to
-`dist/`. Docker is not required for the release path.
+Both wrappers call `scripts/build-release.mjs`: one `npm ci`/frontend build, then cross-compile with `CGO_ENABLED=0`,
+`webui`, readonly modules and trimmed paths. They produce deterministic ZIP archives for all five targets under
+`dist/<version>/`, with `SHA256SUMS`, `PROVENANCE.json` and per-archive `BUILDINFO.json`. Output must be a new directory;
+existing archives are never deleted. `-OutputDirectory` / `OUTPUT_DIRECTORY` selects another new destination.
+See [release checklist](release-checklist.md) for reproducibility, upgrade and external-release gates. Docker is not
+required to build archives. Target-platform execution remains a separate acceptance layer from cross-compilation.
 
 Do not commit local databases, encryption keys, .env files, plugin packages, generated web/dist assets or compiled binaries.

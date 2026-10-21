@@ -14,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/alertgraph"
-	"github.com/neko233-com/MetricsPanel233/internal/expressions"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/promcompat"
-	"github.com/neko233-com/MetricsPanel233/internal/querycontext"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/alertgraph"
+	"github.com/neko233-com/metrics233-server/internal/expressions"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/promcompat"
+	"github.com/neko233-com/metrics233-server/internal/querycontext"
+	"github.com/neko233-com/metrics233-server/internal/store"
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/promql"
 )

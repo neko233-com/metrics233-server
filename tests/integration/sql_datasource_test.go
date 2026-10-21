@@ -4,17 +4,20 @@ package integration_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
 	"github.com/grafana/grafana-plugin-sdk-go/data"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -22,6 +25,24 @@ import (
 // A local browser verification can reuse this one live fixture. CI does not
 // set the hook, and the hold is bounded when the browser never connects.
 func (e environment) waitSQLBrowserQA() {
+	if os.Getenv("METRICSPANEL_DOCKER_SQL_BROWSER_TEST") == "1" {
+		// Reuse the fully initialized real database fixture before its cleanup.
+		// No readiness file or credential-bearing command arguments are needed.
+		ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
+		defer cancel()
+		work := e.t.TempDir()
+		command := exec.CommandContext(ctx, "node", "node_modules/@playwright/test/cli.js", "test", "e2e/sql-explore.spec.ts", "--retries=0", "--reporter=list", "--output", filepath.Join(work, "results"))
+		command.Dir = filepath.Join(e.root, "web")
+		command.Env = append(os.Environ(), "METRICSPANEL_SQL_E2E_URL="+e.address("sqlite"), "METRICSPANEL_SQL_E2E_TOKEN="+token, "METRICSPANEL_SQL_QA_DIR="+work)
+		out, err := command.CombinedOutput()
+		redacted := string(out)
+		for _, secret := range []string{token, "integration-exporter-password", "integration-postgres-password", "sql-ui-secret-233"} {
+			redacted = strings.ReplaceAll(redacted, secret, "[redacted]")
+		}
+		require.NoError(e.t, err, "real SQL browser validation failed (no retries):\n%s", redacted)
+		e.t.Logf("real SQL browser validation (no retries):\n%s", redacted)
+		return
+	}
 	path := os.Getenv("METRICSPANEL_SQL_QA_READY_FILE")
 	if path == "" {
 		return

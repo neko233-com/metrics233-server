@@ -10,8 +10,8 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	"github.com/neko233-com/MetricsPanel233/internal/grafana"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/grafana"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 type rawObject = map[string]json.RawMessage

@@ -9,8 +9,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/notificationtemplate"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/notificationtemplate"
 )
 
 var ErrNotificationTemplateReferenced = errors.New("notification template is referenced by another template or contact point")

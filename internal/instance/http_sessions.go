@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/identity"
 )
 
 const sessionExpiryCookieName = "grafana_session_expiry"
@@ -97,7 +97,7 @@ func (h *sessionHTTP) guard(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Content-Type-Options", "nosniff")
-		if err := checkRequestOrigin(r); err != nil {
+		if err := h.auth.CheckRequestOrigin(r); err != nil {
 			writeAuthenticationError(w, err)
 			return
 		}

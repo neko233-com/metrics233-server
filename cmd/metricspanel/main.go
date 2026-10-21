@@ -23,16 +23,16 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/neko233-com/MetricsPanel233/internal/collector"
-	"github.com/neko233-com/MetricsPanel233/internal/grafana"
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/instance"
-	"github.com/neko233-com/MetricsPanel233/internal/live"
-	"github.com/neko233-com/MetricsPanel233/internal/localauth"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/plugins"
-	"github.com/neko233-com/MetricsPanel233/internal/server"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/collector"
+	"github.com/neko233-com/metrics233-server/internal/grafana"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/instance"
+	"github.com/neko233-com/metrics233-server/internal/live"
+	"github.com/neko233-com/metrics233-server/internal/localauth"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/plugins"
+	"github.com/neko233-com/metrics233-server/internal/server"
+	"github.com/neko233-com/metrics233-server/internal/store"
 )
 
 // version is overridable at link time for release binaries.
@@ -1423,6 +1423,18 @@ func serve(args []string) error {
 	if err != nil || (parsedRoot.Scheme != "http" && parsedRoot.Scheme != "https") || parsedRoot.Host == "" || parsedRoot.User != nil || parsedRoot.RawQuery != "" || parsedRoot.Fragment != "" {
 		return errors.New("root-url must be an absolute HTTP(S) URL without credentials, query or fragment")
 	}
+	// A configured origin is authoritative behind a TLS-terminating proxy. Keep
+	// the implicit development default transport-derived for dynamic ports/HMR.
+	publicOrigin := ""
+	rootConfigured := strings.TrimSpace(os.Getenv("METRICSPANEL_ROOT_URL")) != ""
+	f.Visit(func(option *flag.Flag) {
+		if option.Name == "root-url" {
+			rootConfigured = true
+		}
+	})
+	if rootConfigured {
+		publicOrigin = parsedRoot.Scheme + "://" + parsedRoot.Host
+	}
 	_, statErr := os.Stat(*dbPath)
 	firstRun := errors.Is(statErr, os.ErrNotExist)
 	storage, err := store.Open(*dbPath)
@@ -1478,6 +1490,7 @@ func serve(args []string) error {
 		authenticator, err := instance.NewHTTPAuthenticator(identityStore, instance.HTTPAuthenticationConfig{
 			CookieName:       identity.SessionCookieName,
 			RotationInterval: 24 * time.Hour,
+			PublicOrigin:     publicOrigin,
 		})
 		if err != nil {
 			return err
@@ -1569,12 +1582,12 @@ func serve(args []string) error {
 func schema() any {
 	result := map[string]any{
 		"name": "metricspanel", "version": version, "output": "JSON stdout; JSON errors stderr; exit 0 success / 1 failure",
-		"environment":    map[string]string{"METRICSPANEL_URL": "http://127.0.0.1:7333", "METRICSPANEL_TOKEN": "Bearer token (optional on loopback)", "METRICSPANEL_USERNAME": "HTTP Basic user for local accounts", "METRICSPANEL_PASSWORD": "HTTP Basic password for local accounts"},
-		"commands":       []string{"serve [--listen --db --retention-days]", "health", "stats", "metrics", "query --metric NAME [--range 30m --step 15s --aggregation last --labels '{}']", "ingest --file FILE|-", "targets list", "targets add --name NAME --url URL [--interval 15s --labels '{}']", "targets set --id ID --name NAME --url URL [--enabled=false]", "targets scrape --id ID", "targets delete --id ID", "dashboards list", "dashboards save --file FILE|- [--id ID]", "dashboards export --id ID", "dashboards delete --id ID", "schema", "version"},
-		"api":            map[string][]string{"GET": {"/api/health", "/api/login/ping", "/api/user", "/api/user/orgs", "/api/v1/health", "/api/v1/stats", "/api/v1/metrics", "/api/v1/query", "/api/v1/targets", "/api/v1/dashboards", "/api/auth/status", "/api/auth/me", "/api/admin/users", "/metrics"}, "POST": {"/api/v1/ingest", "/api/v1/write", "/prometheus/api/v1/write", "/api/v1/targets", "/api/v1/targets/{id}/scrape", "/api/v1/dashboards", "/api/admin/users", "/api/logout"}, "PUT": {"/api/v1/targets/{id}", "/api/v1/dashboards/{id}", "/api/admin/users/{id}"}, "DELETE": {"/api/v1/targets/{id}", "/api/v1/dashboards/{id}"}},
+		"environment": map[string]string{"METRICSPANEL_URL": "http://127.0.0.1:7333", "METRICSPANEL_TOKEN": "Bearer token (optional on loopback)", "METRICSPANEL_USERNAME": "HTTP Basic user for local accounts", "METRICSPANEL_PASSWORD": "HTTP Basic password for local accounts"},
+		"commands":    []string{"serve [--listen --db --retention-days]", "health", "stats", "metrics", "query --metric NAME [--range 30m --step 15s --aggregation last --labels '{}']", "ingest --file FILE|-", "targets list", "targets add --name NAME --url URL [--interval 15s --labels '{}']", "targets set --id ID --name NAME --url URL [--enabled=false]", "targets scrape --id ID", "targets delete --id ID", "dashboards list", "dashboards save --file FILE|- [--id ID]", "dashboards export --id ID", "dashboards delete --id ID", "schema", "version"},
+		"api":         map[string][]string{"GET": {"/api/health", "/api/login/ping", "/api/user", "/api/user/orgs", "/api/v1/health", "/api/v1/stats", "/api/v1/metrics", "/api/v1/query", "/api/v1/targets", "/api/v1/dashboards", "/api/auth/status", "/api/auth/me", "/api/admin/users", "/metrics"}, "POST": {"/api/v1/ingest", "/api/v1/write", "/prometheus/api/v1/write", "/api/v1/targets", "/api/v1/targets/{id}/scrape", "/api/v1/dashboards", "/api/admin/users", "/api/logout"}, "PUT": {"/api/v1/targets/{id}", "/api/v1/dashboards/{id}", "/api/admin/users/{id}"}, "DELETE": {"/api/v1/targets/{id}", "/api/v1/dashboards/{id}"}},
 		"ingest_modes": map[string]any{
-			"pull": []string{"Prometheus/OpenMetrics scrape targets", "MySQL/MariaDB, Redis, PostgreSQL and service collectors"},
-			"push": []string{"OTLP/HTTP POST /v1/metrics", "Prometheus remote write POST /api/v1/write and /prometheus/api/v1/write (snappy + protobuf)", "Native JSON POST /api/v1/ingest"},
+			"pull":   []string{"Prometheus/OpenMetrics scrape targets", "MySQL/MariaDB, Redis, PostgreSQL and service collectors"},
+			"push":   []string{"OTLP/HTTP POST /v1/metrics", "Prometheus remote write POST /api/v1/write and /prometheus/api/v1/write (snappy + protobuf)", "Native JSON POST /api/v1/ingest"},
 			"limits": map[string]any{"remote_write_body_mib": 32, "remote_write_decoded_mib": 64, "remote_write_samples": 100000, "otlp_body_mib": 16, "otlp_samples": 10000},
 		},
 		"ingest_example": map[string]any{"samples": []model.Sample{{Name: "app_requests_total", Labels: map[string]string{"service": "api"}, Value: 42}}},

@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/server"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/server"
 )
 
 type organizationHTTPHandler struct {

@@ -1,4 +1,4 @@
-# MetricsPanel233
+# metrics233-server
 
 [English (primary)](README.md) · **简体中文**
 
@@ -10,6 +10,10 @@
 Grafana 导入/导出只是可选的迁移适配，不是产品基础；不追求完整复刻 Grafana。目标边界见[项目目标](docs/project-goals.md)。
 
 支持数据库直连、服务指标接口、Prometheus / OpenMetrics exporter、OpenTelemetry OTLP/HTTP 和业务指标上报。
+
+Go 业务服务可用独立的 [metrics233-lib-go](https://github.com/neko233-com/metrics233-lib-go) 链式记录 Counter/Gauge，
+显式控制推送与关闭；[metrics233-all](https://github.com/neko233-com/metrics233-all) 用 Git submodule 固定两者版本。
+仓库和 Go module 改为 `metrics233-server`，现有 `metricspanel` CLI、`METRICSPANEL_*` 和 HTTP 契约继续兼容。
 
 ### Prometheus remote write（推送）
 
@@ -38,9 +42,9 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
 your-service
 ```
 
-接收 protobuf/JSON、gzip、Gauge、Sum、Histogram 和 Summary。Resource 属性转为标签（`service.name` → `service_name`），
-Scope 名称/版本转为 `otel_scope_name`/`otel_scope_version`，直方图展开为 `_bucket`/`_count`/`_sum`。
-单请求上限 16 MiB / 10,000 样本；OTLP 写入遵循与 `/api/v1/ingest` 相同的角色策略，非 loopback 部署需要 workspace token。
+接收 protobuf/JSON、gzip、Gauge、cumulative Sum、explicit cumulative Histogram 和 Summary。Resource 属性转为标签（`service.name` → `service_name`），
+Scope 名称/版本转为 `otel_scope_name`/`otel_scope_version`，直方图展开为 `_bucket`/`_count` 和可选 `_sum`。
+单请求上限 16 MiB / 10,000 个展开后的样本，超限零写入；不支持的 datapoint 返回 `partial_success`。精确范围见 [采集契约](docs/collection-modes.md)。OTLP 写入遵循与 `/api/v1/ingest` 相同的角色策略，非 loopback 部署需要 workspace token。
 SQLite 模式无需额外服务；ClickHouse 模式采用压缩列式时序存储、向量化聚合、按天分区、TTL 和持久化 HNSW 波形向量索引。
 
 ## 快速开始
@@ -86,6 +90,8 @@ METRICSPANEL_TOKEN="至少16个字符的token" ./bin/metricspanel serve --listen
 非 loopback 监听始终要求至少 16 字符的 token；公网部署请在前面加 HTTPS 反向代理。token 和会话 cookie 都不能替代 TLS；
 当 `--root-url` 为 HTTPS 时会话 cookie 自动带 `Secure`。
 预编译 Windows / Linux / macOS 归档可用 `scripts/build-release.ps1` 或 `scripts/build-release.sh` 生成。
+两个入口使用同一构建器，在新的 `dist/<version>/` 目录生成确定性 ZIP、校验和与源码/编译身份清单，
+不删除已有产物。升级、回滚与验收边界见 [发布清单](docs/release-checklist.md)。
 公网部署的 TLS、可信代理、防火墙、备份和防泄露清单见[公网部署指南](docs/public-deployment.md)。
 
 ### 用户与 Agent CLI
@@ -107,13 +113,26 @@ metricspanel users update --id 2 --file user-role.json
 `user-role.json` 使用返回的 `version`、`membershipVersion` 加上 `role` 和/或 `disabled`。用 `--file -` 从 stdin
 读取 JSON，避免密码进入 shell 历史；响应不会返回密码或哈希。
 
-### Docker + ClickHouse（可选）
+### Docker（可选）
+
+默认 Compose 只运行一个非 root 的 SQLite 服务，使用只读根文件系统、1 CPU / 256 MiB 起始配额，
+不依赖外部数据库。容量需按实际指标量和查询并发测量后调整。
 
 ```sh
 cp .env.example .env
-# 修改 .env 中两个密码，然后运行：
+# 为 .env 设置随机 METRICSPANEL_TOKEN；团队账号使用 METRICSPANEL_AUTH=local
 docker compose up -d --build
 ```
+
+使用 ClickHouse 时，另设 `CLICKHOUSE_PASSWORD` 并显式启用：
+
+```sh
+docker compose -f compose.yml -f compose.clickhouse.yml up -d --build
+```
+
+**升级说明：** 已使用 ClickHouse 的 Compose 实例必须继续带上该 overlay，才能读取原有指标卷。
+默认现改为 SQLite，切换后端不会自动复制历史数据。公网部署需设置真实 HTTPS origin 和代理 CIDR，
+详见 [部署指南](docs/public-deployment.md)；深度验证入口是 `scripts/dockerfile_test.ps1`。
 
 访问相同地址，输入 `METRICSPANEL_TOKEN`。`docker compose down` 保留命名数据卷；
 `docker compose down -v` 会删除数据，**只在确实需要清空时使用**。
@@ -639,8 +658,8 @@ CLI `--duration` 默认 1 分钟，`0` 关闭客户端期限；服务器期限�
 - SQLite WAL + 事务；进程重启保持已确认样本和配置；Docker 数据卷保持容器重建后的数据。
 - PromQL 目前把命中的样本加载到受控内存再执行，上限 100 万样本 / 10,000 序列，尚无查询下推。
 - labels / label values / series 发现只查询序列元数据，不传输原始指标样本；最多 10,000 个匹配序列。
-- 原生查询最长 31 天、200 序列、2,000 分桶，SQLite 原生查询最多读取 250,000 样本。
-- 每次抓取 / 推送最多 4 MiB、10,000 样本；最多 8 个并发抓取。
+- 原生查询最长 31 天、200 序列、2,000 分桶；SQLite 非 rate 查询在 SQL 中取分桶末值，最多扫描 5,000,000 个源样本；reset-aware rate 保留原始点，限 250,000 个。语义及实测见 [查询规划](docs/storage-query-planning.md)。
+- 每次 exporter 抓取最多 4 MiB、10,000 样本，最多 8 个并发抓取；推送协议分别遵循采集契约的请求预算与失败语义。
 - 当前为单实例设计，未验证集群、百万级序列或长期大规模生产负载，不能承诺特定吞吐。
 
 性能测试会报告当前机器的批量确认时间和查询耗时，以实测为准。

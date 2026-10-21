@@ -2,6 +2,7 @@ package store
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,7 +10,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 // Query buckets the last observed value of each series, then applies cross-series
@@ -32,23 +33,39 @@ func (s *Store) Query(ctx context.Context, q model.Query) (model.QueryResult, er
 	if err := model.ValidateLabels(q.Labels); err != nil {
 		return out, err
 	}
-	sqlText := `SELECT series.id,series.labels,samples.timestamp,samples.value FROM series JOIN samples ON samples.series_id=series.id WHERE series.name=? AND samples.timestamp>=? AND samples.timestamp<=?`
 	from := q.Start
 	if q.Aggregation == "rate" {
 		from -= q.Step
 	}
-	args := []any{q.Metric, from, q.End}
-	keys := make([]string, 0, len(q.Labels))
-	for k := range q.Labels {
-		keys = append(keys, k)
+	// Keep catalog selection, the bounded count and the value scan on the same
+	// SQLite snapshot, including while collectors overwrite older samples.
+	tx, err := s.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return out, err
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		sqlText += ` AND EXISTS(SELECT 1 FROM json_each(series.labels) WHERE key=? AND value=?)`
-		args = append(args, k, q.Labels[k])
+	defer tx.Rollback()
+	ids, err := nativeSeriesIDs(ctx, tx, q, from)
+	if err != nil {
+		return out, err
 	}
-	sqlText += ` ORDER BY series.id,samples.timestamp LIMIT 250001`
-	rows, err := s.DB.QueryContext(ctx, sqlText, args...)
+	if len(ids) == 0 {
+		return out, nil
+	}
+	where, args := sqliteSampleRange(ids, from, q.End)
+	sqlText := `SELECT series.id,series.labels,samples.timestamp,samples.value FROM samples JOIN series ON samples.series_id=series.id WHERE ` + where + ` ORDER BY series.id,samples.timestamp LIMIT 250001`
+	if q.Aggregation != "rate" {
+		var count int
+		if err = tx.QueryRowContext(ctx, `SELECT count(*) FROM (SELECT 1 FROM samples WHERE `+where+` LIMIT 5000001)`, args...).Scan(&count); err != nil {
+			return out, err
+		}
+		if count > maxSQLiteBucketSamples {
+			return out, errors.New("SQLite bucket query exceeds 5000000 samples; narrow range or label filters, or use ClickHouse")
+		}
+		sqlText = sqliteBucketSQL(where)
+		args = append([]any{q.Start, q.Step}, args...)
+		args = append(args, q.Start, q.Step)
+	}
+	rows, err := tx.QueryContext(ctx, sqlText, args...)
 	if err != nil {
 		return out, err
 	}
@@ -59,11 +76,11 @@ func (s *Store) Query(ctx context.Context, q model.Query) (model.QueryResult, er
 		previous *model.Point
 	}
 	states := map[int64]*state{}
-	ids := []int64{}
+	ids = []int64{}
 	count := 0
 	for rows.Next() {
 		count++
-		if count > 250000 {
+		if q.Aggregation == "rate" && count > maxSQLiteRateSamples {
 			return out, errors.New("query exceeds 250000 samples; narrow range or label filters")
 		}
 		var id, ts int64

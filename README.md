@@ -1,8 +1,8 @@
-# MetricsPanel233
+# metrics233-server
 
 **English (primary)** · [简体中文](README-CN.md)
 
-[![CI](https://github.com/neko233-com/MetricsPanel233/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/neko233-com/MetricsPanel233/actions/workflows/ci.yml)
+[![CI](https://github.com/neko233-com/metrics233-server/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/neko233-com/metrics233-server/actions/workflows/ci.yml)
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A zero-configuration, single-node monitoring appliance: **collection, storage and dashboards in one service**.
@@ -10,6 +10,11 @@ A zero-configuration, single-node monitoring appliance: **collection, storage an
 Collect Prometheus/OpenMetrics, OTLP/HTTP, MySQL, Redis and other common sources; store time-series samples and local
 metric-window vectors; build dashboards, Explore views and alerts without a Grafana server or plugin ecosystem.
 The product UI supports English and Chinese. Production UI assets are embedded in the Go executable.
+
+Use the standalone [metrics233-lib-go SDK](https://github.com/neko233-com/metrics233-lib-go) for fluent business
+Counter/Gauge instrumentation and explicit push/shutdown. The [metrics233-all aggregate](https://github.com/neko233-com/metrics233-all)
+pins matching server and SDK commits as Git submodules. The repository and Go module are now `metrics233-server`;
+the `metricspanel` command, `METRICSPANEL_*` settings and existing HTTP routes retain their contracts.
 
 The product replaces the usual Grafana + separate scraping + separate vector-search stack. Grafana import/export is
 optional migration support, not the product foundation. See the [project goals](docs/project-goals.md).
@@ -75,6 +80,8 @@ internet-facing deployment; neither the token nor a session cookie is a substitu
 
 Prebuilt archives for Windows, Linux and macOS (amd64/arm64) can be produced with `scripts/build-release.ps1` or
 `scripts/build-release.sh`. The frontend is embedded in the binary, so the target machine needs no Node.js or Go.
+Both wrappers produce deterministic ZIPs, checksums and source/build provenance in a new `dist/<version>/`
+directory. Existing output is preserved. See the [release checklist](docs/release-checklist.md).
 See the [public deployment guide](docs/public-deployment.md) for TLS, trusted proxies, firewall, backups and the
 data-leakage checklist.
 
@@ -101,17 +108,29 @@ read JSON from stdin so passwords are not written to shell history. Responses ne
 Grafana-compatible clients can use Basic auth with a local account or the workspace Bearer token; `GET /api/health`
 is public for load balancers.
 
-### Docker and ClickHouse (optional)
+### Docker (optional)
 
-Use Docker when you want ClickHouse-backed metric storage or container orchestration:
+The default Compose deployment runs a single non-root service with SQLite, a read-only root filesystem and a
+256 MiB / one-CPU starting budget. It requires no external database:
 
 ```sh
-cp .env.example .env   # set METRICSPANEL_TOKEN and CLICKHOUSE_PASSWORD
+cp .env.example .env   # set a random METRICSPANEL_TOKEN; use local auth for team accounts
 docker compose up -d --build
 ```
 
-Compose persists both the SQLite control plane and ClickHouse metrics in named volumes. `down` preserves data; `down -v` deletes it.
-The single binary keeps using SQLite unless `METRICSPANEL_STORAGE=clickhouse` and a ClickHouse endpoint are configured.
+Compose persists SQLite data in a named volume. `down` preserves data; `down -v` deletes it. Adjust resource limits
+after measuring your workload. For public deployments, configure the real HTTPS origin and proxy CIDRs as described
+in [public deployment](docs/public-deployment.md).
+
+To opt into ClickHouse, set `CLICKHOUSE_PASSWORD` and run:
+
+```sh
+docker compose -f compose.yml -f compose.clickhouse.yml up -d --build
+```
+
+**Upgrade note:** existing Compose installations that use ClickHouse must continue to include this overlay to read
+their existing metric volume. The default now selects SQLite; switching backends does not copy historical metrics.
+Both backends retain the SQLite control volume. See [Docker validation](docs/docker-validation.md) for deep checks.
 
 ## Collect and query
 
@@ -158,9 +177,9 @@ OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
 your-service
 ```
 
-The receiver accepts protobuf or JSON, gzip, gauges, sums, histograms and summaries. Resource attributes become labels
+The receiver accepts protobuf or JSON, gzip, gauges, cumulative sums, explicit cumulative histograms and summaries. Resource attributes become labels
 (`service.name` → `service_name`), scope name/version become `otel_scope_name`/`otel_scope_version`, and histogram
-buckets become `_bucket`/`_count`/`_sum` series. Requests are limited to 16 MiB and 10,000 samples per batch. OTLP
+buckets become `_bucket`/`_count` and optional `_sum` series. Requests are limited to 16 MiB and 10,000 expanded samples in total; an oversized request writes nothing. Unsupported datapoints use OTLP `partial_success`. See the [precise collection contract](docs/collection-modes.md). OTLP
 writes use the same role policy as `/api/v1/ingest`; non-loopback deployments require the workspace token.
 Timestamp is Unix milliseconds; omitted / zero uses server time. Duplicate series/timestamp writes replace the prior value.
 The [Go example](examples/go-service/main.go) demonstrates both exporter and push integration. MySQL can use the official `mysqld_exporter` with `.my.cnf` credentials or the native SQL collector.
@@ -191,8 +210,9 @@ Both modes survive application restarts; ClickHouse data survives database resta
 Changing retention on an existing ClickHouse table requires an explicit `ALTER TABLE ... MODIFY TTL`.
 
 Native queries support last / avg / sum / min / max / reset-aware rate, label equality filters, a maximum 31-day range, 200 series and 2,000 buckets.
+SQLite pushes bucket-last selection into SQL, with a 5,000,000 source-observation budget for non-rate queries and 250,000 for raw reset-aware rate. See [query planning and measured backend differences](docs/storage-query-planning.md).
 PromQL uses the official engine with a controlled in-memory storage adapter (maximum one million samples / 10,000 selected series). It does not yet push PromQL into ClickHouse.
-Each ingestion batch / exporter scrape is limited to 10,000 samples / 4 MiB; eight scrapes may run concurrently.
+Exporter scrapes are limited to 10,000 samples / 4 MiB; eight scrapes may run concurrently. Push protocols have their own request limits and failure semantics in the collection contract.
 This is a single-instance implementation, with no claimed distributed or production-scale throughput guarantee.
 SQLite is the zero-configuration default: exact in-process vector search is capped at 50,000 candidate patterns per
 request. Above that, add metric/label filters or move metrics and patterns to ClickHouse.

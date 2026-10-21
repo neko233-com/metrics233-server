@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/receivers"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/receivers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

@@ -10,9 +10,14 @@ This folder keeps cross-cutting architecture and product contracts. The root [RE
 
 - [Architecture overview](architecture.md) — runtime flow, source ownership and generated frontend assets.
 - [Collection modes](collection-modes.md) — pull scrapes, Prometheus remote write, OTLP and native JSON push, limits and roles.
+- [Business monitoring](business-monitoring.md) — application instrumentation, Gauge/Counter semantics, scoped dashboards and alerts.
+- [Docker validation](docker-validation.md) — formal runtime image, confinement, auth, recovery and bounded resource checks.
+- [Release checklist](release-checklist.md) — deterministic archives, source identity, upgrade/rollback and release gates.
 - [Development guide](development.md) — prerequisites, the one-command local loop, release builds and validation levels.
 - [SQLite baseline](performance-baseline.md) — reference hardware, reproducible commands, timings and sizing guidance.
+- [Storage query planning](storage-query-planning.md) — SQL bucket-last reduction, raw PromQL, query budgets and measured ClickHouse pruning.
 - [Public deployment](public-deployment.md) — TLS reverse proxy, trusted proxies, firewall, backups and leakage checks.
+- [Security readiness review](security-readiness-review.md) — focused auth boundary findings, regressions and deployment limits.
 
 ## Grafana compatibility
 

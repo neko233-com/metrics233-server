@@ -10,8 +10,8 @@ import (
 	"strings"
 
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	"github.com/neko233-com/MetricsPanel233/internal/alerttemplates"
-	"github.com/neko233-com/MetricsPanel233/internal/expressions"
+	"github.com/neko233-com/metrics233-server/internal/alerttemplates"
+	"github.com/neko233-com/metrics233-server/internal/expressions"
 )
 
 type captureGroup struct {

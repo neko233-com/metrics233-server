@@ -66,7 +66,7 @@ requires it. Unknown kinds show a named error instead of silently rendering noth
 | Stat / Gauge / Bar gauge | Implemented (default) | Shared `StatRenderer`; reducer selection, field filtering, threshold colors, gauge meter ARIA and bar fraction. Text/Markdown remains in the panel host |
 | Text / Markdown | Implemented (panel host) | Sanitized HTML/Markdown rendered by the panel host |
 | Logs | Implemented (default) | Own virtualized log view; search and label key/value filters; 10k-row browser contract |
-| Traces | Implemented (search) | Tempo search table; search, start/duration sorting, optional status, `?traceId=` deep link. Detail view pending |
+| Traces | Implemented (search and detail) | Tempo search table plus trace lookup, span hierarchy/waterfall, duration/error status and attributes; `?traceId=` survives reload and browser history |
 | Heatmap / Histogram | Implemented (default) | Canvas time-bucket heatmap with legend/hover; normalized HTML histogram bars |
 | Pie / Candlestick / Geomap / Node graph | Out of scope | Not required for the SMB/game-backend monitoring target |
 | State timeline / Status history | Out of scope | Alert state history is covered by alert views |
@@ -75,36 +75,80 @@ requires it. Unknown kinds show a named error instead of silently rendering noth
 Compatibility-only renderers for imported Grafana dashboards are tracked separately; they do not count as
 first-party coverage.
 
+### Tempo trace detail
+
+Tempo search remains a table frame. Selecting a trace or opening `?traceId=<hex-id>` sends a separate
+`POST /api/ds/query` query with `queryType: "traceId"`, `traceId` and the panel target's Tempo datasource UID.
+This uses the existing authenticated datasource-query policy; it does not add a new public endpoint or expose
+datasource credentials. The [Tempo v1 trace API](https://grafana.com/docs/tempo/latest/api_docs/#query)
+is queried without a search-window restriction so persisted deep links can resolve outside the dashboard range.
+
+- The span frame has `traceID`, `spanID`, `parentSpanID`, `serviceName`, `operationName`, `startTime` (Unix ms),
+  `durationMs`, `status` (`unset`/`ok`/`error`), `statusMessage`, `kind` and `tags` (JSON attributes).
+- Both `batches`/`instrumentationLibrarySpans` and `resourceSpans`/`scopeSpans` JSON are accepted. Hex and protobuf
+  JSON base64 IDs normalize to lowercase hexadecimal. Duration is computed from integer nanoseconds before conversion.
+- Lookup accepts 1–32 hexadecimal trace-ID characters. HTTP 404 produces an empty span frame; malformed responses,
+  invalid IDs/times, upstream errors and traces exceeding 10,000 unique spans fail explicitly. The existing proxy
+  applies its 20-second timeout, cancellation, encrypted connection secrets and 32 MiB response limit.
+- The first-party view orders children under their parent, draws time relative to the trace start, supports subtree
+  collapse and span attributes, and paginates at 100 visible rows. Missing parents and cycles remain inspectable.
+  A direct span query renders the same detail view. Superseded requests are aborted and Retry starts a new lookup.
+- Browser contract coverage uses a protocol fixture served through a real HTTP upstream, the Go query API and the
+  rendered UI. It covers hierarchy, error attributes, timeline, deep links/history, empty/error/retry and 390/768/1280
+  containment. This is not evidence of a live Tempo deployment, Tempo v2 partial-trace support, trace ingestion or a
+  locally owned trace store.
+- The browser datasource runtime routes the existing Prometheus, Loki and Tempo types through its built-in backend
+  adapter; these queries do not require installing external datasource plugin packages. HTTP upstream fixture tests
+  exercise normal Tempo search and Loki log queries in addition to trace detail. An attributed excerpt from the
+  upstream Tempo trace fixture validates base64 IDs, error enums and nanosecond durations in Go tests; see
+  `internal/server/testdata/tempo-fixtures.md` for the pinned source and scope.
+
 ## Performance budget
 
-Reference targets on the product's single-node hardware:
+Current bounded behavior:
 
-- 1,000,000 raw points per panel are decimated to at most 2 × pixel width before drawing.
-- 200 visible series per time-series panel; 2,000 buckets for native metric queries.
-- 60 fps cursor/legend interaction on 100k visible points; no full-frame React re-render on pointer move.
+- TimeSeries uses a shared min/max row target of approximately 2 × CSS pixel width, rounded to 64-pixel steps,
+  with a minimum target of 256 rows. Every bucket keeps each series' extrema; the union shares one target across
+  series. Endpoints, viewport neighbours and both sides of every null gap survive. This is a soft target: numerous
+  gaps, or more series than fit the target's extrema, deliberately increase the result instead of losing outages/peaks.
+- Normalization above 50,000 time/numeric cells uses a module Worker; small frames use the same numeric algorithm
+  synchronously. The threshold counts time columns as well as all numeric/enum columns, rather than just rows.
 - Table pages render at most 100 rows; footer reducers scan all rows without creating per-cell React nodes.
-- Vector similarity uses bounded top-K; 10k vectors should stay in the interactive path on SQLite.
-- Every renderer reports data size, decimation ratio and draw time in development mode.
+- TimeSeries exposes input/aligned/rendered row counts and preparation mode as DOM data attributes. The benchmark
+  records Worker calculation/roundtrip time, presentation, transfer detachment and main-thread long tasks.
+
+200-series density, sustained 60 fps interactions and every-renderer timing instrumentation remain measurement
+targets, not production guarantees. Native-query bucket limits and SQLite vector limits are separate server contracts.
 
 ### Frame slicing and incremental work
 
 - `web/src/render/frame-budget.ts` provides `runInFrameSlices` and `nextFrame`: each slice processes at most
   `perFrame` items or `sliceMs` milliseconds, then yields to animation frames. AbortSignal cancels stale work.
-- `web/src/render/incremental.ts` provides signature caching and append-row detection. Renderers reuse normalized
-  models when the signature is unchanged and can inspect append-only growth for streaming sources.
-- The TimeSeries renderer defers frame normalization with `useDeferredValue`, so cursor/legend input keeps priority
-  over a heavy refresh.
-- Next: move normalization/decimation into a Worker for >100k-point panels, and add a min/max/LTTB decimator that
-  preserves spikes before drawing.
+- TimeSeries copies numeric inputs into owned Float64 buffers in approximately 8 ms slices, transfers ownership to
+  its Worker, and receives only sampled columns back. Source DataFrames, field display functions and credentials
+  never cross the Worker boundary. The Worker sorts/deduplicates/aligns times, applies stacking, then samples.
+- New query frames, viewport buckets or zoom ranges replace the current job; cleanup terminates obsolete Workers,
+  and aborted/stale jobs cannot commit results. Completed jobs also terminate. Large-to-small query transitions
+  release the previous job's source-frame reference. A missing/failed Worker uses the same algorithm on the main
+  thread after a sliced copy; if that fallback fails, busy state ends and a chart error is displayed.
+- `useDeferredValue` and memoized frame metadata avoid normalization on cursor/legend changes. Relative ranges
+  resolve on a range/query-frame change. Existing uPlot instances use `setData` for data changes; plot structure,
+  axes, timezone and locale changes recreate the instance. Legend last values use the complete aligned model.
+  Optional threshold/continuous series-color modes may still compute SDK field statistics on the main thread.
+- Drag zoom still invokes the range callback and performs a new datasource query. Sampling affects display only;
+  the saved query, source frames, server data and exported dashboard remain intact. Tooltips inspect sampled points.
+- `web/src/render/incremental.ts` supplies cache/append helpers, but TimeSeries does not use them to append partial
+  models: each changed frame normalizes a new job. Sustained append-only streaming optimization remains open.
 
 Measurements go in `docs/performance-baseline.md` or a dedicated renderer benchmark; do not claim universal
 performance from a single workstation result. `web/scripts/render-bench.mjs` starts a temporary server, generates a
-configurable panel (`RENDER_BENCH_POINTS`, `RENDER_BENCH_SERIES`) and reports first-frame timing and heap size.
+configurable panel (`RENDER_BENCH_POINTS`, `RENDER_BENCH_SERIES`, `RENDER_BENCH_RUNS`) and reports raw JSON.
+Its synthetic API responses isolate frontend processing; they do not validate server ingestion/query throughput.
 
 ## Migration
 
 1. Own Table and TimeSeries are the product defaults; TimeSeries covers log axes, percent stacking and multiple axes.
    `?renderer=compat` or localStorage `metricspanel-renderer=compat` restores the Grafana bridge for compatibility
    resources, plugins and troubleshooting.
-2. Heatmap, histogram and vector are registry entries; the remaining renderer work is Tempo trace detail.
+2. Heatmap, histogram, vector and Tempo trace detail are first-party registry paths.
 3. Remove `@grafana/ui` from the default bundle and leave it only in the optional import/plugin chunk.

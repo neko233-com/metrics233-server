@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
-	"github.com/neko233-com/MetricsPanel233/internal/server"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/server"
+	"github.com/neko233-com/metrics233-server/internal/store"
 )
 
 type AuthenticationMethod string
@@ -32,6 +32,9 @@ type AuthenticationMetadata struct {
 type HTTPAuthenticationConfig struct {
 	CookieName       string
 	RotationInterval time.Duration
+	// PublicOrigin is trusted deployment configuration for TLS termination.
+	// Empty preserves validation against the actual request transport and Host.
+	PublicOrigin string
 }
 
 // HTTPAuthenticator is an opt-in authentication boundary. It neither installs
@@ -41,6 +44,7 @@ type HTTPAuthenticator struct {
 	catalog          *identity.Store
 	cookieName       string
 	rotationInterval time.Duration
+	publicOrigin     *url.URL
 }
 
 func NewHTTPAuthenticator(catalog *identity.Store, config HTTPAuthenticationConfig) (*HTTPAuthenticator, error) {
@@ -59,7 +63,15 @@ func NewHTTPAuthenticator(catalog *identity.Store, config HTTPAuthenticationConf
 	if config.RotationInterval < time.Minute || config.RotationInterval > 365*24*time.Hour {
 		return nil, errors.New("session rotation interval must be between one minute and 365 days")
 	}
-	return &HTTPAuthenticator{catalog: catalog, cookieName: config.CookieName, rotationInterval: config.RotationInterval}, nil
+	var publicOrigin *url.URL
+	if config.PublicOrigin != "" {
+		var err error
+		publicOrigin, err = url.Parse(config.PublicOrigin)
+		if err != nil || publicOrigin.User != nil || publicOrigin.Hostname() == "" || publicOrigin.Scheme != "http" && publicOrigin.Scheme != "https" || publicOrigin.Path != "" || publicOrigin.RawQuery != "" || publicOrigin.ForceQuery || publicOrigin.Fragment != "" || publicOrigin.Opaque != "" {
+			return nil, errors.New("public origin must be an HTTP(S) scheme and authority without credentials, path, query or fragment")
+		}
+	}
+	return &HTTPAuthenticator{catalog: catalog, cookieName: config.CookieName, rotationInterval: config.RotationInterval, publicOrigin: publicOrigin}, nil
 }
 
 type requestCredentialKey struct{}
@@ -116,6 +128,20 @@ func positiveOrganizationID(value string) int64 {
 // checkRequestOrigin precedes catalog calls, including session last-seen/token
 // seen updates. Proxy headers do not establish a trusted origin or client IP.
 func checkRequestOrigin(r *http.Request) error {
+	return checkRequestOriginFor(r, nil)
+}
+
+// CheckRequestOrigin shares the same configured origin policy across password
+// login, setup, logout and authenticated APIs. Forwarded headers never confer
+// origin trust; only explicit application configuration can override transport.
+func (a *HTTPAuthenticator) CheckRequestOrigin(r *http.Request) error {
+	if a == nil || r == nil {
+		return identity.ErrForbidden
+	}
+	return checkRequestOriginFor(r, a.publicOrigin)
+}
+
+func checkRequestOriginFor(r *http.Request, publicOrigin *url.URL) error {
 	if r.Header.Get("Sec-Fetch-Site") == "cross-site" {
 		return identity.ErrForbidden
 	}
@@ -127,14 +153,36 @@ func checkRequestOrigin(r *http.Request) error {
 		return identity.ErrForbidden
 	}
 	origin, err := url.Parse(origins[0])
+	if err != nil || origin.User != nil || origin.Hostname() == "" || origin.Path != "" || origin.RawQuery != "" || origin.ForceQuery || origin.Fragment != "" || origin.Opaque != "" {
+		return identity.ErrForbidden
+	}
+	if publicOrigin != nil {
+		if sameHTTPOrigin(origin, publicOrigin) {
+			return nil
+		}
+		return identity.ErrForbidden
+	}
 	scheme := "http"
 	if r.TLS != nil {
 		scheme = "https"
 	}
-	if err != nil || origin.User != nil || origin.Host != r.Host || origin.Scheme != scheme || origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" || origin.Opaque != "" {
+	if origin.Host != r.Host || origin.Scheme != scheme {
 		return identity.ErrForbidden
 	}
 	return nil
+}
+
+func sameHTTPOrigin(a, b *url.URL) bool {
+	port := func(u *url.URL) string {
+		if value := u.Port(); value != "" {
+			return value
+		}
+		if u.Scheme == "https" {
+			return "443"
+		}
+		return "80"
+	}
+	return a.Scheme == b.Scheme && strings.EqualFold(a.Hostname(), b.Hostname()) && port(a) == port(b)
 }
 
 func (a *HTTPAuthenticator) readCredential(r *http.Request) (requestCredential, error) {
@@ -204,7 +252,7 @@ func (a *HTTPAuthenticator) AuthenticateRequest(r *http.Request) (*http.Request,
 	if a == nil || a.catalog == nil || r == nil || r.URL == nil {
 		return nil, identity.ErrUnauthenticated
 	}
-	if err := checkRequestOrigin(r); err != nil {
+	if err := a.CheckRequestOrigin(r); err != nil {
 		return nil, err
 	}
 	credential, err := a.readCredential(r)

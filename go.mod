@@ -1,4 +1,4 @@
-module github.com/neko233-com/MetricsPanel233
+module github.com/neko233-com/metrics233-server
 
 go 1.27.0
 

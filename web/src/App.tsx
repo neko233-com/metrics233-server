@@ -47,15 +47,6 @@ import {
 } from "./api";
 import { Alert, Button, Field, Input } from "./ui";
 import { SessionContext } from "./ui/session";
-import { Users } from "./features/Users";
-import { DashboardView } from "./features/DashboardView";
-import { Dashboards } from "./features/Dashboards";
-import { Explore } from "./features/Explore";
-import { Collectors } from "./features/Collectors";
-import { AgentCLI } from "./features/AgentCLI";
-import { TemplateView } from "./features/TemplateView";
-import { Alerts } from "./features/Alerts";
-import { Plugins } from "./features/Plugins";
 import {
   connectAppEvents,
   refreshWorkspace,
@@ -74,12 +65,23 @@ import {
 } from "./grafana/time-range";
 const AppPluginView = lazy(() => import("./grafana/AppPluginView"));
 const ExtensionHost = lazy(() => import("./grafana/ExtensionHost"));
+const BusinessMonitoring = lazy(() => import("./features/BusinessMonitoring"));
+const Users = lazy(() => import("./features/Users").then((module) => ({ default: module.Users })));
+const DashboardView = lazy(() => import("./features/DashboardView").then((module) => ({ default: module.DashboardView })));
+const Dashboards = lazy(() => import("./features/Dashboards").then((module) => ({ default: module.Dashboards })));
+const Explore = lazy(() => import("./features/Explore").then((module) => ({ default: module.Explore })));
+const Collectors = lazy(() => import("./features/Collectors").then((module) => ({ default: module.Collectors })));
+const AgentCLI = lazy(() => import("./features/AgentCLI").then((module) => ({ default: module.AgentCLI })));
+const TemplateView = lazy(() => import("./features/TemplateView").then((module) => ({ default: module.TemplateView })));
+const Alerts = lazy(() => import("./features/Alerts").then((module) => ({ default: module.Alerts })));
+const Plugins = lazy(() => import("./features/Plugins").then((module) => ({ default: module.Plugins })));
 type View =
   | "overview"
   | "dashboards"
   | "dashboard"
   | "explore"
   | "collectors"
+  | "business"
   | "alerts"
   | "plugins"
   | "users"
@@ -90,6 +92,7 @@ const baseNavigation = [
   { id: "dashboards", name: "Dashboards", icon: ChartNoAxesColumn },
   { id: "explore", name: "Explore", icon: Search },
   { id: "collectors", name: "Collectors", icon: Server },
+  { id: "business", name: "Business monitoring", icon: Activity },
   { id: "alerts", name: "Alerts", icon: Bell },
   { id: "cli", name: "Command line", icon: Terminal },
 ] as const;
@@ -475,6 +478,20 @@ export default function App() {
       return next;
     });
   }
+  function openDashboard(d: Dashboard) {
+    setRefreshOverride(null);
+    setDashboardID(d.id);
+    history.replaceState({}, "", `/d/${encodeURIComponent(dashboardUID(d))}/${encodeURIComponent(d.name)}`);
+    try {
+      const next = rangeFromDashboard(d.grafana) || "30m";
+      setRange(next);
+      setRangeError("");
+      updateWorkspaceTimeRange(next);
+    } catch (error) {
+      setRangeError(message(error));
+    }
+    navigate("dashboard");
+  }
   const title =
     view === "app"
       ? "Application"
@@ -854,6 +871,7 @@ export default function App() {
           </div>
         </header>
         <main>
+          <Suspense fallback={<p role="status">{tr("Loading…")}</p>}>
           {rangeError && (
             <p className="form-error" role="alert">
               {tr(rangeError)}
@@ -927,26 +945,10 @@ export default function App() {
               dashboards={dashboards}
               reload={load}
               notify={notify}
-              open={(d) => {
-                setRefreshOverride(null);
-                setDashboardID(d.id);
-                history.replaceState(
-                  {},
-                  "",
-                  `/d/${encodeURIComponent(dashboardUID(d))}/${encodeURIComponent(d.name)}`,
-                );
-                try {
-                  const next = rangeFromDashboard(d.grafana) || "30m";
-                  setRange(next);
-                  setRangeError("");
-                  updateWorkspaceTimeRange(next);
-                } catch (error) {
-                  setRangeError(message(error));
-                }
-                navigate("dashboard");
-              }}
+              open={openDashboard}
             />
           )}
+          {view === "business" && <Suspense fallback={<p role="status">{tr("Loading…")}</p>}><BusinessMonitoring metrics={metrics} reload={load} open={openDashboard} navigate={navigate} /></Suspense>}
           {view === "explore" && <Explore metrics={metrics} tick={tick} />}
           {view === "collectors" && (
             <Collectors targets={targets} reload={load} notify={notify} />
@@ -967,6 +969,7 @@ export default function App() {
           {view === "users" && user?.isServerAdmin && (
             <Users notify={notify} currentUser={user} />
           )}
+          </Suspense>
         </main>
       </div>
       {notice && (

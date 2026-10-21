@@ -26,7 +26,8 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - run: npm ci && npm run test:unit && npm run build
         working-directory: web
-      - run: go vet ./... && go test -race ./... -count=1
+      - run: node --test scripts/test/*.test.mjs
+      - run: go vet ./... && go test -race ./... -count=1 -timeout=20m
       - run: mkdir -p bin && go build -tags webui -o bin/metricspanel ./cmd/metricspanel
       - run: npx playwright install --with-deps chromium && npm run test:e2e
         working-directory: web
@@ -34,6 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
+      METRICSPANEL_DOCKER_RUNTIME_TEST: '1'
       METRICSPANEL_TEST_CLICKHOUSE_IMAGE: mirror.gcr.io/clickhouse/clickhouse-server:26.8-alpine@sha256:11f32c76f576b5fd993cbcfffe4349caac6a67c2e58bb846f4da421889573a69
       METRICSPANEL_TEST_EXPORTER_IMAGE: mirror.gcr.io/prom/mysqld-exporter:v0.20.0@sha256:abed8dac117b4ae5b70757f988e44795935b9a72c3b58d720c67ba688f8cb79e
     steps:

@@ -18,7 +18,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/neko233-com/MetricsPanel233/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
 const (

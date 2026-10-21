@@ -3,7 +3,7 @@ package localauth
 import (
 	"testing"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/identity"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -21,6 +21,10 @@ func TestAuthorizeRoleMatrix(t *testing.T) {
 		allow  bool
 	}{
 		{"viewer reads dashboards", viewer, "GET", "/api/v1/dashboards", true},
+		{"viewer reads namespace API", viewer, "GET", "/apis/notifications.alerting.grafana.app/v1beta1/namespaces/default/inhibitionrules", true},
+		{"viewer runs namespace query", viewer, "POST", "/apis/query.grafana.app/v0alpha1/namespaces/default/query", true},
+		{"editor cannot mutate unknown namespace API", editor, "POST", "/apis/notifications.alerting.grafana.app/v1beta1/namespaces/default/inhibitionrules", false},
+		{"admin mutates namespace API", admin, "POST", "/apis/notifications.alerting.grafana.app/v1beta1/namespaces/default/inhibitionrules", true},
 		{"viewer cannot create dashboards", viewer, "POST", "/api/v1/dashboards", false},
 		{"editor creates dashboards", editor, "POST", "/api/v1/dashboards", true},
 		{"editor manages collectors", editor, "PUT", "/api/v1/targets/2", true},
@@ -58,6 +62,7 @@ func TestAuthorizeRoleMatrix(t *testing.T) {
 func TestCleanPathCannotEscapeProtectedSurfaces(t *testing.T) {
 	assert.True(t, protectedPath(cleanPath("/api/../api/plugins")))
 	assert.True(t, protectedPath(cleanPath("//api/v1/dashboards")))
+	assert.True(t, protectedPath(cleanPath("/apis/notifications.alerting.grafana.app/v1beta1/namespaces/default/inhibitionrules")))
 	assert.False(t, protectedPath(cleanPath("/api/../login")))
 	assert.False(t, protectedPath(cleanPath("/")))
 }

@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"sort"
 
-	"github.com/neko233-com/MetricsPanel233/internal/identity"
+	"github.com/neko233-com/metrics233-server/internal/identity"
 )
 
 // LibraryFolders returns the distinct authoritative owners recorded in a fence.

@@ -10,13 +10,45 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/neko233-com/MetricsPanel233/internal/model"
-	"github.com/neko233-com/MetricsPanel233/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/store"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 const clockHash = "b2dc870d732f39edf4a37fd20ad0e0fa9efa3730efff46b2a5b23213e3b0507f"
+
+func TestSharedRootCreatedAfterManagerResolvesAliasesAndRejectsEscapes(t *testing.T) {
+	dir := t.TempDir()
+	physical := filepath.Join(dir, "physical")
+	require.NoError(t, os.Mkdir(physical, 0750))
+	alias := filepath.Join(dir, "alias")
+	if err := os.Symlink(physical, alias); err != nil {
+		t.Skip("directory symlinks are unavailable on this host")
+	}
+	s, err := store.Open(filepath.Join(dir, "control.db"))
+	require.NoError(t, err)
+	defer s.DB.Close()
+	primary := New(s, filepath.Join(physical, "plugins"), []string{"test-panel"})
+	secondary := New(s, filepath.Join(alias, "plugins"), []string{"test-panel"})
+	// The secondary starts before the shared root exists, so its initial path
+	// cannot yet be canonicalized. Installation happens through another manager.
+	installed, err := primary.Install(context.Background(), unsignedArchive(t, ""), "")
+	require.NoError(t, err)
+	require.NoError(t, secondary.verifyFiles(installed))
+	_, err = secondary.Asset(context.Background(), installed.ID, "module.js")
+	require.NoError(t, err)
+	module := filepath.Join(primary.Root, installed.PackageID, "module.js")
+	original, err := os.ReadFile(module)
+	require.NoError(t, err)
+	outside := filepath.Join(dir, "outside.js")
+	require.NoError(t, os.WriteFile(outside, original, 0600))
+	require.NoError(t, os.Remove(module))
+	require.NoError(t, os.Symlink(outside, module))
+	require.ErrorContains(t, secondary.verifyFiles(installed), "outside package")
+	_, err = secondary.Asset(context.Background(), installed.ID, "module.js")
+	require.ErrorContains(t, err, "outside plugin package")
+}
 
 func TestOfficialSignedClockPackageInstallIdempotencyRestartAndTampering(t *testing.T) {
 	ctx := context.Background()

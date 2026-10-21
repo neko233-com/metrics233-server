@@ -1,6 +1,7 @@
 import {
   forwardRef,
   useEffect,
+  useLayoutEffect,
   useRef,
   type ButtonHTMLAttributes,
   type CSSProperties,
@@ -242,6 +243,15 @@ export function AppModal({
   const dialog = useRef<HTMLDivElement>(null);
   const close = useRef(onClose);
   close.current = onClose;
+  useLayoutEffect(() => {
+    // Complete initial focus before paint. A deferred focus could steal the
+    // caret after the user already started editing a different dialog field.
+    dialog.current
+      ?.querySelector<HTMLElement>(
+        "[autofocus], input:not([disabled]), textarea:not([disabled]), select:not([disabled])",
+      )
+      ?.focus();
+  }, []);
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -249,15 +259,7 @@ export function AppModal({
       if (event.key === "Escape") close.current();
     };
     document.addEventListener("keydown", onKey);
-    const frame = requestAnimationFrame(() => {
-      dialog.current
-        ?.querySelector<HTMLElement>(
-          "[autofocus], input:not([disabled]), textarea:not([disabled]), select:not([disabled])",
-        )
-        ?.focus();
-    });
     return () => {
-      cancelAnimationFrame(frame);
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = previous;
     };
