@@ -1,0 +1,22 @@
+.metric-details { min-width: 0; display: grid; gap: 12px; }
+.metric-details h3, .metric-details h4, .metric-details p { margin: 0; }
+.metric-details > label { display: grid; gap: 6px; }
+.metric-details select { max-width: 100%; min-width: 0; }
+.metric-details pre { white-space: pre-wrap; overflow-wrap: anywhere; max-height: 180px; overflow: auto; margin: 0; padding: 12px; background: var(--canvas); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; }
+.metric-details-summary { display: grid; grid-template-columns: minmax(95px, .3fr) minmax(0, 1fr); gap: 8px 14px; margin: 0; font-size: 13px; }
+.metric-details dt { color: var(--muted); }
+.metric-details dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.metric-details-labels { margin: 0; max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; }
+.metric-details-labels > div { display: grid; grid-template-columns: minmax(110px, .35fr) minmax(0, 1fr); gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; }
+.metric-details-labels > div:last-child { border-bottom: 0; }
+.metric-details-labels code { display: block; font-size: 11px; opacity: .75; overflow-wrap: anywhere; }
+.metric-details details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+.native-stat-description { margin: 0 16px; font-size: 12px; line-height: 1.6; color: var(--muted); overflow-wrap: anywhere; flex: 0 0 auto; }
+.native-stat-name { max-width: 100%; font-size: 12px; text-align: center; overflow-wrap: anywhere; }
+.native-stat-time { max-width: 100%; color: var(--muted); font-size: 11px; text-align: center; }
+.grafana-value strong { max-width: 100%; overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .metric-details-summary { grid-template-columns: 1fr; gap: 3px; }
+  .metric-details-summary dd { margin-bottom: 8px; }
+  .metric-details-labels > div { grid-template-columns: minmax(95px, .4fr) minmax(0, 1fr); gap: 8px; padding: 8px; }
+}

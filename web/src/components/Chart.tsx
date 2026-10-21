@@ -1,4 +1,4 @@
-import { t as tr } from "../i18n";
+import { getLocale, t as tr } from "../i18n";
 import {
   useEffect,
   useLayoutEffect,
@@ -24,16 +24,33 @@ import {
 } from "../grafana/annotations";
 import { AnnotationEditor } from "./AnnotationEditor";
 import { rawSelection, type TimeSelection } from "../grafana/time-range";
+import { MetricDetailsButton } from "../render/MetricDetails";
+import { seriesPresentations } from "../render/series-presentation";
 const palette = [
   "#85aaff",
   "#39d99c",
-  "#85aaff",
+  "#ff9457",
   "#d598ed",
   "#e4c76a",
   "#5ac8de",
   "#f88d9a",
   "#b3cba0",
+  "#efb7d2",
+  "#a8c7fa",
+  "#d9b66f",
+  "#91d4c2",
 ];
+
+export function simpleSeriesIdentity(labels: Record<string, string>, comparison = false): string {
+  return JSON.stringify([Object.entries(labels).sort(([a], [b]) => a.localeCompare(b)), comparison]);
+}
+
+export function simpleSeriesColor(identity: string, mint = false): string {
+  let hash = 2166136261;
+  for (let index = 0; index < identity.length; index++)
+    hash = Math.imul(hash ^ identity.charCodeAt(index), 16777619);
+  return palette[((hash >>> 0) + (mint ? 1 : 0)) % palette.length];
+}
 export function Chart({
   panel,
   range,
@@ -69,8 +86,11 @@ export function Chart({
   annotationDashboard?: Dashboard;
   annotationError?: string;
 }) {
+  const locale = getLocale();
   const [data, setData] = useState<QueryResult | null>(null);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(!result);
+  const priorQuery = useRef("");
   const [hover, setHover] = useState<number | null>(null);
   const [selection, setSelection] = useState<{
     start: number;
@@ -91,7 +111,7 @@ export function Chart({
   );
   const events = annotations || loadedAnnotations.events;
   const timeLabel = (timestamp: number) =>
-    new Date(timestamp).toLocaleString("en-GB", {
+    new Date(timestamp).toLocaleString(locale === "zh" ? "zh-CN" : "en-GB", {
       ...(data && data.end - data.start >= 86400000
         ? ({ month: "short", day: "2-digit" } as const)
         : {}),
@@ -116,17 +136,26 @@ export function Chart({
     if (result) {
       setData(result);
       setError(resultError || "");
+      setLoading(false);
       return;
     }
+    const key = JSON.stringify([panel.metric, panel.expr, panel.expressions, panel.aggregation, panel.labels, range]);
+    if (priorQuery.current !== key) setData(null);
+    priorQuery.current = key;
+    setLoading(true);
+    setError("");
     const controller = new AbortController();
     queryPanel(panel, range, controller.signal)
       .then((result) => {
-        setData(result);
-        setError("");
+        if (!controller.signal.aborted) {
+          setData(result);
+          setError("");
+        }
       })
       .catch((e) => {
         if (!controller.signal.aborted) setError(message(e));
-      });
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
   }, [
     panel.metric,
@@ -140,7 +169,7 @@ export function Chart({
     resultError,
   ]);
   const chart = useMemo(() => {
-    const points = data?.series.flatMap((s) => s.points) || [];
+    const points = data?.series.flatMap((s) => s.points).filter(point => Number.isFinite(point.value) && Number.isFinite(point.timestamp)) || [];
     let min = 0,
       max = 1;
     for (const point of points) {
@@ -148,8 +177,8 @@ export function Chart({
       max = Math.max(max, point.value);
     }
     const span = (max - min) * 1.1;
-    const start = data?.start || Date.now() - 1800000,
-      end = data?.end || Date.now();
+    const start = data?.start ?? Date.now() - 1800000,
+      end = Math.max(start + 1, data?.end ?? Date.now());
     return {
       min,
       max: min + span,
@@ -159,16 +188,33 @@ export function Chart({
       y: (v: number) => 185 - ((v - min) / span) * 155,
     };
   }, [data, plotWidth]);
-  const visibleSeries = data?.series || [];
-  const latest = visibleSeries[0]?.points.at(-1)?.value;
-  const color = mint ? palette[1] : palette[0];
-  const legendName =
-    panel.expr ||
-    panel.metric ||
-    Object.values(visibleSeries[0]?.labels || {}).join(" · ") ||
-    panel.title;
+  const visibleSeries = useMemo(() => {
+    const source = data?.series || [];
+    const presentations = seriesPresentations(source.map(series => ({
+      metric: series.labels.__name__ || (!panel.expr && !panel.expressions?.length ? panel.metric : undefined),
+      labels: series.labels,
+      displayName: panel.config?.fieldConfig?.defaults?.displayName,
+      legend: panel.config?.targets?.[Math.max(0, Number(series.labels.query || 1) - 1)]?.legendFormat,
+      fallbackName: tr(panel.title), reference: series.labels.query, comparison: series.comparison,
+    })), locale);
+    return source.map((series, index) => {
+      const id = simpleSeriesIdentity(series.labels, series.comparison);
+      return { ...series, ...presentations[index], id, color: simpleSeriesColor(id, mint),
+        points: series.points.filter(point => Number.isFinite(point.value) && Number.isFinite(point.timestamp)) };
+    });
+  }, [data, panel.metric, panel.expr, panel.expressions, panel.title, panel.config, mint, locale]);
+  const latest = visibleSeries.find(series => series.points.length)?.points.at(-1)?.value;
+  const hasSamples = visibleSeries.some(series => series.points.length);
+  const color = visibleSeries[0]?.color || palette[mint ? 1 : 0];
+  const legendName = visibleSeries.length === 1 ? visibleSeries[0].name :
+    locale === "zh" ? `${visibleSeries.length} 条序列` : `${visibleSeries.length} series`;
+  const details = visibleSeries.map(series => ({ ...series, unit: panel.unit, timestamp: series.points.at(-1)?.timestamp }));
+  const emptyText = error || tr(loading ? "Loading metrics…" : panel.aggregation === "rate"
+    ? "Waiting for two counter samples" : "No samples in this time range");
+  const detailButton = <MetricDetailsButton panel={panel} items={details} reducer="lastNotNull" timezone={zone} />;
   const editActions = (
     <div className="panel-actions">
+      {detailButton}
       {onEdit ? (
         <button
           className="icon-button"
@@ -191,7 +237,7 @@ export function Chart({
   );
   if (panel.visualization === "stat")
     return (
-      <section className="chart-panel stat-panel" aria-label={tr(panel.title)}>
+      <section className="chart-panel stat-panel" aria-label={tr(panel.title)} aria-busy={loading}>
         <div className="panel-heading">
           <h2>{tr(panel.title)}</h2>
           {editActions}
@@ -199,16 +245,16 @@ export function Chart({
         <div className="stat-value">
           {latest === undefined ? "—" : formatter(latest, panel.unit)}
         </div>
-        {error && <p className="form-error">{error}</p>}
+        {(error || !hasSamples) && <p className={error ? "form-error" : "subtle"} role={error ? "alert" : "status"}>{emptyText}</p>}
         <div className="chart-legend">
           <i style={{ background: color }} />
-          <span className="mono">{legendName}</span>
+          <span>{legendName}</span>
         </div>
       </section>
     );
   if (panel.visualization === "table")
     return (
-      <section className="chart-panel" aria-label={tr(panel.title)}>
+      <section className="chart-panel" aria-label={tr(panel.title)} aria-busy={loading}>
         <div className="panel-heading">
           <h2>{tr(panel.title)}</h2>
           {editActions}
@@ -217,32 +263,29 @@ export function Chart({
           <table>
             <thead>
               <tr>
-                <th>{tr("Labels")}</th>
-                <th>{tr("Metric")}</th>
+                <th>{tr("Data series")}</th>
+                <th>{tr("Value")}</th>
               </tr>
             </thead>
             <tbody>
-              {visibleSeries.map((s, i) => (
-                <tr key={i}>
-                  <td className="mono">
-                    {Object.entries(s.labels)
-                      .map(([k, v]) => `${k}=${v}`)
-                      .join(", ")}
-                  </td>
-                  <td>{formatter(s.points.at(-1)!.value, panel.unit)}</td>
+              {visibleSeries.map((s) => (
+                <tr key={s.id}>
+                  <td>{s.name}</td>
+                  <td>{s.points.length ? formatter(s.points.at(-1)!.value, panel.unit) : "—"}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {error && <p className="form-error">{error}</p>}
+        {(error || !hasSamples) && <p className={error ? "form-error" : "subtle"} role={error ? "alert" : "status"}>{emptyText}</p>}
       </section>
     );
   return (
-    <section className="chart-panel" aria-label={tr(panel.title)}>
+    <section className="chart-panel" aria-label={tr(panel.title)} aria-busy={loading} data-series-count={visibleSeries.length}>
       <div className="panel-heading">
         <h2>{tr(panel.title)}</h2>
         <div className="panel-actions">
+          {detailButton}
           {controls}
           {annotationDashboard && (
             <AnnotationEditor
@@ -353,7 +396,7 @@ export function Chart({
           viewBox={`0 0 ${svgWidth} 225`}
           preserveAspectRatio="none"
           role="img"
-          aria-label={`${panel.metric} ${panel.aggregation} time series`}
+          aria-label={`${tr(panel.title)} · ${legendName}`}
           onMouseLeave={() => setHover(null)}
           onMouseMove={(e) => {
             const rect = e.currentTarget.getBoundingClientRect();
@@ -405,12 +448,12 @@ export function Chart({
               </g>
             );
           })}
-          {visibleSeries.map((s, i) => {
+          {visibleSeries.filter(series => series.points.length).map((s, i) => {
             const coordinates = s.points
               .map((p) => `${chart.x(p.timestamp)},${chart.y(p.value)}`)
               .join(" ");
             return (
-              <g key={JSON.stringify(s.labels)}>
+              <g key={s.id}>
                 {i === 0 && !s.comparison && s.points.length > 1 && (
                   <polygon
                     points={`${chart.x(s.points[0].timestamp)},185 ${coordinates} ${chart.x(s.points.at(-1)!.timestamp)},185`}
@@ -420,7 +463,7 @@ export function Chart({
                 <polyline
                   points={coordinates}
                   fill="none"
-                  stroke={i === 0 ? color : palette[i]}
+                  stroke={s.color}
                   strokeWidth="2"
                   strokeDasharray={s.comparison ? "1 5 4 5" : undefined}
                   strokeLinejoin="round"
@@ -431,7 +474,7 @@ export function Chart({
                     cx={chart.x(s.points[0].timestamp)}
                     cy={chart.y(s.points[0].value)}
                     r="3"
-                    fill={i === 0 ? color : palette[i]}
+                    fill={s.color}
                   />
                 )}
               </g>
@@ -507,31 +550,24 @@ export function Chart({
             />
           )}
         </svg>
-        {(!data || !visibleSeries.length || error) && (
-          <div className="chart-empty" role={error ? "alert" : undefined}>
-            {error ||
-              (data
-                ? tr(
-                    panel.aggregation === "rate"
-                      ? "Waiting for two counter samples"
-                      : "No samples in this time range",
-                  )
-                : tr("Loading metrics…"))}
+        {(!hasSamples || error) && (
+          <div className="chart-empty" role={error ? "alert" : "status"}>
+            {emptyText}
           </div>
         )}
         {hover !== null && visibleSeries.length > 0 && (
           <div className="chart-tooltip">
             <span>{timeLabel(hover)}</span>
-            {visibleSeries.map((s, i) => {
+            {visibleSeries.filter(series => series.points.length).map((s) => {
               const point = s.points.reduce((a, b) =>
                 Math.abs(b.timestamp - hover) < Math.abs(a.timestamp - hover)
                   ? b
                   : a,
               );
               return (
-                <strong key={i}>
+                <strong key={s.id}>
                   {formatter(point.value, panel.unit)}{" "}
-                  <small>{Object.values(s.labels).join(" · ")}</small>
+                  <small>{s.name}</small>
                 </strong>
               );
             })}
@@ -540,7 +576,7 @@ export function Chart({
       </div>
       <div className="chart-legend">
         <i style={{ background: color }} />
-        <span className="mono">{legendName}</span>
+        <span>{legendName}</span>
         <span className="legend-mode">
           {panel.expr
             ? "PromQL"
@@ -551,21 +587,12 @@ export function Chart({
       </div>
       {visibleSeries.length > 1 && (
         <div className="series-legend">
-          {visibleSeries.map((s, i) => (
-            <span key={i}>
-              <i style={{ background: i === 0 ? color : palette[i] }} />
-              {Object.entries(s.labels)
-                .map(([k, v]) => `${k}=${v}`)
-                .join(", ") || "aggregate"}
+          {visibleSeries.map((s) => (
+            <span key={s.id}>
+              <i style={{ background: s.color }} />
+              {s.name}
             </span>
           ))}
-          {(data?.series.length || 0) > 8 && (
-            <span>
-              {tr("Showing 8 of")}
-              {data?.series.length}
-              {tr("series; use label filters in Explore.")}
-            </span>
-          )}
         </div>
       )}
     </section>

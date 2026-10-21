@@ -50,6 +50,40 @@ const colors = ["#ff4444", "#44ff44", "#4444ff", "#ffcc44", "#cc44ff", "#44ccff"
   "#aa4444", "#44aa44", "#4444aa", "#aaaa44", "#aa44aa", "#44aaaa",
   "#ee88bb", "#bb88ee"];
 
+test("Percent stacks and absolute right-axis units remain independent", async ({ page, endpoint }, info) => {
+  const issues = errors(page);
+  await page.addInitScript(() => {
+    localStorage.setItem("metricspanel-locale", "en");
+    const labels: string[] = [];
+    (window as any).__metricsAxisLabels = labels;
+    const original = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function(text, x, y, maxWidth) {
+      if (labels.length < 10000) labels.push(String(text));
+      return maxWidth === undefined ? original.call(this, text, x, y) : original.call(this, text, x, y, maxWidth);
+    };
+  });
+  const definition = panel(1, "Independent axis units", 3, "percent") as any;
+  const snapshot = definition.config.targets[0].snapshot[0];
+  const right = snapshot.schema.fields[3];
+  right.name = "Allocated memory";
+  right.config.unit = "bytes";
+  right.config.custom.axisPlacement = "right";
+  right.config.custom.axisLabel = "Memory";
+  right.config.custom.stacking.mode = "none";
+  snapshot.data.values[3] = Array.from({ length: 60 }, (_, i) => 1048576 + i * 20000);
+  const response = await page.request.post(endpoint + "/api/v1/dashboards", { data: { name: "Independent axes", panels: [definition] } });
+  expect(response.ok(), await response.text()).toBeTruthy();
+  const saved = await response.json();
+  await page.goto(endpoint + `/d/${saved.id}/independent-axes?from=${start}&to=${end}&timezone=utc`);
+  const region = page.getByRole("region", { name: "Independent axis units", exact: true });
+  await expect(region.locator("canvas")).toBeVisible();
+  await expect.poll(() => page.evaluate(() => (window as any).__metricsAxisLabels.some((label: string) => label.includes("MiB")))).toBe(true);
+  await expect.poll(() => page.evaluate(() => (window as any).__metricsAxisLabels.some((label: string) => label.includes("%")))).toBe(true);
+  await expect(region.locator(".native-timeseries-legend")).toContainText("MiB");
+  await page.screenshot({ path: info.outputPath("independent-axis-units.png") });
+  expect(issues).toEqual([]);
+});
+
 function panel(id: number, title: string, count: number, style: "linear" | "log" | "percent" = "linear", y = 0) {
   return { id: String(id), title, metric: "", unit: "", aggregation: "last", visualization: "timeseries",
     config: { id, type: "timeseries", gridPos: { x: 0, y, w: 24, h: 15 },

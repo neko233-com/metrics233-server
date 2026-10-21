@@ -30,6 +30,7 @@ import type { RendererProps } from "../types";
 import { theme } from "./plot-model";
 import { usePlotModel } from "./use-plot-model";
 import { drawRiskBands, riskSteps, riskStroke } from "./risk-thresholds";
+import { dataPointTime, MetricDetailsButton } from "../MetricDetails";
 import "./TimeSeriesRenderer.css";
 
 // uPlot and browser tests read pixels repeatedly. Mark 2D contexts so Chrome
@@ -181,7 +182,7 @@ export default function TimeSeriesRenderer({
   const options = panel.config?.options || {};
   // Metadata is cheap; large numeric jobs run off-thread after a sliced copy.
   const deferredFrames = useDeferredValue(frames);
-  const { model, processing, preparationFailed } = usePlotModel(deferredFrames, size.width, resolved.start, resolved.end);
+  const { model, processing, preparationFailed } = usePlotModel(deferredFrames, size.width, resolved.start, resolved.end, t(panel.title));
   const ids = useMemo(() => model.series.map((item) => item.id), [model]);
   const defaultVisible = useMemo(
     () => model.series.filter((item) => item.defaultVisible).map((item) => item.id),
@@ -193,7 +194,8 @@ export default function TimeSeriesRenderer({
   const tooltip = timeSeriesTooltip(options);
   const leftSeries = model.series.filter((item) => item.axis === "y");
   const rightSeries = model.series.filter((item) => item.axis === "y2");
-  const percentStacked = model.series.some((item) => item.stack === "percent");
+  const leftPercentStacked = leftSeries.some((item) => item.stack === "percent");
+  const rightPercentStacked = rightSeries.some((item) => item.stack === "percent");
   const leftLabel = leftSeries.find((item) => item.axisLabel)?.axisLabel;
   const rightLabel = rightSeries.find((item) => item.axisLabel)?.axisLabel;
   const leftLog = leftSeries.some((item) => item.log);
@@ -234,6 +236,14 @@ export default function TimeSeriesRenderer({
       // Keep warning lines in view without clipping valid out-of-range samples.
       return (_chart,min,max) => [Math.min(0,min),Math.max(unit==="percentunit"?1:100,max)];
     };
+    const axisValues = (axis: "y" | "y2", ticks: number[]) => {
+      if (axis === "y" ? leftPercentStacked : rightPercentStacked) return ticks.map(value => `${Math.round(value)}%`);
+      const items = model.series.filter(item => item.axis === axis);
+      const field = items[0]?.field;
+      return field && items.every(item => item.field.config.unit === field.config.unit)
+        ? ticks.map(value => formatValue(field, value, resolved.timezone))
+        : ticks.map(value => value.toLocaleString(locale, { maximumSignificantDigits: 4 }));
+    };
     const chartOptions: uPlot.Options = {
       width: size.width,
       height: size.height,
@@ -242,16 +252,16 @@ export default function TimeSeriesRenderer({
       scales: {
         x: { time: true, min: resolved.start, max: resolved.end },
         y: {
-          auto: !percentStacked,
-          range: percentStacked ? [0, 100] : percentRange("y",leftLog),
+          auto: !leftPercentStacked,
+          range: leftPercentStacked ? [0, 100] : percentRange("y",leftLog),
           distr: leftLog ? 3 : 1,
           log: 10,
         },
         ...(rightSeries.length
           ? {
               y2: {
-                auto: !percentStacked,
-                range: percentStacked ? [0, 100] : percentRange("y2",rightLog),
+                auto: !rightPercentStacked,
+                range: rightPercentStacked ? [0, 100] : percentRange("y2",rightLog),
                 distr: rightLog ? 3 : 1,
                 log: 10,
               },
@@ -270,12 +280,11 @@ export default function TimeSeriesRenderer({
           scale: "y",
           label: leftLabel,
           labelSize: 18,
+          size: 64,
           stroke: "rgba(180, 190, 205, 0.65)",
           grid: { stroke: "rgba(180, 190, 205, 0.10)", width: 1 },
           ticks: { stroke: "rgba(180, 190, 205, 0.16)", width: 1 },
-          ...(percentStacked
-            ? { values: (_plot: uPlot, ticks: number[]) => ticks.map((value) => `${Math.round(value)}%`) }
-            : {}),
+          values: (_plot: uPlot, ticks: number[]) => axisValues("y", ticks),
         },
         ...(rightSeries.length
           ? [{
@@ -283,6 +292,8 @@ export default function TimeSeriesRenderer({
               side: 1 as const,
               label: rightLabel,
               labelSize: 18,
+              size: 64,
+              values: (_plot: uPlot, ticks: number[]) => axisValues("y2", ticks),
               stroke: "rgba(180, 190, 205, 0.65)",
               grid: { show: false },
               ticks: { stroke: "rgba(180, 190, 205, 0.16)", width: 1 },
@@ -443,6 +454,11 @@ export default function TimeSeriesRenderer({
       return (right.lastValue ?? Number.NEGATIVE_INFINITY) - (left.lastValue ?? Number.NEGATIVE_INFINITY);
     });
   }, [legendSort, model]);
+  const metricDetails = useMemo(() => model.series.map(item => ({
+    id: item.id, name: item.name, rawName: item.rawName, description: item.description,
+    metric: item.field.labels?.__name__, labels: item.field.labels, unit: item.field.config.unit,
+    timestamp: dataPointTime(item.values, model.data[0]),
+  })), [model]);
 
   return (
     <section
@@ -459,6 +475,7 @@ export default function TimeSeriesRenderer({
       <div className="panel-heading">
         <h2>{t(panel.title)}</h2>
         <div className="panel-actions">
+          <MetricDetailsButton panel={panel} timezone={resolved.timezone} items={metricDetails} />
           {controls}
           {annotationDashboard ? (
             <AnnotationEditor
@@ -488,7 +505,9 @@ export default function TimeSeriesRenderer({
         </span>)}
       </div> : null}
       {annotationError || queryError || preparationFailed ? (
-        <p role="alert" className="form-error">{t(annotationError || queryError || "Chart error")}</p>
+        <p role="alert" className="form-error">{t(annotationError || queryError || "Chart error")}
+          {queryError && hasSamples ? " · " + t("Any displayed values belong to the previous query result.") : ""}
+        </p>
       ) : null}
       <div className="native-timeseries-viewport">
         <div className="native-timeseries-plot-host" ref={host} onDoubleClick={() => onZoom(resolved.start, resolved.end)} />
@@ -496,7 +515,8 @@ export default function TimeSeriesRenderer({
         {cursor && tooltipItems.length ? (
           <div
             className="grafana-timeseries-tooltip native-timeseries-tooltip"
-            role="status"
+            role="group"
+            aria-label={t("Data at cursor")}
             style={{
               left: Math.max(8, Math.min(size.width - 260, cursor.left + 14)),
               top: Math.max(8, Math.min(size.height - 120, cursor.top + 14)),

@@ -1,7 +1,8 @@
 import { getFieldDisplayName, getFieldSeriesColor, type DataFrame, type Field } from "@grafana/data";
 import type uPlot from "uplot";
-import { t } from "../../i18n";
+import { getLocale } from "../../i18n";
 import { nextFrame } from "../frame-budget";
+import { seriesPresentations, type SeriesInput, type PresentationLocale } from "../series-presentation";
 import { prepareNumericModel, type NumericRequest, type NumericResult, type NumericSource } from "./numeric-model";
 import { riskColor, riskTheme as theme } from "./risk-thresholds";
 
@@ -9,7 +10,7 @@ export { riskTheme as theme } from "./risk-thresholds";
 const COLORS = ["#5794f2", "#73bf69", "#ff9830", "#f2495c", "#b877d9", "#56a3a6", "#fade2a"];
 export const WORKER_CELL_THRESHOLD = 50_000;
 export type PlotSeries = {
-  id: string; name: string; field: Field; values: (number | null)[];
+  id: string; name: string; rawName: string; description: string; field: Field; values: (number | null)[];
   lastValue: number | null; color: string; dashed: boolean;
   axis: "y" | "y2"; axisLabel?: string; log: boolean;
   stack: "none" | "normal" | "percent"; stackGroup: string; defaultVisible: boolean;
@@ -25,8 +26,9 @@ export const EMPTY_PLOT: PlotModel = { data: [[]], series: [], signature: "", in
 
 /** Display metadata is small and stays on the UI thread. Source buffers and
  * cached display state are never mutated by numeric normalization. */
-export function describePlot(frames: DataFrame[]): PlotSpec {
-  const sources: Source[] = [], series: PlotSpec["series"] = [], names = new Set<string>();
+export function describePlot(frames: DataFrame[], locale: PresentationLocale = getLocale(), fallbackTitle?: string): PlotSpec {
+  const sources: Source[] = [], series: PlotSpec["series"] = [], presentations: SeriesInput[] = [];
+  const occurrences = new Map<string, number>();
   // The SDK checks field identity within its frame when disambiguating names.
   // Clone the field containers together, while sharing read-only sample arrays.
   const metadataFrames = frames.map((frame) => ({ ...frame, fields: frame.fields.map((field) =>
@@ -41,12 +43,28 @@ export function describePlot(frames: DataFrame[]): PlotSpec {
     frame.fields.forEach((field, fieldIndex) => {
       if (field.type !== "number" && field.type !== "enum") return;
       values.push(field);
-      let name = comparison?.isTimeShiftQuery
-        ? (field.name || getFieldDisplayName(field, frame, metadataFrames)).replace(/\s*\((?:comparison|比较)\)$/i, "")
-        : getFieldDisplayName(field, frame, metadataFrames);
-      if (comparison?.isTimeShiftQuery) name += ` (${t("Comparison")})`;
-      if (names.has(name)) name += " (" + (frame.refId || String(frameIndex + 1)) + ")";
-      names.add(name);
+      const customName = field.config.displayName || field.config.displayNameFromDS;
+      let displayName = customName ? getFieldDisplayName(field, frame, metadataFrames) : undefined;
+      if (displayName && comparison?.isTimeShiftQuery) {
+        // Grafana adds one English suffix even to an explicit SQL/field alias.
+        // Remove only that SDK addition; an author's own suffix is part of the
+        // alias body. Cached unadorned aliases may equal their configured text.
+        const alias = displayName !== customName ? displayName.replace(/ \(comparison\)$/, "") : displayName;
+        displayName = alias + (locale === "zh" ? " (比较)" : " (Comparison)");
+      }
+      const fieldName = comparison?.isTimeShiftQuery
+        ? field.name.replace(/\s*\((?:comparison|比较)\)$/i, "") : field.name;
+      presentations.push({
+        metric: field.labels?.__name__ || (/^[a-zA-Z_:][a-zA-Z0-9_:]*$/.test(fieldName) && fieldName !== "Value" ? fieldName : undefined),
+        labels: field.labels, fallbackName: fieldName === "Value" && fallbackTitle?.trim() ? fallbackTitle : fieldName,
+        displayName,
+        reference: frame.refId || String(frameIndex + 1), comparison: comparison?.isTimeShiftQuery === true,
+      });
+      // Visibility, colors and point identity must survive a locale/legend change.
+      const identity = JSON.stringify([frame.refId || String(frameIndex + 1), fieldIndex, field.name,
+        Object.keys(field.labels || {}).sort().map(key => [key, field.labels![key]]), comparison?.isTimeShiftQuery === true]);
+      const occurrence = occurrences.get(identity) || 0;
+      occurrences.set(identity, occurrence + 1);
       let color = COLORS[series.length % COLORS.length];
       try { color = getFieldSeriesColor(field, theme).color || color; } catch { /* Plugin metadata is optional. */ }
       const custom = (field.config.custom || {}) as {
@@ -55,7 +73,7 @@ export function describePlot(frames: DataFrame[]): PlotSpec {
       };
       const stack = custom.stacking?.mode;
       series.push({
-        id: frame.refId + ":" + fieldIndex + ":" + name, name, field, color,
+        id: identity + ":" + occurrence, name: "", rawName: "", description: "", field, color,
         dashed: comparison?.isTimeShiftQuery === true,
         axis: custom.axisPlacement === "right" ? "y2" : "y", axisLabel: custom.axisLabel,
         log: custom.scaleDistribution?.type === "log",
@@ -68,6 +86,11 @@ export function describePlot(frames: DataFrame[]): PlotSpec {
     const shift = comparison?.isTimeShiftQuery && Number.isFinite(comparison.diffMs) ? Math.abs(comparison.diffMs!) : 0;
     sources.push({ time, values, shift });
     cells += time.values.length * (values.length + 1);
+  });
+  seriesPresentations(presentations, locale).forEach((item, index) => {
+    series[index].name = item.name;
+    series[index].rawName = item.rawName;
+    series[index].description = item.description;
   });
   const signature = JSON.stringify(series.map(({ field: _field, ...item }) => item));
   return { sources, series, signature, cells };

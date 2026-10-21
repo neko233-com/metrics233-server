@@ -501,6 +501,81 @@ test("Stat, gauge and bar gauge render through first-party registry paths", asyn
   expect(errors).toEqual([]);
 });
 
+test("Readable value panels preserve aliases, separate game servers and expose full labels only in details", async ({ page, endpoint }, info) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "zh"));
+  const start = Date.now() - 60000;
+  const makePanel = (id: number, title: string, type: string, fields: any[], values: unknown[][], allValues = false) => ({
+    id: String(id), title, metric: "", unit: "count", aggregation: "last", visualization: type,
+    config: { id, type, gridPos: { x: ((id - 1) % 2) * 12, y: Math.floor((id - 1) / 2) * 8, w: 12, h: 8 },
+      options: { reduceOptions: { calcs: ["lastNotNull"], values: allValues } },
+      targets: [{ refId: "Snapshot", queryType: "snapshot", datasource: { uid: "grafana", type: "grafana" }, snapshot: [{
+        schema: { refId: "A", fields: [{ name: "Time", type: "time", config: {} }, ...fields] },
+        data: { values: [values[0].map((_, index) => start + index * 10000), ...values] },
+      }] }],
+    },
+  });
+  const field = (labels: Record<string, string>, config = {}) => ({ name: "Value", type: "number", labels, config });
+  const first = { __name__: "game_players_online", serverId: "10001", role: "logic", instance: "opaque-internal-a", job: "game-exporter" };
+  const second = { ...first, serverId: "20001", instance: "opaque-internal-b" };
+  const longValue = "long-source-".repeat(40);
+  const response = await page.request.post(endpoint + "/api/v1/dashboards", { data: { name: "Readable panel fixture", panels: [
+    makePanel(1, "服务器在线人数", "stat", [field(first), field(second)], [[3, 0], [1, 2]]),
+    makePanel(2, "自定义面板", "stat", [field({ ...first, diagnostic_label: longValue }, { displayName: "运营自定义名称" })], [[3, 4]]),
+    makePanel(3, "暂无采样", "gauge", [field({ __name__: "unknown_metric_233" })], [[null, null]]),
+    makePanel(4, "未知业务指标", "stat", [field({ __name__: "unknown_metric_233" })], [[10, 12]]),
+    makePanel(5, "空条形读数", "bargauge", [field({ __name__: "unknown_metric_233" })], [[null, null]]),
+    makePanel(6, "逐点采样时间", "gauge", [field({ __name__: "unknown_metric_233" })], [[0, 5, null]], true),
+  ] } });
+  expect(response.ok(), await response.text()).toBeTruthy();
+  const saved = await response.json();
+  await page.goto(endpoint + `/d/${saved.id}/readable-panels?from=${start}&to=${start + 60000}&timezone=utc`);
+  const players = page.getByRole("region", { name: "服务器在线人数", exact: true });
+  await expect(players.locator(".native-stat-name")).toHaveCount(2);
+  await expect(players.locator(".native-stat-name").nth(0)).toContainText("10001");
+  await expect(players.locator(".native-stat-name").nth(1)).toContainText("20001");
+  await expect(players.locator(".grafana-value strong").nth(0)).toHaveText("0");
+  await expect(players).not.toContainText("opaque-internal");
+  const custom = page.getByRole("region", { name: "自定义面板", exact: true });
+  await expect(custom.locator(".native-stat-name")).toHaveText("运营自定义名称");
+  await expect(custom).not.toContainText("diagnostic_label");
+  const empty = page.getByRole("region", { name: "暂无采样", exact: true });
+  await expect(empty.locator(".grafana-value strong")).toHaveText("—");
+  await expect(empty.getByRole("meter")).toHaveCount(0);
+  await expect(empty).toContainText("所选时间范围内没有样本");
+  const emptyBar = page.getByRole("region", { name: "空条形读数", exact: true });
+  await expect(emptyBar.locator(".grafana-value strong")).toHaveText("—");
+  await expect(emptyBar.getByRole("progressbar")).toHaveCount(0);
+  await expect(emptyBar).toContainText("所选时间范围内没有样本");
+  const pointPanel = page.getByRole("region", { name: "逐点采样时间", exact: true });
+  const points = pointPanel.locator(".grafana-value");
+  await expect(points).toHaveCount(3);
+  await expect(points.nth(0).locator("strong")).toHaveText("0");
+  await expect(points.nth(0).getByRole("meter")).toHaveAttribute("aria-valuenow", "0");
+  await expect(points.nth(0).locator("time")).toHaveAttribute("datetime", new Date(start).toISOString());
+  await expect(points.nth(1).locator("strong")).toHaveText("5");
+  await expect(points.nth(1).locator("time")).toHaveAttribute("datetime", new Date(start + 10000).toISOString());
+  await expect(points.nth(2).locator("strong")).toHaveText("—");
+  await expect(points.nth(2).locator("time")).toHaveCount(0);
+  await expect(points.nth(2).getByRole("meter")).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "未知业务指标", exact: true }).locator(".native-stat-name")).toHaveText("unknown_metric_233");
+  for (const width of [1280, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    await custom.getByRole("button", { name: "指标详情 · 自定义面板", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText(longValue);
+    await expect(dialog).toContainText("服务器编号");
+    await expect(dialog).toContainText("10001");
+    expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.screenshot({ path: info.outputPath(`readable-panel-details-${width}.png`) });
+    await dialog.getByRole("button", { name: "关闭", exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+  }
+  expect(errors).toEqual([]);
+});
+
 test("Logs renderer virtualizes ten thousand rows with search and label filters", async ({
   page,
   endpoint,

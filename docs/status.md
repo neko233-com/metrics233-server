@@ -2,6 +2,33 @@
 
 Updated: 2026-10-21. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
+### 2026-10-21 — Readable panels and metric details
+
+- Stat/gauge/bar-gauge, native time-series and simple Explore charts now use readable metric/series names.
+  Explicit aliases stay authoritative; known metrics have exact bilingual definitions, unknown names remain
+  inspectable, business/resource dimensions distinguish series, and raw selectors live in a keyboard-accessible
+  details dialog. This is presentation only, without query/identity/permission changes. See [panel readability](panel-readability.md).
+- Uptime stays numeric with restart semantics and query-point time. Missing gauges no longer pretend to be zero;
+  all-values mode associates each displayed value with its own timestamp. Time-series left/right axes keep their
+  own units and percent stacking; details metadata is memoized independently of cursor updates. Explore no longer
+  borrows an unrelated metric-picker unit for PromQL, subsecond durations retain precision, and simple charts
+  provide valid stable colors and legends for all series.
+- Initial frontend verification passed 138 units and embedded builds. The first full browser sweep passed 93,
+  skipped two SQL-environment cases and found three failures: a newly added fixture assumed its requested dashboard ID was retained,
+  SQL comparison aliases retained the SDK's automatic English suffix in Chinese, and one navigation hit local
+  `ERR_NO_BUFFER_SPACE`. These are retained as failed-run evidence; corrected-source acceptance is recorded below.
+- Corrected source passed all **139 frontend units**, TypeScript/Vite and an embedded webui build. A final
+  **nine-case browser run passed with no retries in 23.6 seconds**, covering all original failures, aliases,
+  twelve simple series, Chinese uptime/details, 390/768/1280 containment, all-value timestamps, zero/missing gauges,
+  independent percent/bytes axes, comparison localization and the full bilingual workspace flow. The old workspace
+  assertion for a raw PromQL legend now checks the expression through Metric details. The complete sweep was not
+  repeated after these scoped corrections; its earlier results are not reassigned to final source.
+- Online release remains a separate gate in the private deployment ledger. Existing
+  v0.2.6 full Go/CI/Docker evidence retains its original source attribution. The user explicitly excluded signing
+  into a game with a test account; this UI acceptance does not claim a nonzero player lifecycle.
+- Weighted overall remains 94% under the existing workstream basis; this scoped UI correction is not a new
+  sustained-load or universal production-certification claim.
+
 ### 2026-10-21 — Transport timeout diagnostics
 
 - A full Linux race run exposed a deadline ordering case: the HTTP client's timeout can finish before the

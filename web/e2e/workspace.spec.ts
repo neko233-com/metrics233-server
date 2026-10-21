@@ -8232,9 +8232,12 @@ test("English and Chinese, panels, PromQL, dashboards and collector forms", asyn
     .getByLabel("PromQL expression", { exact: true })
     .fill("sum(metricspanel_goroutines)");
   await page.getByRole("button", { name: "Run query", exact: true }).click();
-  await expect(
-    page.getByText("sum(metricspanel_goroutines)", { exact: true }),
-  ).toBeVisible();
+  const exploration = page.locator(".explore-chart .chart-panel");
+  await expect(exploration).toHaveAttribute("aria-busy", "false");
+  await expect(exploration.locator(".latest-value")).toHaveText(/\d/);
+  await exploration.getByRole("button", { name: "Metric details · Query result", exact: true }).click();
+  await expect(page.getByRole("dialog").getByText("sum(metricspanel_goroutines)", { exact: true })).toBeVisible();
+  await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
   await expect(page.locator(".chart-panel .form-error")).toHaveCount(0);
   await page.getByRole("button", { name: "Dashboards", exact: true }).click();
   await page

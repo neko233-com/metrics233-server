@@ -4,9 +4,9 @@ import { getLocale } from "../../i18n";
 import { prepareNumericModel, type NumericRequest, type NumericResult } from "./numeric-model";
 import { completePlot, describePlot, EMPTY_PLOT, packPlotInSlices, preparePlotSync, WORKER_CELL_THRESHOLD, type PlotModel } from "./plot-model";
 
-export function usePlotModel(frames: DataFrame[], width: number, start: number, end: number) {
+export function usePlotModel(frames: DataFrame[], width: number, start: number, end: number, fallbackTitle?: string) {
   const locale = getLocale();
-  const spec = useMemo(() => describePlot(frames), [frames, locale]);
+  const spec = useMemo(() => describePlot(frames, locale, fallbackTitle), [frames, locale, fallbackTitle]);
   // Quantization avoids redoing the full job for each pixel of a resize drag.
   const targetRows = Math.max(256, Math.ceil(width / 64) * 128);
   const asynchronous = spec.cells > WORKER_CELL_THRESHOLD;

@@ -11,6 +11,7 @@ function load(file, requireModule = () => { throw new Error("Unexpected import")
   return exports;
 }
 const numeric = load("src/render/timeseries/numeric-model.ts");
+const presentation = load("src/render/series-presentation.ts");
 const risk = load("src/render/timeseries/risk-thresholds.ts", name=>{
   if(name==="@grafana/data") return {createTheme:()=>({visualization:{getColorByName:name=>({green:"#39d99c",yellow:"#f4cd51",red:"#f2495c","dark-red":"#c4162a"}[name]||name)}})};
   throw new Error("Unexpected risk import: "+name);
@@ -18,11 +19,15 @@ const risk = load("src/render/timeseries/risk-thresholds.ts", name=>{
 const model = load("src/render/timeseries/plot-model.ts", (name) => {
   if (name === "./risk-thresholds") return risk;
   if (name === "./numeric-model") return numeric;
-  if (name === "../../i18n") return { t: (value) => value };
+  if (name === "../series-presentation") return presentation;
+  if (name === "../../i18n") return { getLocale: () => "en" };
   if (name === "../frame-budget") return { nextFrame: async () => {} };
   if (name === "@grafana/data") return { createTheme: () => ({}), getFieldDisplayName: (field, frame) => {
     assert.ok(frame.fields.includes(field), "metadata field identity must belong to its cloned frame");
-    return field.name;
+    const alias = field.config.displayName || field.config.displayNameFromDS;
+    // The pinned SDK appends this suffix to configured aliases in comparison
+    // frames too; returning the alias alone misses real SQL-frame behavior.
+    return alias ? alias + (frame.meta?.timeCompare?.isTimeShiftQuery ? " (comparison)" : "") : field.name;
   },
     getFieldSeriesColor: () => ({ color: "#f00" }) };
   throw new Error("Unexpected import: " + name);
@@ -146,6 +151,84 @@ test("packing preserves source DataFrames, distinguishes null from zero and alig
   assert.equal(JSON.stringify(frames), before);
   const controller = new AbortController(); controller.abort();
   await assert.rejects(model.packPlotInSlices(spec, controller.signal), { name: "AbortError" });
+});
+
+test("plot names localize metrics and preserve custom comparison aliases with locale-independent identities", () => {
+  const frame = (refId, comparison = false) => ({ refId, length: 2,
+    meta: comparison ? { timeCompare: { isTimeShiftQuery: true, diffMs: -1000 } } : {},
+    fields: [{ name: "Time", type: "time", values: [1000, 2000], config: {} },
+      { name: "Value", type: "number", values: [10, 20], config: {},
+        labels: { __name__: "metricspanel_uptime_seconds", instance: "host-a", job: "self" } },
+      { name: "Value", type: "number", values: [1, 2], config: { displayNameFromDS: "My exact alias" },
+        labels: { __name__: "custom_total", instance: "host-a" } }] });
+  const frames = [frame("A"), frame("A-compare", true)];
+  const before = JSON.stringify(frames);
+  const en = model.describePlot(frames, "en"), zh = model.describePlot(frames, "zh");
+  assert.deepEqual(plain(en.series.map(item => item.id)), plain(zh.series.map(item => item.id)));
+  assert.equal(en.series[0].name, "Monitoring service uptime");
+  assert.equal(zh.series[0].name, "监控服务运行时长");
+  assert.equal(zh.series[1].name, "My exact alias");
+  assert.equal(zh.series[2].name, "监控服务运行时长 (比较)");
+  assert.equal(zh.series[3].name, "My exact alias (比较)");
+  assert.equal(zh.series[0].rawName, 'metricspanel_uptime_seconds{instance="host-a",job="self"}');
+  assert.match(zh.series[0].description, /重启/);
+  assert.deepEqual(plain(zh.series[0].field.labels), frames[0].fields[1].labels);
+  assert.notEqual(en.signature, zh.signature, "labels redraw on locale changes while identities remain stable");
+  assert.equal(JSON.stringify(frames), before);
+});
+
+test("plot names distinguish actual hosts and preserve custom field containers and duplicate identities", () => {
+  const frames = ["host-a", "host-b", "host-b"].map(instance => ({ refId: "A", length: 1,
+    fields: [{ name: "Time", type: "time", values: [1000], config: {} },
+      { name: "Value", type: "number", values: [1], config: { displayName: "My target" },
+        labels: { __name__: "up", instance, job: "self" }, state: { displayName: "old SDK value" } }] }));
+  const before = JSON.stringify(frames), spec = model.describePlot(frames, "zh");
+  assert.equal(new Set(spec.series.map(item => item.name)).size, 3);
+  assert.equal(new Set(spec.series.map(item => item.id)).size, 3);
+  assert.ok(spec.series.every(item => item.name.startsWith("My target · 实例=")));
+  assert.equal(JSON.stringify(frames), before);
+});
+
+test("SDK automatic comparison suffix localizes while the author's alias body stays exact", () => {
+  const frame = (refId, comparison, config) => ({ refId, length: 1,
+    meta: { timeCompare: { isTimeShiftQuery: comparison, diffMs: -1000 } },
+    fields: [{ name: "Time", type: "time", values: [1000], config: {} },
+      { name: "__value__", type: "number", values: [3], config }] });
+  const frames = [
+    frame("A", false, { displayNameFromDS: "SQL business" }),
+    frame("A-compare", true, { displayNameFromDS: "SQL business" }),
+    frame("B", false, { displayName: "Author (comparison)" }),
+    frame("B-compare", true, { displayName: "Author (comparison)" }),
+    frame("C-compare", true, { displayName: "Manual alias", displayNameFromDS: "SQL alias" }),
+  ];
+  const before = JSON.stringify(frames), zh = model.describePlot(frames, "zh"), en = model.describePlot(frames, "en");
+  assert.deepEqual(plain(zh.series.map(item => item.name)), [
+    "SQL business", "SQL business (比较)", "Author (comparison)",
+    "Author (comparison) (比较)", "Manual alias (比较)",
+  ]);
+  assert.equal(en.series[1].name, "SQL business (Comparison)");
+  assert.equal(en.series[3].name, "Author (comparison) (Comparison)");
+  assert.deepEqual(plain(zh.series.map(item => item.id)), plain(en.series.map(item => item.id)));
+  assert.equal(JSON.stringify(frames), before);
+});
+
+test("aggregate Value fields use the panel title as a label without claiming original counter semantics", () => {
+  const frames = [{ refId: "A", length: 1,
+    fields: [{ name: "Time", type: "time", values: [1000], config: {} },
+      { name: "Value", type: "number", values: [32], labels: { job: "host" }, config: {} }] }];
+  const en = model.describePlot(frames, "en", "Host CPU utilization");
+  const zh = model.describePlot(frames, "zh", "主机 CPU 使用率");
+  assert.equal(en.series[0].name, "Host CPU utilization");
+  assert.equal(zh.series[0].name, "主机 CPU 使用率");
+  assert.equal(en.series[0].id, zh.series[0].id);
+  assert.match(zh.series[0].description, /暂无/);
+  assert.doesNotMatch(zh.series[0].description, /累计/);
+  // Even an unfortunately named panel is an alias, never a raw metric hint.
+  const misleadingTitle = model.describePlot(frames, "zh", "node_cpu_seconds_total");
+  assert.equal(misleadingTitle.series[0].name, "node_cpu_seconds_total");
+  assert.match(misleadingTitle.series[0].description, /暂无/);
+  frames[0].fields[1].name = "Weighted latency";
+  assert.equal(model.describePlot(frames, "zh", "Other title").series[0].name, "Weighted latency");
 });
 
 test("Worker protocol transfers owned buffers in both directions and matches synchronous output", () => {

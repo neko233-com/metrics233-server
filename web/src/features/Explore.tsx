@@ -18,6 +18,16 @@ const DatasourceExplore = lazy(() =>
     default: module.DatasourceExplore,
   })),
 );
+
+export function storedQueryUnit(metric: string, aggregation: string, expression: string, selected = "auto"): string {
+  if (selected !== "auto") return selected;
+  if (expression.trim()) return "";
+  if (aggregation === "rate") return /_bytes(?:_total)?$/.test(metric) ? "binBps" : "ops";
+  if (metric.endsWith("_bytes")) return "bytes";
+  if (metric.endsWith("_seconds")) return "seconds";
+  return "";
+}
+
 export function Explore({
   metrics,
   tick,
@@ -45,6 +55,7 @@ export function Explore({
   });
   const [filter, setFilter] = useState("");
   const [expr, setExpr] = useState("");
+  const [unit, setUnit] = useState("auto");
   const [sourceUID, setSourceUID] = useState("stored");
   const [sources, setSources] = useState<
     { uid: string; name: string; type: string }[]
@@ -126,11 +137,7 @@ export function Explore({
                     expr,
                     metric,
                     aggregation,
-                    unit: metric.endsWith("_bytes")
-                      ? "bytes"
-                      : aggregation === "rate"
-                        ? "ops"
-                        : "",
+                    unit: storedQueryUnit(metric, aggregation, expr, unit),
                     labels: parseLabels(labels),
                   },
                   range,
@@ -184,6 +191,22 @@ export function Explore({
                 {tr("Run query")}
               </button>
             </div>
+            <label>
+              {tr("Unit")}
+              <select aria-label={tr("Unit")} value={unit} onChange={event => setUnit(event.target.value)}>
+                <option value="auto">{tr("Auto / number")}</option>
+                <option value="">{getLocale() === "zh" ? "数字（无单位）" : "Number (no unit)"}</option>
+                <option value="bytes">{getLocale() === "zh" ? "字节" : "Bytes"}</option>
+                <option value="binBps">{getLocale() === "zh" ? "字节/秒" : "Bytes/second"}</option>
+                <option value="seconds">{getLocale() === "zh" ? "耗时（秒）" : "Duration (seconds)"}</option>
+                <option value="uptime">{tr("uptime")}</option>
+                <option value="percent">{getLocale() === "zh" ? "百分比（0–100）" : "Percent (0–100)"}</option>
+                <option value="percentunit">{getLocale() === "zh" ? "比例（0–1 → %）" : "Ratio (0–1 → %)"}</option>
+                <option value="count">{tr("count")}</option>
+                <option value="ops">{getLocale() === "zh" ? "每秒" : "Per second"}</option>
+              </select>
+            </label>
+            <p className="subtle">{getLocale() === "zh" ? "自动单位只用于所选指标；PromQL 表达式默认显示数字，可在此指定结果单位。" : "Auto units use the selected metric only. PromQL results default to numbers; choose their unit explicitly."}</p>
             <label>
               {tr("PromQL expression")}
               <input
@@ -255,15 +278,15 @@ export function Explore({
                             className="text-button"
                             onClick={() => {
                               setMetric(m.name);
+                              setExpr("");
+                              setLabels("{}");
                               setQuery({
                                 panel: {
                                   id: "explore",
                                   title: "Query result",
                                   metric: m.name,
                                   aggregation,
-                                  unit: m.name.endsWith("_bytes")
-                                    ? "bytes"
-                                    : "",
+                                  unit: storedQueryUnit(m.name, aggregation, "", unit),
                                   labels: {},
                                 },
                                 range,

@@ -71,6 +71,10 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 
 ## Renderers
 
+- First-party metric panels use readable names with explicit aliases preserved; original labels and query/reducer
+  metadata are available through the keyboard-accessible Metric details dialog. Friendly names never become
+  query or authorization identities. Unknown metrics and aggregate expression meanings are not guessed. See
+  [panel readability](../panel-readability.md).
 - Product primitives live in `web/src/ui`; product renderers in `web/src/render`.
 - Table and TimeSeries are the default first-party renderers.
 - TimeSeries covers lines, comparison, legend, tooltip, zoom, log axes, percent stacking, multiple axes and
