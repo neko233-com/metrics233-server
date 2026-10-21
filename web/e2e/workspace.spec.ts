@@ -536,7 +536,7 @@ test("Custom multi-panel dashboards duplicate and edit panels, and snapshots kee
       await dialog.getByRole("button", { name: "Save panel", exact: true }).click();
       await expect(page.getByRole("heading", { name: title, exact: true })).toBeVisible();
     }
-    await expect(page.getByRole("region", { name: "Orders total", exact: true }).locator(".stat-value")).toHaveText("233");
+    await expect(page.getByRole("region", { name: "Orders total", exact: true }).locator(".grafana-value strong")).toHaveText("233");
     await expect(page.getByRole("region", { name: "Orders table", exact: true })).toContainText("233");
     await expect(page.locator(".chart-grid .chart-panel")).toHaveCount(3);
     await expect(page.locator(".agent-strip")).toHaveCount(0);

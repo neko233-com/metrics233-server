@@ -14,9 +14,18 @@ Updated: 2026-10-21. This file is the durable progress ledger. Update it wheneve
 - Targeted Go Feishu/template/CD and role tests, vet, frontend typecheck/build and four real notifications browser
   cases passed locally. Linux Go 1.27.2 + GCC vet/race over four owning packages passed twice (80 top-level
   tests, no failures/skips/races). Actual TLS fixtures cover grouped firing/recovery, rejected partial ACK and cooldown;
-  this is separate from a real Feishu group delivery. Combined Docker/database validation and
-  the final business-snapshot UI bundle are tracked as separate gates; publication/production card acceptance
-  remain with the release operator. Overall weighting below remains unchanged (not universal certification).
+  this is separate from a real Feishu group delivery. The unified final UI passed four notification and three
+  business-instance browser cases without retries. Real database integration passed twice (including six SQL
+  browser cases), followed by two newly built final-source runtime/browser rounds in 173.509 seconds. Image
+  content was 42.8 MiB and Docker local footprint 163 MB; verification resources were removed and read back empty.
+  See `docs/docker-validation.md` for source-layer distinctions, exact resource snapshots and commands. The full
+  45-minute Docker race target was not rerun in this cycle. Publication/production card acceptance remain with
+  the release operator. Overall weighting below remains unchanged (not universal certification).
+
+- Final Windows browser sweep completed with 91 passed, two SQL environment skips (covered by the six real SQL
+  Docker browser cases above), and two test-harness failures. The isolated reporting-source fixture and native
+  stat renderer selector were corrected; four reporting/risk cases, the snapshot case and all five layout cases
+  then passed without retries. A fresh whole-suite run and immutable release CI are separate pending gates.
 
 ## Reporting protocol (permanent)
 

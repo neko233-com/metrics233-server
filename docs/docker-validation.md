@@ -227,3 +227,58 @@ source still needs a fresh completed CI result. The explicit local Docker `valid
 `-timeout=45m`, keeping its fixture sizes, counts and assertions unchanged. That full target has not been
 rerun in the current Feishu-card verification cycle. The focused notification/authentication Linux race
 checks and the formal runtime/database/browser verification have separate scopes and results.
+
+## Feishu, business snapshots and final runtime verification (2026-10-21)
+
+The current `metrics233-server/` working checkout was verified in two layers:
+
+```powershell
+pwsh -NoProfile -File scripts/dockerfile_test.ps1 -Repeat 2 -Browser -IncludeDatabaseIntegration
+pwsh -NoProfile -File scripts/dockerfile_test.ps1 -Repeat 2 -Browser
+```
+
+The combined command passed in **620.300 seconds**. Its real database rounds passed in **224.30 / 192.50
+seconds**, including MariaDB, PostgreSQL, Redis and ClickHouse collection, SQLite 100,000-sample and ClickHouse
+1,000,000-sample concurrent durable ingestion, 10,000 x 64 vector HNSW search with recall@10=10/10, physical
+organization isolation, full-container restart, encrypted SQL configuration and dashboard/plugin/alert regressions.
+Each round also ran all three real SQL browser cases with `--retries=0`: **3/3 + 3/3 passed**, without skips.
+The fixture images contained 415,735,970 / 415,738,064 bytes and ran under two CPUs / 2 GiB.
+
+During that command, the last business API correction restricted current cumulative counters to the latest
+accepted population snapshot. It changed `internal/server/business_instances.go`; storage, collector, database
+schema and the database regression components were unchanged. The first combined runtime is therefore recorded
+as earlier-input evidence. The final API's eight owning cases passed separately, and the second command rebuilt
+the formal runtime twice from the fully frozen source. It supplied no prebuilt `-Image`. A SHA-256 manifest of
+571 build-related files was unchanged before and after this final command
+(`0de93860f8fa9ba20ca2d86efbefcc744e9f7627075d653691ec074301ac8ebb`). The database layer was not repeated a
+third time for this server-only query correction.
+
+The final runtime command passed in **173.509 seconds**, with rounds of **77.43 / 96.03 seconds**. Both passed
+token/local authentication, namespace and role refusal, minimal public health, UID 10001, read-only root,
+capability drop, no-new-privileges, one CPU / 256 MiB limits, business/OTLP/remote-write ingestion and query,
+graceful restart, local identity persistence, canonical HTTPS Origin over an HTTP upstream, Chromium setup/login/
+Viewer restrictions, and offline SHA-256-checked recovery into a fresh volume. All OOM checks were false and both
+browser smokes reported no unexpected console or HTTP failures.
+
+Docker **29.7.2** reported **44,862,017 content bytes (42.8 MiB)** in each final round and **163 MB local
+footprint**. These are different image-store measurements. The following `memory.current` snapshots include
+cgroup page cache; they are not process RSS or peak-memory guarantees:
+
+| Final runtime case | Round 1 bytes | Round 2 bytes |
+| --- | ---: | ---: |
+| Token after ingestion/restart | 19,382,272 | 17,743,872 |
+| Local accounts after ingestion/restart | 86,589,440 | 85,508,096 |
+| HTTPS-origin password work | 221,179,904 | 221,577,216 |
+| Browser password work | 222,298,112 | 221,970,432 |
+
+Filtered Docker readback confirmed zero verification containers, runtime volumes/image tags, and database-test
+containers/volumes/networks after cleanup. Existing shared caches and the standard database-fixture build image
+were retained; no global prune was used. Redacted logs were retained as
+`dockerfile-test-repeat2-browser-db.log`, `dockerfile-test-final-runtime-repeat2-browser.log` and
+`docker-final-cleanup.json` in the operator's temporary acceptance directory.
+
+The final unified UI additionally passed four notifications browser cases and three business-instance cases
+without retries. The focused notification/template/authentication Linux vet/race result is 80 top-level passes
+across two repetitions, not a full-repository race result. The explicit 45-minute `validation` target was not
+fully rerun in this cycle. These are local source/runtime/browser acceptance results; immutable release/CI and
+actual Feishu-group card delivery remain separate gates.

@@ -238,9 +238,12 @@ test("Native dashboard layout supports mouse, keyboard, numeric edits, cancellat
         ),
       )
       .toBeLessThan(1);
+    const statValues = page.locator(
+      ".dashboard-panel-cell .stat-value,.dashboard-panel-cell .grafana-value strong",
+    );
+    await expect(statValues).not.toHaveCount(0);
     expect(
-      await page
-        .locator(".dashboard-panel-cell .stat-value")
+      await statValues
         .evaluateAll((values) =>
           values.every(
             (value) =>
