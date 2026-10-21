@@ -38,10 +38,13 @@ docker image rm metricspanel-validation:local
 
 This target is a development image, separate from the runtime size budget. Remove only the tag created for the
 verification; keep shared caches and other images intact.
-The validation target and CI race command explicitly allow 20 minutes per Go package. The dense SQLite boundary
-regression retains its real 5,000,001-row fixture and retention deletion; race instrumentation exceeded Go's
-default ten-minute package budget in the initial final-source run. That timeout is recorded as a failed attempt,
-not a successful race check. The quantitative fixture is not reduced or skipped.
+The local validation target explicitly allows 20 minutes per Go package; its completed local result is recorded
+below. Hosted CI allows 45 minutes per race-tested Go package and 60 minutes for the test job, including frontend
+and browser validation. The dense SQLite boundary regression retains its real 5,000,001-row fixture and retention
+deletion. Race instrumentation exceeded Go's default ten-minute package budget locally, and the hosted runner
+later exceeded the explicit 20-minute budget. Both timeouts are failed attempts, not successful race checks.
+The quantitative fixture, counts and assertions are not reduced or skipped; the larger CI budget still requires
+a completed immutable-source run before claiming success.
 
 For a previously built release image, pass `-Image metricspanel233:local`. Supplied images are never removed by
 the test. To run the database suite alone, use `scripts/test-docker.ps1`; its fixture image runs several real
@@ -207,3 +210,18 @@ This is direct post-migration Linux runtime and browser evidence from the workin
 and full Linux race were not repeated here: their actual completed pre-migration runs and the source-equivalence
 audit remain separately recorded above. The committed/tagged CI run must supply its own immutable-source result;
 this local run does not claim that a public release or deployment has occurred.
+
+## Hosted immutable-source CI timeout (2026-10-21)
+
+The manual [server CI run 39538086462](https://github.com/neko233-com/metrics233-server/actions/runs/39538086462)
+at source `6d8b8ea4242ef9181798d63a804fd2f98811db41` failed when `internal/store` reached its 20-minute package
+deadline. `TestSQLiteNativeBucketPlanRejectsOversizedScanBeforeReduction` had run for 16 minutes 52 seconds and
+was still deleting the real 5,000,001-row fixture through `Store.Prune`. No `DATA RACE` warning or other assertion
+failure appeared before the timeout; that does not make the interrupted package pass. The Docker job's two
+successful integration rounds are separate evidence and do not make the failed overall run green.
+
+The earlier local full-race result above passed `internal/store` in 743.373 seconds on its own machine; it cannot
+establish the same runtime on a hosted runner. CI now grants 45 minutes per Go package and 60 minutes for the
+test job, preserving every fixture, count and assertion. This is a time-budget correction; the updated committed
+source still needs a fresh completed CI result. The local Docker validation target and application code are
+unchanged by this correction.

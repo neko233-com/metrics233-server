@@ -13,6 +13,7 @@ concurrency:
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
@@ -27,7 +28,7 @@ jobs:
       - run: npm ci && npm run test:unit && npm run build
         working-directory: web
       - run: node --test scripts/test/*.test.mjs
-      - run: go vet ./... && go test -race ./... -count=1 -timeout=20m
+      - run: go vet ./... && go test -race ./... -count=1 -timeout=45m
       - run: mkdir -p bin && go build -tags webui -o bin/metricspanel ./cmd/metricspanel
       - run: npx playwright install --with-deps chromium && npm run test:e2e
         working-directory: web
