@@ -506,9 +506,9 @@ test("Readable value panels preserve aliases, separate game servers and expose f
   page.on("pageerror", error => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "zh"));
   const start = Date.now() - 60000;
-  const makePanel = (id: number, title: string, type: string, fields: any[], values: unknown[][], allValues = false) => ({
+  const makePanel = (id: number, title: string, type: string, fields: any[], values: unknown[][], allValues = false, description?: string) => ({
     id: String(id), title, metric: "", unit: "count", aggregation: "last", visualization: type,
-    config: { id, type, gridPos: { x: ((id - 1) % 2) * 12, y: Math.floor((id - 1) / 2) * 8, w: 12, h: 8 },
+    config: { id, type, description, gridPos: { x: ((id - 1) % 2) * 12, y: Math.floor((id - 1) / 2) * 8, w: 12, h: 8 },
       options: { reduceOptions: { calcs: ["lastNotNull"], values: allValues } },
       targets: [{ refId: "Snapshot", queryType: "snapshot", datasource: { uid: "grafana", type: "grafana" }, snapshot: [{
         schema: { refId: "A", fields: [{ name: "Time", type: "time", config: {} }, ...fields] },
@@ -527,6 +527,8 @@ test("Readable value panels preserve aliases, separate game servers and expose f
     makePanel(4, "未知业务指标", "stat", [field({ __name__: "unknown_metric_233" })], [[10, 12]]),
     makePanel(5, "空条形读数", "bargauge", [field({ __name__: "unknown_metric_233" })], [[null, null]]),
     makePanel(6, "逐点采样时间", "gauge", [field({ __name__: "unknown_metric_233" })], [[0, 5, null]], true),
+    makePanel(7, "当前网关连接", "stat", [field({})], [[0, 0]]),
+    makePanel(8, "配置说明", "stat", [field({})], [[6, 9]], false, "当前网关 TCP 连接数。"),
   ] } });
   expect(response.ok(), await response.text()).toBeTruthy();
   const saved = await response.json();
@@ -539,6 +541,7 @@ test("Readable value panels preserve aliases, separate game servers and expose f
   await expect(players).not.toContainText("opaque-internal");
   const custom = page.getByRole("region", { name: "自定义面板", exact: true });
   await expect(custom.locator(".native-stat-name")).toHaveText("运营自定义名称");
+  await expect(custom.locator(".native-stat-description")).toContainText("已认证");
   await expect(custom).not.toContainText("diagnostic_label");
   const empty = page.getByRole("region", { name: "暂无采样", exact: true });
   await expect(empty.locator(".grafana-value strong")).toHaveText("—");
@@ -560,6 +563,18 @@ test("Readable value panels preserve aliases, separate game servers and expose f
   await expect(points.nth(2).locator("time")).toHaveCount(0);
   await expect(points.nth(2).getByRole("meter")).toHaveCount(0);
   await expect(page.getByRole("region", { name: "未知业务指标", exact: true }).locator(".native-stat-name")).toHaveText("unknown_metric_233");
+  const unknown = page.getByRole("region", { name: "未知业务指标", exact: true });
+  await expect(unknown.locator(".native-stat-description")).toHaveCount(0);
+  const aggregate = page.getByRole("region", { name: "当前网关连接", exact: true });
+  await expect(aggregate.locator(".grafana-value strong")).toHaveText("0");
+  await expect(aggregate.locator(".native-stat-description")).toHaveCount(0);
+  const described = page.getByRole("region", { name: "配置说明", exact: true });
+  await expect(described.locator(".native-stat-description")).toHaveText("当前网关 TCP 连接数。");
+  await expect(described.locator(".grafana-value strong")).toHaveText("9");
+  await unknown.getByRole("button", { name: "指标详情 · 未知业务指标", exact: true }).click();
+  await expect(page.getByRole("dialog")).toContainText("暂无该指标的内置说明");
+  await expect(page.getByRole("dialog")).toContainText("unknown_metric_233");
+  await page.getByRole("dialog").getByRole("button", { name: "关闭", exact: true }).click();
   for (const width of [1280, 390]) {
     await page.setViewportSize({ width, height: 900 });
     await custom.getByRole("button", { name: "指标详情 · 自定义面板", exact: true }).click();

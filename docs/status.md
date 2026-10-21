@@ -10,6 +10,9 @@ Updated: 2026-10-21. This file is the durable progress ledger. Update it wheneve
 - Instance lists group explicit `release`, `test` and `shared` environments; unknown values stay separate.
   The default time range is 60 minutes, with explicit URL/user choices preserved. Large panel sizing is
   selectable and remembered. Refresh keeps same-scope content; changing instance clears the previous scope.
+  Unknown metric-description guidance stays in the details dialog; main stat cards show only known or
+  explicitly configured descriptions. This last presentation-only correction passed its targeted browser
+  regression and 14 presenter unit tests, with null/zero values and units unchanged.
 - SQL defaults to the ten Entity/operation pairs with highest weighted average latency in the last hour,
   with milliseconds and estimated execution/failure counts. Player regions remain complete and virtualized.
   Background ticks skip an in-flight SQL query instead of repeatedly canceling a valid slow response.

@@ -134,7 +134,7 @@ export default function StatRenderer({
           </span>
         ) : null}
       </div>
-      {config?.description || (fields.length === 1 && presentations[0]?.description) ?
+      {config?.description || (fields.length === 1 && presentations[0]?.known && presentations[0]?.description) ?
         <p className="native-stat-description">{config?.description || presentations[0]?.description}</p> : null}
       {timeInfo ? <p className="panel-time-info">{timeInfo}</p> : null}
       {queryError ? (
