@@ -17,6 +17,7 @@ import (
 // History requires Write; query execution, imports and mutations are separate
 // policies and are not made available by this read adapter.
 var resourceReadRoutes = map[string]bool{
+	"GET /api/v1/business/instances/{id}/dashboard": true,
 	"GET /api/v1/dashboards":             true,
 	"GET /api/dashboards/uid/{uid}":      true,
 	"GET /api/search":                    true,

@@ -41,6 +41,7 @@ var readOnlyPostPrefixes = []string{
 // Admin-only configuration surfaces carry encrypted credentials or install
 // code. They are never writable by Editors.
 var adminPrefixes = []string{
+	"/api/v1/settings/retention",
 	"/api/v1/reporting-sources",
 	"/api/admin",
 	"/api/plugins",
@@ -129,7 +130,9 @@ func authorize(p identity.Principal, method, requestPath string) error {
 		}
 		return identity.ErrForbidden
 	}
-	if hasAnyPrefix(requestPath, editorPrefixes) {
+	businessPath := strings.TrimPrefix(requestPath, "/api/v1/business/instances/")
+	businessBinding := method == "PUT" && businessPath != requestPath && strings.HasSuffix(businessPath, "/dashboard") && !strings.Contains(strings.TrimSuffix(businessPath, "/dashboard"), "/") && strings.TrimSuffix(businessPath, "/dashboard") != ""
+	if businessBinding || hasAnyPrefix(requestPath, editorPrefixes) {
 		if p.Role.AtLeast(identity.RoleEditor) {
 			return nil
 		}

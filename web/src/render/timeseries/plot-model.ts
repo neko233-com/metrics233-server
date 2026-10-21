@@ -1,10 +1,11 @@
-import { createTheme, getFieldDisplayName, getFieldSeriesColor, type DataFrame, type Field } from "@grafana/data";
+import { getFieldDisplayName, getFieldSeriesColor, type DataFrame, type Field } from "@grafana/data";
 import type uPlot from "uplot";
 import { t } from "../../i18n";
 import { nextFrame } from "../frame-budget";
 import { prepareNumericModel, type NumericRequest, type NumericResult, type NumericSource } from "./numeric-model";
+import { riskColor, riskTheme as theme } from "./risk-thresholds";
 
-export const theme = createTheme({ colors: { mode: "dark" } });
+export { riskTheme as theme } from "./risk-thresholds";
 const COLORS = ["#5794f2", "#73bf69", "#ff9830", "#f2495c", "#b877d9", "#56a3a6", "#fade2a"];
 export const WORKER_CELL_THRESHOLD = 50_000;
 export type PlotSeries = {
@@ -12,6 +13,7 @@ export type PlotSeries = {
   lastValue: number | null; color: string; dashed: boolean;
   axis: "y" | "y2"; axisLabel?: string; log: boolean;
   stack: "none" | "normal" | "percent"; stackGroup: string; defaultVisible: boolean;
+  riskKey?:string;
 };
 type Source = { time: Field; values: Field[]; shift: number };
 export type PlotSpec = { sources: Source[]; series: Omit<PlotSeries, "values" | "lastValue">[]; signature: string; cells: number };
@@ -59,6 +61,7 @@ export function describePlot(frames: DataFrame[]): PlotSpec {
         log: custom.scaleDistribution?.type === "log",
         stack: stack === "percent" ? "percent" : stack === "normal" ? "normal" : "none",
         stackGroup: custom.stacking?.group || "default", defaultVisible: !custom.hideFrom?.viz,
+        riskKey:JSON.stringify([field.config.thresholds,field.config.color?.mode,field.config.min,field.config.max]),
       });
     });
     if (!values.length) return;
@@ -126,6 +129,7 @@ export function completePlot(spec: PlotSpec, result: NumericResult, preparation:
     ...item,
     values: Array.from(result.columns[index + 1], (value) => Number.isFinite(value) ? value : null),
     lastValue: Number.isFinite(result.lastValues[index]) ? result.lastValues[index] : null,
+    color:riskColor(item.field,result.lastValues[index])||item.color,
   }));
   return { data: [x, ...series.map((item) => item.values)], series, signature: spec.signature,
     inputRows: result.inputRows, alignedRows: result.alignedRows, preparation };

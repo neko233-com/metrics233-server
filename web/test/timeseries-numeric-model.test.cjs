@@ -11,7 +11,12 @@ function load(file, requireModule = () => { throw new Error("Unexpected import")
   return exports;
 }
 const numeric = load("src/render/timeseries/numeric-model.ts");
+const risk = load("src/render/timeseries/risk-thresholds.ts", name=>{
+  if(name==="@grafana/data") return {createTheme:()=>({visualization:{getColorByName:name=>({green:"#39d99c",yellow:"#f4cd51",red:"#f2495c","dark-red":"#c4162a"}[name]||name)}})};
+  throw new Error("Unexpected risk import: "+name);
+});
 const model = load("src/render/timeseries/plot-model.ts", (name) => {
+  if (name === "./risk-thresholds") return risk;
   if (name === "./numeric-model") return numeric;
   if (name === "../../i18n") return { t: (value) => value };
   if (name === "../frame-budget") return { nextFrame: async () => {} };
@@ -23,6 +28,36 @@ const model = load("src/render/timeseries/plot-model.ts", (name) => {
   throw new Error("Unexpected import: " + name);
 });
 const source = (times, ...columns) => ({ times: Float64Array.from(times), columns: columns.map((values) => Float64Array.from(values)) });
+test("risk thresholds preserve exact boundary colors and require a known percentage range", () => {
+  const field={config:{color:{mode:"thresholds"},thresholds:{mode:"absolute",steps:[{value:null,color:"green"},{value:85,color:"yellow"},{value:95,color:"red"}]}}};
+  assert.equal(risk.riskColor(field,84.99),"#39d99c");
+  assert.equal(risk.riskColor(field,85),"#f4cd51");
+  assert.equal(risk.riskColor(field,95),"#f2495c");
+  assert.equal(risk.riskColor(field,null),undefined);
+  assert.equal(risk.riskColor(field,NaN),undefined);
+  field.config.thresholds.steps[2].color="dark-red";
+  assert.equal(risk.riskColor(field,95),"#c4162a");
+  field.config.thresholds.steps[2].color="not-a-color";
+  assert.equal(risk.riskColor(field,95),"#85aaff");
+  field.config.thresholds.steps[2].color="red";
+  field.config.thresholds.mode="percentage";
+  assert.equal(risk.riskSteps(field).length,0);
+  field.config.min=100;field.config.max=200;
+  assert.equal(risk.riskColor(field,184),"#39d99c");
+  assert.equal(risk.riskColor(field,185),"#f4cd51");
+});
+test("heat strokes and warning lines use historical value coordinates without nonfinite canvas geometry", () => {
+  const field={config:{color:{mode:"thresholds"},thresholds:{mode:"absolute",steps:[{value:null,color:"green"},{value:85,color:"yellow"},{value:95,color:"red"}]}}};
+  const stops=[],rects=[],lines=[];
+  const gradient={addColorStop:(offset,color)=>{assert.ok(offset>=0&&offset<=1);stops.push([offset,color]);}};
+  const chart={bbox:{top:10,left:20,width:300,height:100},valToPos:value=>110-value,posToVal:pos=>110-pos,
+    ctx:{createLinearGradient:()=>gradient,save(){},restore(){},beginPath(){},rect(){},clip(){},fillRect:(...values)=>{assert.ok(values.every(Number.isFinite));rects.push(values);},setLineDash(){},moveTo:(...values)=>lines.push(values),lineTo:(...values)=>lines.push(values),stroke(){}}};
+  assert.equal(risk.riskStroke(chart,field,"y","#aaa"),gradient);
+  assert.equal(stops[0][1],"#f2495c");assert.equal(stops.at(-1)[1],"#39d99c");
+  risk.drawRiskBands(chart,field,"y");assert.equal(rects.length,3);
+  risk.drawRiskBands(chart,field,"y",true);assert.equal(lines.length,4);
+  assert.ok(lines.flat().every(Number.isFinite));
+});
 const settings = (count, stack = "none", axis = "y") => Array.from({ length: count }, () => ({ axis, stack, stackGroup: "A" }));
 const request = (sources, series = settings(sources.reduce((sum, value) => sum + value.columns.length, 0)), targetRows = 1000,
   start = 0, end = 1e15) => ({ sources, series, targetRows, start, end });

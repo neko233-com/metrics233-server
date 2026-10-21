@@ -128,7 +128,7 @@ func TestFeishuTLSQueueRequiresBusinessAcknowledgementAndRetainsRetry(t *testing
 	ctx := context.Background()
 	s := notificationStore(t)
 	secret := syntheticFeishuSecret
-	point, err := s.SaveContactPoint(ctx, model.ContactPointInput{ContactPoint: model.ContactPoint{UID: "feishu", Name: "Feishu synthetic", Type: "feishu", URL: syntheticFeishuURL}, SigningSecret: &secret})
+	point, err := s.SaveContactPoint(ctx, model.ContactPointInput{ContactPoint: model.ContactPoint{UID: "feishu", Name: "Feishu synthetic", Type: "feishu", URL: syntheticFeishuURL, FeishuFormat: "text"}, SigningSecret: &secret})
 	require.NoError(t, err)
 	delivery, err := s.EnqueueTestNotification(ctx, point.UID)
 	require.NoError(t, err)
@@ -226,7 +226,7 @@ func TestFeishuFiringAndResolvedUseExistingAlertPolicy(t *testing.T) {
 	ctx := context.Background()
 	s := notificationStore(t)
 	secret := syntheticFeishuSecret
-	point, err := s.SaveContactPoint(ctx, model.ContactPointInput{ContactPoint: model.ContactPoint{UID: "feishu", Name: "Feishu synthetic", Type: "feishu", URL: syntheticFeishuURL}, SigningSecret: &secret})
+	point, err := s.SaveContactPoint(ctx, model.ContactPointInput{ContactPoint: model.ContactPoint{UID: "feishu", Name: "Feishu synthetic", Type: "feishu", URL: syntheticFeishuURL, FeishuFormat: "text"}, SigningSecret: &secret})
 	require.NoError(t, err)
 	_, err = s.SaveNotificationPolicy(ctx, model.NotificationPolicy{Receiver: point.UID})
 	require.NoError(t, err)

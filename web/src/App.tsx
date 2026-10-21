@@ -946,13 +946,14 @@ export default function App() {
             ))}
           {view === "dashboards" && (
             <Dashboards
+              tick={tick}
               dashboards={dashboards}
               reload={load}
               notify={notify}
               open={openDashboard}
             />
           )}
-          {view === "business" && <Suspense fallback={<p role="status">{tr("Loading…")}</p>}><BusinessMonitoring metrics={metrics} reload={load} open={openDashboard} navigate={navigate} /></Suspense>}
+          {view === "business" && <Suspense fallback={<p role="status">{tr("Loading…")}</p>}><BusinessMonitoring metrics={metrics} dashboards={dashboards} reload={load} open={openDashboard} navigate={navigate} tick={tick} /></Suspense>}
           {view === "explore" && <Explore metrics={metrics} tick={tick} />}
           {view === "collectors" && (
             <Collectors targets={targets} reload={load} notify={notify} />

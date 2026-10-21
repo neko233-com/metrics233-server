@@ -167,6 +167,7 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 	endpoints := s.authorizationMux(mux, RouteEndpoint, &manifest)
 	prom := s.Prometheus
 	promRoutes := s.authorizationMux(http.NewServeMux(), RoutePrometheus, &manifest)
+	s.agentRoutes(api, &manifest)
 	s.promAlertRoutes(promRoutes)
 	promRoutes.HandleFunc("POST /api/v1/write", s.reportingIngest("remote_write", s.remoteWrite))
 	promRoutes.Handle("/", prom.Handler())
@@ -184,6 +185,7 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 	s.annotationRoutes(api)
 	s.alertRoutes(api)
 	s.notificationRoutes(api)
+	s.retentionRoutes(api)
 	s.pluginRoutes(api, endpoints)
 	s.appRoutes(api)
 	s.chunkedRoutes(api)
@@ -212,6 +214,7 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 	api.HandleFunc("GET /api/v1/stats", s.stats)
 	api.HandleFunc("GET /api/v1/query", s.query)
 	s.reportingRoutes(api)
+	s.businessRoutes(api)
 	api.HandleFunc("POST /api/v1/ingest", s.reportingIngest("json", func(w http.ResponseWriter, r *http.Request) {
 		var v struct {
 			Samples []model.Sample `json:"samples"`
@@ -394,7 +397,9 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 		fail(w, 500, err)
 		return
 	}
-	v.RetentionDays = s.RetentionDays
+	retention, err := s.retentionSetting(r.Context())
+	if err != nil { fail(w,503,errors.New("retention setting unavailable")); return }
+	v.RetentionDays = retention.Days
 	v.StartedAt = s.Started.UnixMilli()
 	v.CollectorsTotal = 1
 	v.CollectorsOnline = 1
@@ -599,7 +604,7 @@ func (s *Server) RunBackground(ctx context.Context) {
 		}
 	}
 	cleanup := func() {
-		if err := s.Store.Prune(ctx, time.Now().Add(-time.Duration(s.RetentionDays)*24*time.Hour).UnixMilli()); err != nil && ctx.Err() == nil {
+		if err := s.pruneExpiredMetrics(ctx, time.Now()); err != nil && ctx.Err() == nil {
 			slog.Error("retention cleanup", "error", err)
 		}
 	}

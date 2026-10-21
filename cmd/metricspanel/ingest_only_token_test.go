@@ -12,7 +12,7 @@ import (
 func TestServeRejectsInvalidIngestTokenBeforeOpeningStorage(t *testing.T) {
 	const admin = "synthetic-management-token-233-0123456789"
 	for _, test := range []struct{ mode, token, management string }{
-		{"local", "synthetic-ingest-token-233-0123456789", admin},
+		{"local", strings.Repeat("x", 31), ""},
 		{"token", strings.Repeat("x", 31), admin},
 		{"token", strings.Repeat("x", 32) + " ", admin},
 		{"token", admin, admin},

@@ -11,6 +11,7 @@ remain authoritative.
 3. [Verification](verification.md) — which checks to run and when.
 4. [Decisions](decisions.md) — why the product is not a Grafana clone and why renderers are staged.
 5. [Skill references](skills.md) — external design/QA skills and their boundaries.
+6. [HTTP operations](http-operations.md) — authenticated discovery, roles, concurrency and read-preview-save-verify automation.
 
 ## Progress reporting
 

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { lazy, Suspense, useState, type FormEvent } from "react";
 import { Activity, ArrowRight, Copy, RefreshCw } from "lucide-react";
 import { api, jsonBody, message, parseLabels, type Dashboard, type Metric, type Panel } from "../api";
 import { getLocale } from "../i18n";
@@ -8,9 +8,12 @@ import { nativePanelForSDK } from "../grafana/panel-queries";
 import "./business-monitoring.css";
 
 const text = (en: string, zh: string) => getLocale() === "zh" ? zh : en;
+const BusinessInstances = lazy(() => import("./BusinessInstances"));
 
-export default function BusinessMonitoring({ metrics, reload, open, navigate }: {
+export default function BusinessMonitoring({ metrics, dashboards, reload, open, navigate, tick = 0 }: {
   metrics: Metric[];
+  dashboards: Dashboard[];
+  tick?: number;
   reload: () => Promise<void>;
   open: (dashboard: Dashboard) => void;
   navigate: (view: "collectors" | "explore" | "alerts") => void;
@@ -68,6 +71,7 @@ export default function BusinessMonitoring({ metrics, reload, open, navigate }: 
       <Button disabled={busy} onClick={async () => { setError(""); try { await reload(); } catch (cause) { setError(message(cause)); } }}><RefreshCw size={16} />{text("Refresh metrics", "刷新指标")}</Button>
     </div>
     {error && <Alert severity="error" title={text("Request failed", "操作失败")}>{error}</Alert>}
+    <Suspense fallback={<p role="status">{text("Loading instances…", "正在加载实例…")}</p>}><BusinessInstances dashboards={dashboards} open={open} reload={reload} tick={tick} /></Suspense>
     <div className="business-grid">
       <section className="business-card" aria-labelledby="business-dashboard-title">
         <h2 id="business-dashboard-title"><Activity size={19} />{text("Build from your metrics", "使用真实指标建图")}</h2>

@@ -1,0 +1,28 @@
+.business-instance-directory, .business-instance-detail { min-width: 0; margin: 20px 0; }
+.business-instance-toolbar, .business-instance-actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; margin: 14px 0; }
+.business-instance-toolbar h2, .business-instance-toolbar h3 { margin: 0 0 8px; }
+.business-instance-toolbar p { margin: 0; }
+.business-instance-list { width: 100%; }
+.business-instance-list small { display: block; margin-top: 5px; color: #aebbd1; }
+.business-instance-scope { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+.business-instance-scope div { min-width: 0; }
+.business-instance-scope dt { color: #aebbd1; font-size: 12px; }
+.business-instance-scope dd { margin: 5px 0 0; overflow-wrap: anywhere; }
+.business-instance-detail > details > summary { cursor: pointer; padding: 8px 0; color: #aebbd1; }
+.business-instance-binding { border: 1px solid #303744; padding: 16px; border-radius: 6px; }
+.business-instance-actions { justify-content: flex-start; }
+.business-instance-actions details { flex-basis: 100%; }
+.business-instance-actions summary { cursor: pointer; padding: 8px 0; }
+.business-instance-actions select { max-width: 100%; min-width: 180px; }
+.business-instance-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
+.business-instance-tabs [aria-pressed=true] { border-color: #ff9457; color: #ffb184; }
+.business-instance-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: 16px; }
+.business-instance-panels > section { min-width: 0; }
+.business-virtual-table { height: 440px; overflow: auto; border: 1px solid #303744; border-radius: 5px; }
+.business-virtual-table:focus-visible { outline: 2px solid #ff9457; outline-offset: 2px; }
+.business-virtual-table table { width: 100%; border-collapse: collapse; white-space: nowrap; }
+.business-virtual-table th { position: sticky; top: 0; background: #181b23; z-index: 1; height: 44px; box-sizing: border-box; padding: 8px 12px; line-height: 20px; }
+.business-virtual-table tbody tr:not([aria-hidden]) { height: 44px; }
+.business-virtual-table tbody tr:not([aria-hidden]) td { height: 44px; box-sizing: border-box; padding: 8px 12px; line-height: 20px; }
+.business-virtual-table td { max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+@media(max-width: 600px) { .business-instance-scope { grid-template-columns: repeat(2, minmax(0, 1fr)); } .business-instance-list { min-width: 760px; } }

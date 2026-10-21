@@ -1,5 +1,9 @@
 # Business monitoring
 
+For discovered gateway/game instances, live template inheritance, independent
+dashboards, complete player-region tables and actual Entity SQL counters, see
+[Business instance dashboards](business-instances.md).
+
 Business metrics use the same durable store, PromQL engine, dashboard and alert paths as infrastructure metrics.
 Open **Business monitoring** in the left navigation (`/#business`) to connect an application and build a dashboard
 from metrics actually received by the workspace. The page never inserts demonstration samples.

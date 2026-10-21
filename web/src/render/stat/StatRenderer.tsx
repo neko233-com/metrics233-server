@@ -7,6 +7,7 @@ import {
 } from "@grafana/data";
 import { Pencil, Trash2 } from "lucide-react";
 import { t } from "../../i18n";
+import { formatValue } from "../../api";
 import type { RendererProps } from "../types";
 
 function display(
@@ -72,7 +73,7 @@ export default function StatRenderer({
         getFieldDisplayName(field, frame, frames) +
         (values.length > 1 ? ` ${i + 1}` : ""),
       value,
-      formatted: display(field, value),
+      formatted: panel.unit === "uptime" ? {text:value==null?"—":formatValue(Number(value),"uptime"),color:"#39d99c"} : display(field, value),
     }));
   });
   const unsupported = !fieldReducers.getIfExists(reducer);
@@ -82,7 +83,7 @@ export default function StatRenderer({
       aria-label={panel.title}
     >
       <div className="panel-heading">
-        <h2 title={config?.description}>{panel.title}</h2>
+        <h2 title={config?.description}>{t(panel.title)}</h2>
         <div className="panel-actions">
           {onEdit ? (
             <button

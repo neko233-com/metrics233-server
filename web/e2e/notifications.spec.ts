@@ -85,6 +85,83 @@ const test = base.extend<{}, { endpoint: string }>({
   ],
 });
 
+test("Feishu cards preview saved templates, status and safe text without sending", async ({ page, endpoint }, testInfo) => {
+  const templateName = "feishu-card-e2e";
+  const template = await page.request.post(endpoint + "/api/v1/alerting/notification-templates", {data: {
+    name: templateName, template: '{{define "card.e2e.title"}}Operations · {{ .CommonLabels.instance }}{{end}}',
+  }});
+  expect(template.status()).toBe(201);
+  let uid = "";
+  let realSends = 0;
+  page.on("request", (request) => { if (/\/contact-points\/[^/]+\/test$/.test(new URL(request.url()).pathname)) realSends++; });
+  try {
+    await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
+    await page.goto(endpoint + "/#alerts");
+    await page.getByRole("tab", {name: "Notifications", exact: true}).click();
+    const contacts = page.getByRole("region", {name: "Contact points", exact: true});
+    await contacts.getByRole("button", {name: "Add contact point", exact: true}).click();
+    const dialog = page.getByRole("dialog", {name: "Add contact point", exact: true});
+    await dialog.getByLabel("Notification type", {exact: true}).selectOption("feishu");
+    await expect(dialog.getByLabel("Message format", {exact: true})).toHaveValue("interactive");
+    await dialog.getByLabel("Contact point name", {exact: true}).fill("Feishu card preview fixture");
+    await dialog.getByLabel("Webhook URL", {exact: true}).fill("https://open.feishu.cn/open-apis/bot/v2/hook/ui-card-fixture");
+    await dialog.getByLabel("Use saved title definition", {exact: true}).selectOption("card.e2e.title");
+    await dialog.getByLabel("Message template", {exact: true}).fill('{{ range .Alerts }}{{ .Labels.resource }}={{ .Values.A }} CD={{ .Rule.NotificationCooldownSeconds }}; {{end}} <at user_id="all">all</at> [go](https://attacker.example)');
+    let response = page.waitForResponse((value) => value.url().endsWith("/contact-points/preview") && value.request().method() === "POST");
+    await dialog.getByRole("button", {name: "Preview Feishu message", exact: true}).click();
+    let payload = await (await response).json();
+    expect(payload.sent).toBe(false); expect(payload.bytes).toBeLessThanOrEqual(20 * 1024);
+    const preview = dialog.getByRole("region", {name: "Feishu message preview", exact: true});
+    await expect(preview.locator('header[data-color="orange"]')).toContainText("FIRING");
+    await expect(preview).toContainText("Operations · example-host");
+    await expect(preview).toContainText("cpu=88.5 CD=3600");
+    await expect(preview).toContainText("＜at");
+    await expect(preview).toContainText("https：//attacker.example");
+    await expect(preview.locator("a, img, script")).toHaveCount(0);
+    await dialog.getByLabel("Preview state", {exact: true}).selectOption("resolved");
+    await dialog.getByRole("button", {name: "Preview Feishu message", exact: true}).click();
+    await expect(preview.locator('header[data-color="green"]')).toContainText("RESOLVED");
+    await expect(preview).toContainText("cpu=65 CD=3600");
+    await preview.screenshot({path: testInfo.outputPath("feishu-resolved-preview.png")});
+    await dialog.getByLabel("Title template", {exact: true}).fill("{{");
+    await dialog.getByRole("button", {name: "Preview Feishu message", exact: true}).click();
+    await expect(dialog.getByRole("alert")).toBeVisible();
+    await expect(preview).toHaveCount(0);
+    await dialog.getByLabel("Title template", {exact: true}).fill('{{ template "card.e2e.title" . }}');
+    await dialog.getByLabel("Message format", {exact: true}).selectOption("text");
+    await dialog.getByRole("button", {name: "Preview Feishu message", exact: true}).click();
+    await expect(preview.locator("pre")).toContainText("Operations · example-host");
+    await dialog.getByRole("button", {name: "Save contact point", exact: true}).click();
+    await expect(dialog).not.toBeVisible();
+    const points = await (await page.request.get(endpoint + "/api/v1/alerting/contact-points")).json();
+    const point = points.find((value: any) => value.name === "Feishu card preview fixture"); uid = point.uid;
+    expect(point.feishu_format).toBe("text"); expect(point.url).toBe(""); expect(point.secure_fields.webhook_url).toBe(true);
+    const row = contacts.getByRole("row").filter({hasText: "Feishu card preview fixture"});
+    await row.getByRole("button", {name: "Edit", exact: true}).click();
+    const edit = page.getByRole("dialog", {name: "Edit contact point", exact: true});
+    await expect(edit.getByLabel("Message format", {exact: true})).toHaveValue("text");
+    await expect(edit.getByLabel("Webhook URL", {exact: true})).toHaveValue("");
+    await edit.getByRole("button", {name: "Cancel", exact: true}).click();
+    expect(await (await page.request.get(endpoint + "/api/v1/alerting/notifications?contact_point_uid=" + uid)).json()).toEqual([]);
+    expect(realSends).toBe(0);
+  } finally {
+    if (uid) await page.request.delete(endpoint + "/api/v1/alerting/contact-points/" + uid);
+    await page.request.delete(endpoint + "/api/v1/alerting/notification-templates/" + templateName);
+  }
+});
+
+test("Viewer interface cannot edit contact messages or saved notification templates", async ({ page, endpoint }) => {
+  await page.route("**/api/auth/status", (route) => route.fulfill({json: {
+    mode: "local", setup_required: false, authenticated: true,
+    user: {id: 19, login: "synthetic-viewer", name: "Viewer fixture", role: "Viewer", orgId: 1, isServerAdmin: false},
+  }}));
+  await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
+  await page.goto(endpoint + "/#alerts");
+  await page.getByRole("tab", {name: "Notifications", exact: true}).click();
+  await expect(page.getByRole("button", {name: "Add contact point", exact: true})).toBeDisabled();
+  await expect(page.getByRole("button", {name: "Add template", exact: true})).toBeDisabled();
+});
+
 test("Feishu contact points keep endpoint and signing secret encrypted through edits", async ({ page, endpoint }) => {
   const webhook = "https://open.feishu.cn/open-apis/bot/v2/hook/ui-test-fixture";
   const secret = "feishu-ui-signing-fixture";

@@ -8,11 +8,13 @@ isolation are outside the current product scope.
 
 - The service is single-workspace; roles are global to that workspace.
 - Non-loopback listeners always require `METRICSPANEL_TOKEN` with at least 16 characters.
-- In token mode, configure a distinct environment-only `METRICSPANEL_INGEST_TOKEN` for external reporting agents.
-  It requires 32–8192 printable ASCII characters without whitespace and a separate 16+ character management token;
+- Configure a distinct environment-only `METRICSPANEL_INGEST_TOKEN` for external reporting agents in token or local mode.
+  It requires 32–8192 printable ASCII characters without whitespace; token mode also requires a separate 16+ character management token;
   it cannot read metrics, manage contact points or unblock its IP. Never give agents the management token.
-  Local mode explicitly rejects the ingest-only variable. See [reporting access](reporting-access.md).
-- Local-account mode adds per-user passwords, HttpOnly sessions and Admin/Editor/Viewer roles.
+  See [reporting access](reporting-access.md).
+- Production backoffice uses local accounts, HttpOnly sessions and Admin/Editor/Viewer roles. Clear
+  `METRICSPANEL_TOKEN`, which otherwise remains a legacy Admin credential, and initialize the account offline
+  before public exposure. See [local accounts](local-auth.md).
 - The built-in HTTP server does not terminate TLS. Put a reverse proxy in front of it.
 - `/api/health` is public and returns only `commit`, `database` and `version`. `/api/v1/health` and all metric,
   dashboard, plugin and user APIs require authentication.
@@ -21,7 +23,6 @@ isolation are outside the current product scope.
 ## 1. Bind to loopback and terminate TLS at the proxy
 
 ```sh
-METRICSPANEL_TOKEN="$(openssl rand -hex 24)" \
 METRICSPANEL_AUTH=local \
 METRICSPANEL_TRUSTED_PROXIES=127.0.0.1/32 \
 ./metricspanel serve \
@@ -35,19 +36,19 @@ METRICSPANEL_TRUSTED_PROXIES=127.0.0.1/32 \
 When explicitly configured, its origin is also authoritative for local-account login, setup, logout and API
 origin checks. Preserve the public `Host` header on the HTTP upstream. `X-Forwarded-Proto` does not establish
 origin trust; listing trusted proxies enables client-IP interpretation only.
-Keep `METRICSPANEL_TOKEN` in the service environment or a root-owned env file; never pass secrets as CLI arguments.
+Keep `METRICSPANEL_INGEST_TOKEN` in a protected service EnvironmentFile; never pass secrets as CLI arguments.
 The service account needs read/write access only to the data directory.
 
-Create the first administrator either through the printed setup token or once at startup:
+Before starting the public service, create the first administrator offline from a user-operated root terminal:
 
 ```sh
-METRICSPANEL_ADMIN_USER=admin \
-METRICSPANEL_ADMIN_PASSWORD='a-long-random-password' \
-METRICSPANEL_ADMIN_EMAIL=ops@example.com \
-./metricspanel serve --listen 127.0.0.1:7333 --auth=local --root-url https://metrics.example.com
+sudo ./metricspanel bootstrap-admin --identity-db /var/lib/metricspanel/identity.db --login admin
 ```
 
-Remove the admin bootstrap variables after the first successful start.
+Password and confirmation are read without echo. Prepare the existing data directory as mode `0700`, then ensure
+the service owner can access the resulting `0600` catalog. The command refuses an existing account. Keep public
+access disabled until initialization succeeds; the printed setup token is a development/recovery boundary, not a
+public account-registration feature. Remove old `METRICSPANEL_ADMIN_*` bootstrap variables.
 
 ## 2. Reverse proxy examples
 
@@ -107,8 +108,8 @@ In local-account mode:
 - API responses set `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`,
   `Cross-Origin-Opener-Policy: same-origin`, `Cross-Origin-Resource-Policy: same-origin`,
   `Permissions-Policy` and a restrictive CSP. HSTS is added when TLS is detected or `--root-url` is HTTPS.
-- Bearer tokens remain valid for CLI automation when `METRICSPANEL_TOKEN` is set. Prefer Basic auth for interactive
-  CLI use so the workspace token is not required.
+- `METRICSPANEL_TOKEN`, if deliberately set, retains compatibility Admin access; account-only production clears it.
+  The separate ingest token permits only five exact POST paths. Use the account session for the backoffice.
 
 ## 5. Secrets and data leakage checklist
 
@@ -155,14 +156,14 @@ docker run -d --name metricspanel \
   --pids-limit=128 --memory=256m --cpus=1 \
   --tmpfs /tmp:rw,noexec,nosuid,size=16m \
   -p 127.0.0.1:7333:7333 \
-  -e METRICSPANEL_TOKEN="$(openssl rand -hex 24)" \
   -e METRICSPANEL_AUTH=local \
   -e METRICSPANEL_ROOT_URL=https://metrics.example.com \
   -v metricspanel-data:/data \
   metricspanel233:local
 ```
 
-Terminate TLS in front of the container. Do not publish `0.0.0.0:7333` directly to the internet.
+Initialize the mounted identity catalog offline with protected stdin before starting this local-account container.
+Terminate TLS in front of it. Do not publish `0.0.0.0:7333` directly to the internet.
 
 Replace the example public origin, and configure `METRICSPANEL_TRUSTED_PROXIES` with only the proxy peer CIDR as
 observed from inside the container. A host proxy may appear as a Docker bridge gateway, rather than `127.0.0.1`.

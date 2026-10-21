@@ -29,6 +29,7 @@ import {
 import type { RendererProps } from "../types";
 import { theme } from "./plot-model";
 import { usePlotModel } from "./use-plot-model";
+import { drawRiskBands, riskSteps, riskStroke } from "./risk-thresholds";
 import "./TimeSeriesRenderer.css";
 
 // uPlot and browser tests read pixels repeatedly. Mark 2D contexts so Chrome
@@ -222,6 +223,17 @@ export default function TimeSeriesRenderer({
       timeZone: resolved.timezone === "browser" ? undefined :
         resolved.timezone === "utc" ? "UTC" : resolved.timezone,
     });
+    const profiles = (["y","y2"] as const).flatMap(axis=>{
+      const items=model.series.filter(item=>item.axis===axis);
+      const profile=items[0];
+      return profile&&items.every(item=>JSON.stringify(riskSteps(item.field))===JSON.stringify(riskSteps(profile.field))) ? [profile] : [];
+    });
+    const percentRange = (axis:string, log:boolean): uPlot.Scale["range"] => {
+      const items=model.series.filter(item=>item.axis===axis),unit=items[0]?.field.config.unit;
+      if(log || !["percent","percentunit"].includes(unit||"") || !items.every(item=>item.field.config.unit===unit)) return undefined;
+      // Keep warning lines in view without clipping valid out-of-range samples.
+      return (_chart,min,max) => [Math.min(0,min),Math.max(unit==="percentunit"?1:100,max)];
+    };
     const chartOptions: uPlot.Options = {
       width: size.width,
       height: size.height,
@@ -231,7 +243,7 @@ export default function TimeSeriesRenderer({
         x: { time: true, min: resolved.start, max: resolved.end },
         y: {
           auto: !percentStacked,
-          range: percentStacked ? [0, 100] : undefined,
+          range: percentStacked ? [0, 100] : percentRange("y",leftLog),
           distr: leftLog ? 3 : 1,
           log: 10,
         },
@@ -239,7 +251,7 @@ export default function TimeSeriesRenderer({
           ? {
               y2: {
                 auto: !percentStacked,
-                range: percentStacked ? [0, 100] : undefined,
+                range: percentStacked ? [0, 100] : percentRange("y2",rightLog),
                 distr: rightLog ? 3 : 1,
                 log: 10,
               },
@@ -282,7 +294,7 @@ export default function TimeSeriesRenderer({
         ...model.series.map((item) => ({
           label: item.name,
           scale: item.axis,
-          stroke: item.color,
+          stroke: (chart:uPlot)=>riskStroke(chart,item.field,item.axis,item.color),
           width: 1.5,
           dash: item.dashed ? [1, 5, 4, 5] : undefined,
           show: activeSet.has(item.id),
@@ -296,6 +308,7 @@ export default function TimeSeriesRenderer({
         focus: { prox: 24 },
       },
       hooks: {
+        drawClear:[chart=>profiles.forEach(item=>drawRiskBands(chart,item.field,item.axis))],
         setScale: [(chart, scale) => {
           if (!ready.current || scale !== "x") return;
           const min = chart.scales.x.min;
@@ -317,6 +330,7 @@ export default function TimeSeriesRenderer({
           );
         }],
         draw: [(chart) => {
+          profiles.forEach(item=>drawRiskBands(chart,item.field,item.axis,true));
           const ratio = window.devicePixelRatio || 1;
           const next = {
             left: chart.bbox.left / ratio,
@@ -468,6 +482,11 @@ export default function TimeSeriesRenderer({
         </div>
       </div>
       {timeInfo ? <p className="panel-time-info">{timeInfo}</p> : null}
+      {model.series.some(item=>riskSteps(item.field).length>1) ? <div className="native-risk-legend" aria-label={t("Risk thresholds")}>
+        {model.series.filter(item=>riskSteps(item.field).length>1).slice(0,3).map(item=><span key={item.id}>
+          {model.series.length>1?item.name+": ":""}{riskSteps(item.field).filter(step=>Number.isFinite(step.value)).map((step,index)=><span key={step.value} style={{color:step.color}}>{index===0?t("Warning"):t("Critical")} ≥ {formatValue(item.field,step.value,resolved.timezone)} </span>)}
+        </span>)}
+      </div> : null}
       {annotationError || queryError || preparationFailed ? (
         <p role="alert" className="form-error">{t(annotationError || queryError || "Chart error")}</p>
       ) : null}

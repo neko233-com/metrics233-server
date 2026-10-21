@@ -8,11 +8,15 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 ## Authentication
 
 - `--auth=token` (default): single workspace Bearer token; non-loopback listeners require at least 16 characters.
-- `METRICSPANEL_INGEST_TOKEN` optionally separates reporting from management in token mode: environment-only,
-  32–8192 printable non-whitespace ASCII characters, distinct from a required 16+ character management token.
+- `METRICSPANEL_INGEST_TOKEN` optionally separates reporting from management in token or local mode: environment-only,
+  32–8192 printable non-whitespace ASCII characters. Token mode requires a distinct 16+ character management token.
   It permits only POST to the five ingest paths, never query/management/source-policy/Live/session operations;
-  source IP policy still applies. Local mode rejects this variable. See [reporting access](../reporting-access.md).
-- `--auth=local`: users, passwords and browser sessions; first run prints a one-time setup token.
+  source IP policy still applies. Local mode assigns only a scoped Editor system principal, rejects custom-authorizer
+  bypass, and never authenticates reads or account operations. See [reporting access](../reporting-access.md).
+- `--auth=local`: users, passwords and browser sessions; first run prints a one-time setup token. Production uses
+  preinitialized accounts and clears `METRICSPANEL_TOKEN`, which otherwise remains a legacy Admin credential.
+  Linux root can run offline `bootstrap-admin --identity-db /absolute/protected/identity.db --login admin` with
+  hidden password confirmation before serving; existing accounts are never overwritten. See [local accounts](../local-auth.md).
 - Roles are workspace-wide: Viewer reads, Editor mutates monitoring resources, Admin controls users, datasources,
   plugins and notification configuration. Unknown mutations fail closed to Admin.
 - Session cookie: HttpOnly, SameSite=Lax, Secure under HTTPS, rotates every 24 hours.
@@ -44,10 +48,11 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 
 ## Notifications
 
-- Native contact points support generic Webhook and Feishu custom-bot v2 text notifications.
+- Native contact points support generic Webhook and Feishu custom-bot v2 interactive cards (default), with explicit `feishu_format: text` compatibility.
 - Feishu URL and optional signing secret are encrypted and write-only; public metadata exposes presence flags.
 - Sending requires HTTP 2xx plus an explicit JSON `code: 0`; redirects, invalid ACKs and timeouts fail delivery.
 - Local-mode configuration/test mutations require Admin. Queue acceptance (202) is separate from delivered state.
+- Admin-only contact-point `POST .../preview` renders fixed sample data without saving, evaluating, queuing or sending. Existing saved title/message templates are rendered once under their process-local step/output/time budgets; card data is plain text, with only a configured HTTPS workspace action link. Default cards omit raw PromQL/internal labels and distinguish condition-zero recovery from measured zero resource use.
 - Rule `notification_cooldown_seconds` (0–604800; old API default 0, new UI default 3600) imposes a durable
   successful-firing-ACK minimum interval, including explicit reminders: repeat is at least max(CD, policy repeat).
   Pending/recovery periods and failed-delivery retries remain independent; repeat 0 still disables reminders.
@@ -60,7 +65,7 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 - SQLite WAL is the zero-configuration default for control data and metrics.
 - ClickHouse is optional for high-volume metrics and HNSW vector search.
 - SQLite vector search is exact with a 50,000 candidate cap; ClickHouse uses approximate HNSW.
-- Retention is a configuration boundary; changing ClickHouse TTL requires an explicit `ALTER TABLE`.
+- Metric retention defaults to 15 days. SQLite Admins can save a versioned 1–3650 day setting under Collectors; startup/hourly cleanup reads the setting and deletes expired samples in one transaction. Monitoring/account configuration remains. ClickHouse settings remain read-only; changing its TTL requires an explicit `ALTER TABLE`. See [data retention](../data-retention.md).
 - Native SQLite non-rate queries reduce bucket-last values in SQL (5M source observations); rate retains raw points
   (250k). PromQL never consumes display-decimated observations. See [query planning](../storage-query-planning.md).
 

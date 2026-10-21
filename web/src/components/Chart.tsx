@@ -25,7 +25,7 @@ import {
 import { AnnotationEditor } from "./AnnotationEditor";
 import { rawSelection, type TimeSelection } from "../grafana/time-range";
 const palette = [
-  "#ff9457",
+  "#85aaff",
   "#39d99c",
   "#85aaff",
   "#d598ed",

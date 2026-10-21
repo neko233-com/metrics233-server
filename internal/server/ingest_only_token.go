@@ -5,6 +5,8 @@ import (
 	"errors"
 	"net/http"
 	"strings"
+
+	"github.com/neko233-com/metrics233-server/internal/identity"
 )
 
 // ValidateIngestTokenConfig validates environment-only startup configuration.
@@ -14,10 +16,10 @@ func ValidateIngestTokenConfig(authMode, managementToken, ingestToken string) er
 	if ingestToken == "" {
 		return nil
 	}
-	if authMode != "token" {
-		return errors.New("METRICSPANEL_INGEST_TOKEN requires --auth=token; local authentication is not supported")
+	if authMode != "token" && authMode != "local" {
+		return errors.New("METRICSPANEL_INGEST_TOKEN requires token or local authentication")
 	}
-	if len(managementToken) < 16 {
+	if (authMode == "token" || managementToken != "") && len(managementToken) < 16 {
 		return errors.New("METRICSPANEL_INGEST_TOKEN requires a separate METRICSPANEL_TOKEN of at least 16 characters")
 	}
 	if len(ingestToken) < 32 || len(ingestToken) > 8192 {
@@ -32,6 +34,32 @@ func ValidateIngestTokenConfig(authMode, managementToken, ingestToken string) er
 		return errors.New("METRICSPANEL_INGEST_TOKEN must differ from METRICSPANEL_TOKEN")
 	}
 	return nil
+}
+
+// WithLocalIngestAuthentication composes local accounts with the reporting-only
+// credential. The shared exact-route/credential checks run before login, setup,
+// public assets or session handling, including when a browser cookie is present.
+// Only the five POST ingest requests bypass browser authentication; they receive
+// an Editor system principal scoped to this physical store, never an Admin.
+func (s *Server) WithLocalIngestAuthentication(application http.Handler, wrap func(http.Handler) http.Handler) http.Handler {
+	local := wrap(application)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		matched, _ := s.ingestOnlyCredential(r)
+		if !matched {
+			local.ServeHTTP(w, r)
+			return
+		}
+		if s.restrictIngestOnlyCredential(w, r) {
+			return
+		}
+		if s.Authorizer != nil {
+			s.secureHeaders(w, r)
+			fail(w, http.StatusForbidden, identity.ErrForbidden)
+			return
+		}
+		principal := identity.Principal{OrgID: s.OrganizationID(), Type: identity.TypeSystem, Login: "metricspanel-ingest", Role: identity.RoleEditor}
+		application.ServeHTTP(w, r.WithContext(identity.WithPrincipal(r.Context(), principal)))
+	})
 }
 
 // ConfigureIngestToken is an immutable startup step, before Handler is built.

@@ -1,5 +1,6 @@
 import { t as tr } from "../i18n";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { getLocale } from "../i18n";
 import { ArrowRight, Download, Folder as FolderIcon, Move, Plus, Trash2, Upload } from "lucide-react";
 import { Button } from "../ui";
 import { useSession } from "../ui/session";
@@ -9,16 +10,20 @@ import { DashboardImport } from "./DashboardImport";
 import { grafanaImportBody } from "./grafana-import-body";
 import { Folders, FolderBreadcrumbs, FolderSelect, folderTrail } from "./Folders";
 import { LibraryPanels } from "./LibraryPanels";
+const BusinessInstances = lazy(() => import("./BusinessInstances"));
+const businessLabel = () => getLocale() === "zh" ? "业务虚拟仪表盘" : "Business virtual dashboards";
 export function Dashboards({
   dashboards,
   open,
   reload,
   notify,
+  tick = 0,
 }: {
   dashboards: Dashboard[];
   open: (d: Dashboard) => void;
   reload: () => Promise<void>;
   notify: (s: string, error?: boolean) => void;
+  tick?: number;
 }) {
   const { canEdit } = useSession();
   const [creating, setCreating] = useState(false),
@@ -28,7 +33,7 @@ export function Dashboards({
     [exporting, setExporting] = useState(""),
     [removing, setRemoving] = useState<Dashboard | null>(null),
     [importing, setImporting] = useState<{ initial?: string } | null>(null);
-  const [tab, setTab] = useState<"dashboards" | "library">("dashboards");
+  const [tab, setTab] = useState<"dashboards" | "library" | "business">("dashboards");
   const [folders, setFolders] = useState<Folder[]>([]), [folderLoading, setFolderLoading] = useState(true), [folderError, setFolderError] = useState("");
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null), [creationFolder, setCreationFolder] = useState("");
   const [moving, setMoving] = useState<Dashboard | null>(null);
@@ -79,10 +84,11 @@ export function Dashboards({
       </div>
       <div className="dashboard-tabs" role="tablist" aria-label={tr("Dashboard resources")} onKeyDown={(event) => {
         if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-        event.preventDefault(); const next = event.key === "Home" ? "dashboards" : event.key === "End" ? "library" : tab === "dashboards" ? "library" : "dashboards";
-        setTab(next); event.currentTarget.querySelector<HTMLButtonElement>(`#${next === "dashboards" ? "dashboard-browser" : "library-panels"}-tab`)?.focus();
+        event.preventDefault(); const tabs = ["dashboards", "business", "library"] as const; const index = tabs.indexOf(tab); const next = tabs[event.key === "Home" ? 0 : event.key === "End" ? 2 : (index + (event.key === "ArrowRight" ? 1 : 2)) % 3];
+        setTab(next); event.currentTarget.querySelector<HTMLButtonElement>(`#${next === "dashboards" ? "dashboard-browser" : next === "business" ? "business-instances" : "library-panels"}-tab`)?.focus();
       }}>
         <button role="tab" id="dashboard-browser-tab" aria-controls="dashboard-browser-panel" aria-selected={tab === "dashboards"} tabIndex={tab === "dashboards" ? 0 : -1} onClick={() => setTab("dashboards")}>{tr("Dashboards")}</button>
+        <button role="tab" id="business-instances-tab" aria-controls="business-instances-panel" aria-selected={tab === "business"} tabIndex={tab === "business" ? 0 : -1} onClick={() => setTab("business")}>{businessLabel()}</button>
         <button role="tab" id="library-panels-tab" aria-controls="library-panels-panel" aria-selected={tab === "library"} tabIndex={tab === "library" ? 0 : -1} onClick={() => setTab("library")}>{tr("Library panels")}</button>
       </div>
       {folderError && <div className="folder-load-error"><p className="form-error" role="alert">{folderError}</p><button onClick={() => void loadFolders().catch(() => {})}>{tr("Retry")}</button></div>}
@@ -158,7 +164,7 @@ export function Dashboards({
           }}
         />
       )}
-      {tab === "library" ? <LibraryPanels folders={folders} dashboards={dashboards} reload={reload} open={open} notify={notify} /> : <div className="dashboard-browser" id="dashboard-browser-panel" role="tabpanel" aria-labelledby="dashboard-browser-tab">
+      {tab === "business" ? <div id="business-instances-panel" role="tabpanel" aria-labelledby="business-instances-tab"><Suspense fallback={<p role="status">{tr("Loading…")}</p>}><BusinessInstances dashboards={dashboards} open={open} reload={reload} tick={tick} /></Suspense></div> : tab === "library" ? <LibraryPanels folders={folders} dashboards={dashboards} reload={reload} open={open} notify={notify} /> : <div className="dashboard-browser" id="dashboard-browser-panel" role="tabpanel" aria-labelledby="dashboard-browser-tab">
       <div>{folderLoading ? <p className="subtle" role="status">{tr("Loading folders…")}</p> : <Folders folders={folders} selected={selectedFolder} select={setSelectedFolder} changed={async () => { await Promise.all([loadFolders(), reload()]); }} notify={notify} />}</div>
       <div className="dashboard-folder-content">
       <FolderBreadcrumbs folders={folders} selected={selectedFolder} select={setSelectedFolder} />

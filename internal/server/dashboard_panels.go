@@ -3,6 +3,7 @@ package server
 import (
 	"encoding/json"
 	"errors"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ type nativePanelEdit struct {
 		Expr          string            `json:"expr"`
 		Aggregation   string            `json:"aggregation"`
 		Labels        map[string]string `json:"labels"`
+		Thresholds    json.RawMessage   `json:"thresholds,omitempty"`
 	} `json:"panel"`
 	Position *panelPosition `json:"position,omitempty"`
 }
@@ -151,6 +153,30 @@ func applyNativePanelEdit(d model.Dashboard, input nativePanelEdit) (model.Dashb
 	_ = json.Unmarshal(fields["defaults"], &defaults)
 	if defaults == nil {
 		defaults = rawObject{}
+	}
+	if len(input.Panel.Thresholds) > 0 {
+		if string(input.Panel.Thresholds) == "null" {
+			delete(defaults, "thresholds")
+			var color struct {
+				Mode string `json:"mode"`
+			}
+			_ = json.Unmarshal(defaults["color"], &color)
+			if color.Mode == "thresholds" {
+				defaults["color"] = rawValue(map[string]any{"mode": "palette-classic"})
+			}
+		} else {
+			var thresholds struct {
+				Warning  *float64 `json:"warning"`
+				Critical *float64 `json:"critical"`
+			}
+			decoder := json.NewDecoder(strings.NewReader(string(input.Panel.Thresholds)))
+			decoder.DisallowUnknownFields()
+			if decoder.Decode(&thresholds) != nil || thresholds.Warning == nil || thresholds.Critical == nil || math.IsNaN(*thresholds.Warning) || math.IsNaN(*thresholds.Critical) || math.IsInf(*thresholds.Warning, 0) || math.IsInf(*thresholds.Critical, 0) || *thresholds.Critical <= *thresholds.Warning {
+				return d, errors.New("thresholds require finite warning and critical numbers with critical greater than warning")
+			}
+			defaults["thresholds"] = rawValue(map[string]any{"mode": "absolute", "steps": []any{map[string]any{"color": "green", "value": nil}, map[string]any{"color": "yellow", "value": *thresholds.Warning}, map[string]any{"color": "red", "value": *thresholds.Critical}}})
+			defaults["color"] = rawValue(map[string]any{"mode": "thresholds"})
+		}
 	}
 	unit := p.Unit
 	if unit == "seconds" {

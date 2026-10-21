@@ -38,8 +38,8 @@ docker image rm metricspanel-validation:local
 
 This target is a development image, separate from the runtime size budget. Remove only the tag created for the
 verification; keep shared caches and other images intact.
-The local validation target explicitly allows 20 minutes per Go package; its completed local result is recorded
-below. Hosted CI allows 45 minutes per race-tested Go package and 60 minutes for the test job, including frontend
+The local validation target and hosted CI explicitly allow 45 minutes per race-tested Go package; the earlier
+completed local result below used the previous 20-minute budget. CI allows 60 minutes for the test job, including frontend
 and browser validation. The dense SQLite boundary regression retains its real 5,000,001-row fixture and retention
 deletion. Race instrumentation exceeded Go's default ten-minute package budget locally, and the hosted runner
 later exceeded the explicit 20-minute budget. Both timeouts are failed attempts, not successful race checks.
@@ -223,5 +223,7 @@ successful integration rounds are separate evidence and do not make the failed o
 The earlier local full-race result above passed `internal/store` in 743.373 seconds on its own machine; it cannot
 establish the same runtime on a hosted runner. CI now grants 45 minutes per Go package and 60 minutes for the
 test job, preserving every fixture, count and assertion. This is a time-budget correction; the updated committed
-source still needs a fresh completed CI result. The local Docker validation target and application code are
-unchanged by this correction.
+source still needs a fresh completed CI result. The explicit local Docker `validation` target now also uses
+`-timeout=45m`, keeping its fixture sizes, counts and assertions unchanged. That full target has not been
+rerun in the current Feishu-card verification cycle. The focused notification/authentication Linux race
+checks and the formal runtime/database/browser verification have separate scopes and results.

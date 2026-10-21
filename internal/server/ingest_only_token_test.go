@@ -24,7 +24,7 @@ const ingestAdminFixtureToken = "synthetic-separate-admin-token-233-0123456789"
 
 func TestIngestOnlyTokenConfigurationFailsClosed(t *testing.T) {
 	for _, test := range []struct{ mode, admin, token string }{
-		{"local", ingestAdminFixtureToken, ingestOnlyFixtureToken},
+		{"unsupported", ingestAdminFixtureToken, ingestOnlyFixtureToken},
 		{"token", "", ingestOnlyFixtureToken},
 		{"token", "short", ingestOnlyFixtureToken},
 		{"token", ingestOnlyFixtureToken, ingestOnlyFixtureToken},
@@ -39,6 +39,8 @@ func TestIngestOnlyTokenConfigurationFailsClosed(t *testing.T) {
 		require.NotContains(t, err.Error(), ingestOnlyFixtureToken)
 	}
 	require.NoError(t, server.ValidateIngestTokenConfig("token", ingestAdminFixtureToken, ingestOnlyFixtureToken))
+	require.NoError(t, server.ValidateIngestTokenConfig("local", "", ingestOnlyFixtureToken))
+	require.NoError(t, server.ValidateIngestTokenConfig("local", ingestAdminFixtureToken, ingestOnlyFixtureToken))
 	require.NoError(t, server.ValidateIngestTokenConfig("local", "", ""))
 }
 

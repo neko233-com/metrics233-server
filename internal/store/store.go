@@ -134,6 +134,7 @@ func OpenForOrganization(path string, organizationID int64) (*Store, error) {
 	}
 	_, err = db.Exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON;
 CREATE TABLE IF NOT EXISTS store_identity(id INTEGER PRIMARY KEY CHECK(id=1),organization_id INTEGER NOT NULL CHECK(organization_id>0));
+CREATE TABLE IF NOT EXISTS metric_retention(id INTEGER PRIMARY KEY CHECK(id=1),days INTEGER NOT NULL CHECK(days BETWEEN 1 AND 3650),version INTEGER NOT NULL CHECK(version>0));
 CREATE TABLE IF NOT EXISTS series(id INTEGER PRIMARY KEY, name TEXT NOT NULL, labels TEXT NOT NULL, UNIQUE(name,labels));
 CREATE TABLE IF NOT EXISTS samples(series_id INTEGER NOT NULL REFERENCES series(id) ON DELETE CASCADE, timestamp INTEGER NOT NULL, value REAL NOT NULL, PRIMARY KEY(series_id,timestamp)) WITHOUT ROWID;
 CREATE INDEX IF NOT EXISTS samples_time ON samples(timestamp);
@@ -210,7 +211,7 @@ CREATE TABLE IF NOT EXISTS app_settings(id TEXT PRIMARY KEY,payload TEXT NOT NUL
 		{ID: "memory", Title: "Memory usage", Metric: "metricspanel_memory_bytes", Aggregation: "last", Unit: "bytes"},
 		{ID: "goroutines", Title: "Goroutines", Metric: "metricspanel_goroutines", Aggregation: "last", Unit: "count"},
 		{ID: "requests", Title: "HTTP requests", Metric: "metricspanel_http_requests_total", Aggregation: "rate", Unit: "ops"},
-		{ID: "uptime", Title: "Uptime", Metric: "metricspanel_uptime_seconds", Aggregation: "last", Unit: "seconds"},
+		{ID: "uptime", Title: "Uptime", Metric: "metricspanel_uptime_seconds", Aggregation: "last", Unit: "uptime", Visualization: "stat"},
 	}}
 	panels, _ := json.Marshal(d.Panels)
 	_, err = db.Exec(`INSERT OR IGNORE INTO dashboards(id,name,panels,updated_at) VALUES(?,?,?,?)`, d.ID, d.Name, string(panels), time.Now().UnixMilli())
@@ -234,6 +235,10 @@ CREATE TABLE IF NOT EXISTS app_settings(id TEXT PRIMARY KEY,payload TEXT NOT NUL
 		db.Close()
 		return nil, err
 	}
+	if err := s.initializeBusinessInstances(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := s.migrateOrganizationSecrets(context.Background()); err != nil {
 		db.Close()
 		return nil, err
@@ -251,7 +256,11 @@ CREATE TABLE IF NOT EXISTS app_settings(id TEXT PRIMARY KEY,payload TEXT NOT NUL
 
 func (s *Store) Ingest(ctx context.Context, samples []model.Sample) error {
 	if s.Backend != nil {
-		return s.Backend.Ingest(ctx, samples)
+		if err := s.Backend.Ingest(ctx, samples); err != nil {
+			return err
+		}
+		s.observeBusinessIngest(ctx, samples)
+		return nil
 	}
 	if len(samples) == 0 || len(samples) > 10000 {
 		return fmt.Errorf("batch must contain 1–10000 samples")
@@ -303,7 +312,11 @@ func (s *Store) Ingest(ctx context.Context, samples []model.Sample) error {
 			return err
 		}
 	}
-	return tx.Commit()
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	s.observeBusinessIngest(ctx, samples)
+	return nil
 }
 
 type Metric struct {
@@ -368,11 +381,18 @@ func (s *Store) Prune(ctx context.Context, before int64) error {
 		return err
 	}
 	defer tx.Rollback()
-	if _, err = tx.ExecContext(ctx, `DELETE FROM samples WHERE timestamp<?`, before); err != nil {
-		return err
-	}
-	if _, err = tx.ExecContext(ctx, `DELETE FROM series WHERE NOT EXISTS(SELECT 1 FROM samples WHERE samples.series_id=series.id)`); err != nil {
+	if err := pruneMetricRows(ctx, tx, before); err != nil {
 		return err
 	}
 	return tx.Commit()
+}
+
+func pruneMetricRows(ctx context.Context, tx *sql.Tx, before int64) error {
+	if _, err := tx.ExecContext(ctx, `DELETE FROM samples WHERE timestamp<?`, before); err != nil {
+		return err
+	}
+	if _, err := tx.ExecContext(ctx, `DELETE FROM series WHERE NOT EXISTS(SELECT 1 FROM samples WHERE samples.series_id=series.id)`); err != nil {
+		return err
+	}
+	return nil
 }

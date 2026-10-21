@@ -21,6 +21,7 @@ type ContactPoint struct {
 	SecureFields          map[string]bool `json:"secure_fields"`
 	TitleTemplate         string          `json:"title_template,omitempty"`
 	MessageTemplate       string          `json:"message_template,omitempty"`
+	FeishuFormat          string          `json:"feishu_format,omitempty"`
 }
 
 // Secrets are write-only. Omitted values are retained on an update; an explicit
@@ -61,6 +62,9 @@ func (c ContactPoint) Validate() error {
 	}
 	if c.Type != "webhook" && c.Type != "feishu" {
 		return errors.New("contact point type must be webhook or feishu")
+	}
+	if c.FeishuFormat != "" && (c.Type != "feishu" || c.FeishuFormat != "interactive" && c.FeishuFormat != "text") {
+		return errors.New("feishu_format requires Feishu and must be interactive or text")
 	}
 	if c.Type == "feishu" {
 		// A saved Feishu point exposes no URL; SaveContactPoint validates the

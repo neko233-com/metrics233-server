@@ -18,6 +18,7 @@ type reportingSourceAccess struct{ trusted []*net.IPNet }
 type reportingBatch struct {
 	accepted int
 	service  string
+	address  string
 }
 type reportingBatchKey struct{}
 
@@ -97,7 +98,7 @@ func (s *Server) reportingIngest(protocol string, next http.HandlerFunc) http.Ha
 			fail(w, 403, errors.New("reporting source is blocked or not allowlisted"))
 			return
 		}
-		batch := &reportingBatch{}
+		batch := &reportingBatch{address: address}
 		next(w, r.WithContext(context.WithValue(r.Context(), reportingBatchKey{}, batch)))
 		if batch.accepted > 0 {
 			// Accepted metric writes must not be retried because an auxiliary
@@ -117,6 +118,11 @@ func (s *Server) ingestReported(ctx context.Context, samples []model.Sample) err
 	}
 	if batch, ok := ctx.Value(reportingBatchKey{}).(*reportingBatch); ok {
 		batch.accepted += len(samples)
+		observeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
+		if err := s.Store.RecordBusinessInstances(observeCtx, samples, batch.address); err != nil {
+			slog.Warn("business instance observation could not be recorded")
+		}
+		cancel()
 		// Service names are bounded display hints, never authorization identity.
 		if batch.service == "" {
 			for _, sample := range samples[:min(len(samples), 16)] {

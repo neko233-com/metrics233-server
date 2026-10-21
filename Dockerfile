@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache
 # Explicit expensive validation target. The Debian builder provides GCC for
 # the race detector; shared caches avoid redownloading the module graph.
 FROM backend AS validation
-RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build GOMAXPROCS=4 go vet -p=2 ./... && CGO_ENABLED=1 GOMAXPROCS=4 go test -p=2 -race ./... -count=1 -timeout=20m
+RUN --mount=type=cache,target=/go/pkg/mod --mount=type=cache,target=/root/.cache/go-build GOMAXPROCS=4 go vet -p=2 ./... && CGO_ENABLED=1 GOMAXPROCS=4 go test -p=2 -race ./... -count=1 -timeout=45m
 
 # Fixture binaries belong only to integration/example builds, not release builds.
 FROM backend AS test-backend

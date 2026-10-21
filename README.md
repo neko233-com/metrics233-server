@@ -16,6 +16,8 @@ Counter/Gauge instrumentation and explicit push/shutdown. The [metrics233-all ag
 pins matching server and SDK commits as Git submodules. The repository and Go module are now `metrics233-server`;
 the `metricspanel` command, `METRICSPANEL_*` settings and existing HTTP routes retain their contracts.
 
+The independent [Rust SDK](https://github.com/neko233-com/metrics-lib-rust) uses crate name `metrics233` and Rust 1.88+. Production browser administration uses [accounts and sessions](docs/local-auth.md), separated from ingest-only tokens. [Business virtual dashboards](docs/business-instances.md) support complete instance scope, live templates and complete virtualized region/Entity SQL tables. [Risk lines and numeric uptime](docs/risk-visuals.md), [Feishu cards/templates](docs/feishu-notifications.md), configurable [15-day retention](docs/data-retention.md) and authenticated [agent HTTP discovery](docs/agent/http-operations.md) use the same native APIs as the UI.
+
 Use [reporting-only credentials](docs/reporting-access.md) and the **Reporting sources / 上报来源** page to allow,
 block or release canonical source IPs without granting senders management access. Alerts support encrypted
 [Feishu notifications](docs/feishu-notifications.md) and a durable per-instance
@@ -212,6 +214,7 @@ Prometheus text, OpenMetrics 1.0 and delimited protobuf support scalar samples a
 ClickHouse uses vectorized columnar execution, partitioned ReplacingMergeTree, compression, TTL and acknowledged durable batch inserts.
 It also persists 64-dimensional metric-window embeddings with an HNSW similarity index. SQLite WAL stores metric data and exact-search vectors in lightweight mode, and control data in both modes.
 Both modes survive application restarts; ClickHouse data survives database restarts. Persist both stores and back them up.
+Metric retention defaults to **15 days**. SQLite administrators can change 1–3650 days in Collectors → Data retention without a restart. Expired samples are removed at startup and hourly; account and monitoring configuration remain. Saved settings override the startup default. See [retention semantics](docs/data-retention.md).
 Changing retention on an existing ClickHouse table requires an explicit `ALTER TABLE ... MODIFY TTL`.
 
 Native queries support last / avg / sum / min / max / reset-aware rate, label equality filters, a maximum 31-day range, 200 series and 2,000 buckets.

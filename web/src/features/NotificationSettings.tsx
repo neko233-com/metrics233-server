@@ -15,6 +15,7 @@ import {
 import { api, jsonBody, message } from "../api";
 import { Dialog } from "../components/Dialog";
 import { getLocale, t } from "../i18n";
+import { useSession } from "../ui/session";
 import "./NotificationSettings.css";
 import { SilencesPanel } from "./SilencesPanel";
 import {
@@ -25,6 +26,7 @@ import {
 import { MuteTimingsPanel } from "./MuteTimingsPanel";
 import { NotificationGroupsPanel } from "./NotificationGroupsPanel";
 import { InhibitionRulesPanel } from "./InhibitionRulesPanel";
+import { FeishuNotificationPreview } from "./FeishuNotificationPreview";
 import {
   NotificationsTemplatesPanel,
   NotificationTemplateFields,
@@ -43,6 +45,7 @@ type ContactPoint = {
   secure_fields: Record<string, boolean>;
   title_template?: string;
   message_template?: string;
+  feishu_format?: "interactive" | "text";
 };
 type Delivery = {
   id: number;
@@ -89,6 +92,7 @@ export function NotificationSettings({
   tick: number;
   notify: (value: string, error?: boolean) => void;
 }) {
+  const { canAdmin } = useSession();
   const [points, setPoints] = useState<ContactPoint[]>([]);
   const [deliveries, setDeliveries] = useState<Delivery[]>([]);
   const [policy, setPolicy] = useState<NotificationPolicy | null>(null);
@@ -194,7 +198,7 @@ export function NotificationSettings({
                   )}
                 </p>
               </div>
-              <button className="primary" onClick={() => setEditor("new")}>
+              <button className="primary" disabled={!canAdmin} onClick={() => setEditor("new")}>
                 <Plus size={16} />
                 {text("Add contact point", "添加联系点")}
               </button>
@@ -251,7 +255,7 @@ export function NotificationSettings({
                         <td>
                           <div className="row-actions">
                             <button
-                              disabled={!!busy || point.disabled}
+                              disabled={!canAdmin || !!busy || point.disabled}
                               onClick={async () => {
                                 setBusy(`test:${point.uid}`);
                                 try {
@@ -277,14 +281,14 @@ export function NotificationSettings({
                               {text("Test", "测试")}
                             </button>
                             <button
-                              disabled={!!busy}
+                              disabled={!canAdmin || !!busy}
                               onClick={() => setEditor(point)}
                             >
                               <Pencil size={14} />
                               {t("Edit")}
                             </button>
                             <button
-                              disabled={!!busy}
+                              disabled={!canAdmin || !!busy}
                               className="danger-hover"
                               onClick={() => setRemoving(point)}
                             >
@@ -682,6 +686,7 @@ function ContactPointEditor({
   const [url, setURL] = useState(original?.url || "");
   const [signingSecret, setSigningSecret] = useState("");
   const [clearSigningSecret, setClearSigningSecret] = useState(false);
+  const [feishuFormat, setFeishuFormat] = useState<"interactive" | "text">(original?.feishu_format || "interactive");
   const storedFeishu = type === "feishu" && original?.type === "feishu";
   const keepStoredURL = storedFeishu && original.secure_fields?.webhook_url && !url.trim();
   const [titleTemplate, setTitleTemplate] = useState(
@@ -767,6 +772,7 @@ function ContactPointEditor({
                   ...(original ? { uid: original.uid } : {}),
                   name: name.trim(),
                   type,
+                  ...(type === "feishu" ? { feishu_format: feishuFormat } : {}),
                   url: url.trim(),
                   timeout_seconds: timeout,
                   disabled,
@@ -872,6 +878,19 @@ function ContactPointEditor({
           onTitle={setTitleTemplate}
           onMessage={setMessageTemplate}
         />
+        {type === "feishu" ? <fieldset className="feishu-format-settings">
+          <legend>{text("Feishu message", "飞书消息")}</legend>
+          <label>
+            {text("Message format", "消息格式")}
+            <select aria-label={text("Message format", "消息格式")} value={feishuFormat} disabled={busy}
+              onChange={(event) => setFeishuFormat(event.target.value as "interactive" | "text")}>
+              <option value="interactive">{text("Alert card (recommended)", "告警卡片（推荐）")}</option>
+              <option value="text">{text("Plain text (compatibility)", "文本（兼容格式）")}</option>
+            </select>
+          </label>
+          <p className="notification-help">{text("Cards show status, host, resource values, trigger/recovery periods and cooldown. Labels and annotations remain plain text; only the configured workspace link is clickable.", "卡片展示状态、主机、资源值、触发与恢复持续时间及 CD。标签与注释按纯文本展示；详情按钮只使用配置的工作台地址。")}</p>
+          <FeishuNotificationPreview format={feishuFormat} title={titleTemplate} message={messageTemplate} disabled={busy} />
+        </fieldset> : null}
         {type === "feishu" ? <fieldset>
           <legend>{text("Feishu signature", "飞书签名")}</legend>
           <label>

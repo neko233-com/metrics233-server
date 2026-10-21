@@ -313,6 +313,12 @@ export async function apiText(path: string, options: RequestInit = {}): Promise<
 export const message = (error: unknown) =>
   error instanceof Error ? error.message : String(error);
 export function formatValue(value: number, unit = ""): string {
+	if (unit === "uptime") {
+		if (!Number.isFinite(value) || value < 0) return "—";
+		const seconds=Math.floor(value), days=Math.floor(seconds/86400), hours=Math.floor(seconds%86400/3600), minutes=Math.floor(seconds%3600/60);
+		const parts=getLocale()==="zh" ? [days?`${days}天`:"",hours||days?`${hours}小时`:"",minutes||hours||days?`${minutes}分钟`:`${seconds%60}秒`] : [days?`${days}d`:"",hours||days?`${hours}h`:"",minutes||hours||days?`${minutes}m`:`${seconds%60}s`];
+		return parts.filter(Boolean).join(" ");
+	}
   if (unit === "bytes") {
     const units = ["B", "KiB", "MiB", "GiB", "TiB"];
     const index = Math.max(

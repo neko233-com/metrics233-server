@@ -21,6 +21,10 @@ func TestAuthorizeRoleMatrix(t *testing.T) {
 		allow  bool
 	}{
 		{"viewer reads dashboards", viewer, "GET", "/api/v1/dashboards", true},
+		{"viewer reads retention", viewer, "GET", "/api/v1/settings/retention", true},
+		{"viewer cannot change retention", viewer, "PUT", "/api/v1/settings/retention", false},
+		{"editor cannot change retention", editor, "PUT", "/api/v1/settings/retention", false},
+		{"admin changes retention", admin, "PUT", "/api/v1/settings/retention", true},
 		{"viewer reads namespace API", viewer, "GET", "/apis/notifications.alerting.grafana.app/v1beta1/namespaces/default/inhibitionrules", true},
 		{"viewer runs namespace query", viewer, "POST", "/apis/query.grafana.app/v0alpha1/namespaces/default/query", true},
 		{"editor cannot mutate unknown namespace API", editor, "POST", "/apis/notifications.alerting.grafana.app/v1beta1/namespaces/default/inhibitionrules", false},

@@ -181,3 +181,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.native-risk-legend {display:flex;gap:12px;flex-wrap:wrap;padding:0 14px 4px;font-size:11px;line-height:1.6;flex:0 0 auto;}
+.native-threshold-fields {border:1px solid var(--border);border-radius:6px;margin:14px 0;padding:12px;min-width:0;}
+.native-threshold-fields legend {padding:0 6px;font-size:12px;}

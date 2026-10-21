@@ -19,14 +19,9 @@ import (
 func feishuNotificationPayload(payload map[string]any, secret string, at time.Time) ([]byte, error) {
 	text := feishuNotificationText(payload)
 	message := map[string]any{"msg_type": "text"}
-	if secret != "" {
-		timestamp := strconv.FormatInt(at.Unix(), 10)
-		sign := hmac.New(sha256.New, []byte(timestamp+"\n"+secret))
-		message["timestamp"] = timestamp
-		message["sign"] = base64.StdEncoding.EncodeToString(sign.Sum(nil))
-	}
+	feishuSign(message, secret, at)
 	for {
-		message["content"] = map[string]string{"text": text}
+		message["content"] = map[string]string{"text": safeFeishuText(text, 16000)}
 		body, err := json.Marshal(message)
 		if err != nil || len(body) <= 20*1024 {
 			return body, err
@@ -35,6 +30,16 @@ func feishuNotificationPayload(payload map[string]any, secret string, at time.Ti
 		// preserving valid UTF-8 instead of relying only on a source-text cap.
 		text = boundedFeishuText(text, len(text)*3/4)
 	}
+}
+
+func feishuSign(message map[string]any, secret string, at time.Time) {
+	if secret == "" {
+		return
+	}
+	timestamp := strconv.FormatInt(at.Unix(), 10)
+	sign := hmac.New(sha256.New, []byte(timestamp+"\n"+secret))
+	message["timestamp"] = timestamp
+	message["sign"] = base64.StdEncoding.EncodeToString(sign.Sum(nil))
 }
 
 func boundedFeishuText(value string, limit int) string {

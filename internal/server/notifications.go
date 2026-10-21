@@ -26,6 +26,8 @@ func (s *Server) notificationRoutes(api routeRegistrar) {
 	s.muteTimingRoutes(api)
 	s.notificationTemplateRoutes(api)
 	s.inhibitionRoutes(api)
+	// Remains an Admin-only contact-point POST; rendering never queues a send.
+	api.HandleFunc("POST /api/v1/alerting/contact-points/preview", s.feishuNotificationPreview)
 	api.HandleFunc("GET /api/v1/alerting/contact-points", func(w http.ResponseWriter, r *http.Request) {
 		points, err := s.Store.ContactPoints(r.Context())
 		if err != nil {

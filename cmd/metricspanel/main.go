@@ -65,6 +65,7 @@ func usage() {
 Usage: metricspanel <command> [flags]
 
   serve        Start collector, SQLite storage and embedded web UI
+  bootstrap-admin Initialize the first local Admin offline from protected stdin
   health       Check server health
   stats        Show storage and collection statistics
   metrics      List metric names and series counts
@@ -110,6 +111,8 @@ func run(args []string) error {
 	switch args[0] {
 	case "serve":
 		return serve(args[1:])
+	case "bootstrap-admin":
+		return bootstrapAdminCommand(args[1:])
 	case "version":
 		return output(map[string]string{"version": version, "go": "1.27"})
 	case "schema":
@@ -1385,7 +1388,7 @@ func serve(args []string) error {
 	f := flag.NewFlagSet("serve", flag.ContinueOnError)
 	listen := f.String("listen", "127.0.0.1:7333", "HTTP listen address")
 	dbPath := f.String("db", "data/metrics.db", "SQLite database path")
-	retention := f.Int("retention-days", 30, "sample retention in days (1–3650)")
+	retention := f.Int("retention-days", store.DefaultRetentionDays, "default sample retention in days (1–3650); saved workspace setting takes precedence")
 	backend := f.String("storage", env("METRICSPANEL_STORAGE", "sqlite"), "metrics backend: sqlite or clickhouse")
 	clickhouseURL := f.String("clickhouse-url", env("CLICKHOUSE_URL", "http://127.0.0.1:8123"), "ClickHouse HTTP endpoint")
 	token := f.String("token", env("METRICSPANEL_TOKEN", ""), "API token; mandatory on non-loopback interfaces")
@@ -1420,7 +1423,7 @@ func serve(args []string) error {
 		return errors.New("listen port must be numeric")
 	}
 	ip := net.ParseIP(host)
-	if (ip == nil || !ip.IsLoopback()) && host != "localhost" && len(*token) < 16 {
+	if *authMode == "token" && (ip == nil || !ip.IsLoopback()) && host != "localhost" && len(*token) < 16 {
 		return errors.New("non-loopback listen requires METRICSPANEL_TOKEN with at least 16 characters")
 	}
 	parsedRoot, err := url.Parse(*rootURL)
@@ -1524,6 +1527,11 @@ func serve(args []string) error {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	effectiveRetention, err := storage.MetricRetention(ctx, *retention)
+	if err != nil {
+		listener.Close()
+		return errors.New("retention setting unavailable")
+	}
 	srv := server.New(storage, *token, *retention)
 	if err := srv.ConfigureIngestToken(*authMode, ingestToken); err != nil {
 		listener.Close()
@@ -1551,15 +1559,15 @@ func serve(args []string) error {
 	go func() { srv.RunBackground(ctx); close(backgroundDone) }()
 	handler := srv.Handler()
 	if authHandler != nil {
-		handler = authHandler.Wrap(handler)
+		handler = srv.WithLocalIngestAuthentication(handler, authHandler.Wrap)
 	}
 	httpServer := &http.Server{Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, WriteTimeout: 75 * time.Second, IdleTimeout: 60 * time.Second}
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpServer.Serve(listener) }()
 	address := listener.Addr().String()
-	slog.Info("MetricsPanel233 started", "address", address, "database", *dbPath, "retention_days", *retention, "auth_mode", *authMode, "setup_required", setupRequired)
+	slog.Info("MetricsPanel233 started", "address", address, "database", *dbPath, "retention_days", effectiveRetention.Days, "auth_mode", *authMode, "setup_required", setupRequired)
 	workspace := workspaceURL(*rootURL, address)
-	fmt.Fprintf(os.Stdout, "MetricsPanel233 %s\n  UI:        %s\n  Database:  %s\n  Storage:   %s\n  Retention: %d days\n  Auth:      %s\n", version, workspace, *dbPath, *backend, *retention, authDescription(*authMode, *token, *listen))
+	fmt.Fprintf(os.Stdout, "MetricsPanel233 %s\n  UI:        %s\n  Database:  %s\n  Storage:   %s\n  Retention: %d days\n  Auth:      %s\n", version, workspace, *dbPath, *backend, effectiveRetention.Days, authDescription(*authMode, *token, *listen))
 	if firstRun {
 		fmt.Fprintf(os.Stdout, "First run: created %s. Open the UI above to start collecting metrics.\n", *dbPath)
 	}
@@ -1608,14 +1616,16 @@ func schema() any {
 		"query_limits":   map[string]int{"max_range_days": 31, "max_series": 200, "max_samples": 250000, "max_buckets": 2000},
 	}
 	result["commands"] = append(result["commands"].([]string), "patterns capture --metric NAME [--range 30m --start MS --end MS --normalization shape|raw --aggregation last|rate --labels '{}']", "patterns list [--limit 1000]", "patterns get --id ID", "patterns search --id ID [--metric NAME --labels '{}' --limit 10 --exact --include-self]", "patterns delete --id ID", "users list", "users me", "users create --file FILE|-", "users update --id ID --file FILE|-")
-	result["environment"].(map[string]string)["METRICSPANEL_INGEST_TOKEN"] = "Environment-only ingest token, token mode only; 32–8192 printable non-whitespace ASCII characters; separate management token required"
+	result["commands"] = append(result["commands"].([]string), "bootstrap-admin --identity-db /absolute/protected/identity.db --login LOGIN [--name NAME --email EMAIL]", "bootstrap-admin --identity-db /absolute/protected/identity.db --file -")
+	result["environment"].(map[string]string)["METRICSPANEL_INGEST_TOKEN"] = "Environment-only ingest token, token or local mode; 32–8192 printable non-whitespace ASCII characters; token mode requires a separate management token"
 	result["ingest_authentication"] = map[string]any{
 		"management_token":  "METRICSPANEL_TOKEN retains workspace management and ingestion access; do not distribute it to reporting agents",
 		"ingest_only_token": "METRICSPANEL_INGEST_TOKEN; one Authorization: Bearer header; source-IP policy still applies",
 		"allowed_method":    "POST",
 		"allowed_paths":     []string{"/api/v1/ingest", "/api/v1/write", "/prometheus/api/v1/write", "/v1/metrics", "/otlp/v1/metrics"},
-		"other_paths":       "403; duplicate Authorization 401; no query/cookie credentials; unsupported in local mode",
+		"other_paths":       "403; duplicate Authorization 401; no query/cookie credentials; local mode bypasses account authentication only for the five exact POST paths with a scoped Editor system principal",
 	}
+	result["offline_bootstrap"] = map[string]any{"platform": "Linux root only", "input": "TTY --login: hidden password and confirmation; --file -: one JSON object {login,password,name?,email?}, at most 16 KiB", "identity_path": "explicit absolute path; existing non-symlink parent mode 0700, catalog/sidecars protected from group/other access", "output": "initialized,user_id,organization_id,role only; existing accounts are never overwritten", "secrets": "no password flags or environment variables; no HTTP server or control store"}
 	routes := result["api"].(map[string][]string)
 	addDashboardResourceSchema(result, routes)
 	addDashboardHistorySchema(result, routes)

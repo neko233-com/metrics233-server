@@ -126,7 +126,10 @@ func (e *Engine) deliverNotification(ctx context.Context, delivery model.Notific
 	endpoint := point.URL
 	if point.Type == "feishu" {
 		endpoint = secrets["webhook_url"]
-		body, err = feishuNotificationPayload(payload, secrets["signing_secret"], time.Now())
+		if delivery.CreatedAt > 0 {
+			payload["notificationCreatedAt"] = time.UnixMilli(delivery.CreatedAt).UTC().Format(time.RFC3339Nano)
+		}
+		body, err = RenderFeishuNotification(payload, point.FeishuFormat, secrets["signing_secret"], e.TemplateURL, time.Now())
 	} else {
 		body, err = json.Marshal(payload)
 	}

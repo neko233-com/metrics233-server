@@ -12,8 +12,10 @@ Grafana 导入/导出只是可选的迁移适配，不是产品基础；不追�
 支持数据库直连、服务指标接口、Prometheus / OpenMetrics exporter、OpenTelemetry OTLP/HTTP 和业务指标上报。
 
 Go 业务服务可用独立的 [metrics233-lib-go](https://github.com/neko233-com/metrics233-lib-go) 链式记录 Counter/Gauge，
-显式控制推送与关闭；[metrics233-all](https://github.com/neko233-com/metrics233-all) 用 Git submodule 固定两者版本。
+显式控制推送与关闭；Rust 使用独立 [metrics-lib-rust](https://github.com/neko233-com/metrics-lib-rust)（crate 名 `metrics233`）。[metrics233-all](https://github.com/neko233-com/metrics233-all) 用三个 Git submodule 固定服务端及两种 SDK 版本。
 仓库和 Go module 改为 `metrics233-server`，现有 `metricspanel` CLI、`METRICSPANEL_*` 和 HTTP 契约继续兼容。
+
+生产后台使用[账号密码与会话](docs/local-auth.md)，游戏程序只持有[仅上报 Token](docs/reporting-access.md)。支持[业务虚拟仪表盘](docs/business-instances.md)的实例身份/模板继承、全量地区及 Entity SQL 虚拟列表；[风险预警线](docs/risk-visuals.md)与告警持续时间分开设置。[飞书卡片和通知模板](docs/feishu-notifications.md)可先预览，再按真实投递 ACK 验收。Agent 从受认证的 `/api/v1/agent/capabilities` 发现 HTTP 操作、角色、版本条件及预览契约，见[HTTP 运维指南](docs/agent/http-operations.md)。
 
 ### Prometheus remote write（推送）
 
@@ -25,7 +27,7 @@ Go 业务服务可用独立的 [metrics233-lib-go](https://github.com/neko233-co
 remote_write:
   - url: http://127.0.0.1:7333/api/v1/write
     authorization:
-      credentials: <workspace-token>
+      credentials: <ingest-only-token>
 ```
 
 **推 + 拉同时可用**：拉取使用 `targets add` 抓取任务与 SQL/Redis/服务采集器；推送支持 OTLP/HTTP、
@@ -37,14 +39,14 @@ Prometheus remote write 和原生 JSON `POST /api/v1/ingest`。
 
 ```sh
 OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:7333 \
-OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer $METRICSPANEL_TOKEN" \
+OTEL_EXPORTER_OTLP_HEADERS="Authorization=Bearer $METRICSPANEL_INGEST_TOKEN" \
 OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf \
 your-service
 ```
 
 接收 protobuf/JSON、gzip、Gauge、cumulative Sum、explicit cumulative Histogram 和 Summary。Resource 属性转为标签（`service.name` → `service_name`），
 Scope 名称/版本转为 `otel_scope_name`/`otel_scope_version`，直方图展开为 `_bucket`/`_count` 和可选 `_sum`。
-单请求上限 16 MiB / 10,000 个展开后的样本，超限零写入；不支持的 datapoint 返回 `partial_success`。精确范围见 [采集契约](docs/collection-modes.md)。OTLP 写入遵循与 `/api/v1/ingest` 相同的角色策略，非 loopback 部署需要 workspace token。
+单请求上限 16 MiB / 10,000 个展开后的样本，超限零写入；不支持的 datapoint 返回 `partial_success`。精确范围见 [采集契约](docs/collection-modes.md)。OTLP 写入遵循与 `/api/v1/ingest` 相同的角色策略；生产上报使用独立 ingest token，后台使用本地账号和会话。
 SQLite 模式无需额外服务；ClickHouse 模式采用压缩列式时序存储、向量化聚合、按天分区、TTL 和持久化 HNSW 波形向量索引。
 
 ## 快速开始
@@ -149,7 +151,7 @@ export CLICKHOUSE_PASSWORD=your-password
 
 PowerShell 设置环境变量使用 `$env:CLICKHOUSE_URL='http://127.0.0.1:8123'`。
 ClickHouse 存指标；SQLite 存采集器、仪表盘、模板变量和模板原始 JSON，两个存储都要持久化。
-`--retention-days 30` 是默认保留期，SQLite 每小时清理，ClickHouse TTL 在后台合并时清理。
+默认保留最近 **15 天**指标。SQLite 可在“采集管理 → 数据保留”设置 1–3650 天，仅管理员可保存；无需重启，启动时及每小时清理过期样本。已保存的设置优先于 `--retention-days` 启动默认值，账号、仪表盘及告警配置保留。缩短期限后删除的数据不能恢复。详见[数据保留](docs/data-retention.md)。ClickHouse TTL 在后台合并时清理。
 已有 ClickHouse 表的 TTL 不会因修改启动参数自动重写；变更时执行受控的 `ALTER TABLE ... MODIFY TTL`。
 
 ## 采集数据库、服务和业务指标

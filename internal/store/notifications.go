@@ -595,7 +595,7 @@ func webhookPayload(point model.ContactPoint, rule model.AlertRule, event model.
 		"groupKey": rule.UID + ":" + event.Key, "groupLabels": map[string]string{"alertname": rule.Title},
 		"commonLabels": event.Labels, "commonAnnotations": event.Annotations,
 		"externalURL": "", "truncatedAlerts": 0, "title": "[" + strings.ToUpper(status) + "] " + rule.Title, "message": event.Annotations["summary"], "state": state,
-		"alerts": []any{map[string]any{"status": status, "labels": event.Labels, "annotations": event.Annotations, "startsAt": time.UnixMilli(startedAt).UTC().Format(time.RFC3339Nano), "endsAt": endsAt, "generatorURL": "", "fingerprint": event.Key, "values": map[string]any{"A": event.Value}}},
+		"alerts": []any{map[string]any{"status": status, "labels": event.Labels, "annotations": event.Annotations, "startsAt": time.UnixMilli(startedAt).UTC().Format(time.RFC3339Nano), "endsAt": endsAt, "generatorURL": "", "fingerprint": event.Key, "values": map[string]any{"A": event.Value}, "rule": notificationRuleMetadata(rule)}},
 	}
 }
 

@@ -10,6 +10,7 @@ import {
   type Target,
 } from "../api";
 import { Dialog } from "../components/Dialog";
+import { DataRetention } from "./DataRetention";
 type Integration = { kind: string; name: string; endpoint: string; protocol: string; metrics: string; docs: string };
 type ExporterPreset = { id:string; name:string; endpoint:string; docs:string };
 export function Collectors({
@@ -175,6 +176,7 @@ export function Collectors({
           </div>
         )}
       </section>
+      <DataRetention notify={notify} reload={reload} />
       <div className="inline-note">
         <h3>{tr("Collection protocols")}</h3>
         <p>

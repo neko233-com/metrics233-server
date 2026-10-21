@@ -2,6 +2,22 @@
 
 Updated: 2026-10-21. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
+### 2026-10-21 — Feishu cards and safe message templates (local acceptance)
+
+- Feishu now defaults to an interactive card, with explicit text compatibility. Cards show localized status/severity,
+  host/resources, rule evaluation values, configured trigger/recovery periods, cooldown and event timestamps; raw
+  PromQL and internal labels stay out of the default view. Zero-valued recovery conditions are distinguished from
+  zero actual resource use. Formal rule timing/state evaluation is unchanged.
+- Existing saved title/message templates and their durable render snapshots are reused under the existing
+  process-local step/output/time limits. Card data remains plain text, mention/link injection is neutralized, and
+  the only action URL derives from configured HTTPS root. Admin-only sample preview does not queue or send.
+- Targeted Go Feishu/template/CD and role tests, vet, frontend typecheck/build and four real notifications browser
+  cases passed locally. Linux Go 1.27.2 + GCC vet/race over four owning packages passed twice (80 top-level
+  tests, no failures/skips/races). Actual TLS fixtures cover grouped firing/recovery, rejected partial ACK and cooldown;
+  this is separate from a real Feishu group delivery. Combined Docker/database validation and
+  the final business-snapshot UI bundle are tracked as separate gates; publication/production card acceptance
+  remain with the release operator. Overall weighting below remains unchanged (not universal certification).
+
 ## Reporting protocol (permanent)
 
 After each completed progress unit, report in this order:
@@ -68,6 +84,14 @@ exporter or Grafana feature is supported, or universal production certification.
 - Security-relevant changes update `docs/public-deployment.md` and the Admin/Editor/Viewer matrix.
 
 ## Recent delivered units
+
+### G2 working candidate — 2026-10-21
+
+Local-account administration and a distinct five-path ingest credential, offline protected bootstrap, persisted 15-day SQLite retention, native panel risk thresholds/numeric uptime, Chinese onboarding and authenticated `/api/v1/agent/capabilities` are implemented. Targeted Go/roles/CAS tests passed; browser risk/retention cases passed against an embedded candidate. Frontend TypeScript and 120 unit tests passed. The whole Windows Go run found one stale default-uptime expectation; it was updated to assert the intended stat panel and its targeted regression passed. Full final-source regression remains a separate gate.
+
+Sustained alert tests use actual persisted evaluation, outbox and local HTTP delivery in grouped/ungrouped modes: a short spike does not notify, pending survives restart, recovery flapping does not repeat, recovery waits continuously and a second firing remains inside the successful-ACK 1h CD. Production defaults and external provider delivery are private target acceptance; the deterministic test does not pretend to wait one real hour.
+
+Business virtual dashboards and interactive Feishu cards/templates have targeted browser/API evidence. Final candidate is being reviewed for old population series across restarts and safe imported threshold colors. No new public tag, final Docker suite or production deployment is claimed by this working-candidate entry.
 
 | Date | Unit | Evidence |
 | --- | --- | --- |

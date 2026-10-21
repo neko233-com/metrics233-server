@@ -3,6 +3,7 @@ import { Code2, Pencil, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { api, jsonBody, message } from "../api";
 import { Dialog } from "../components/Dialog";
 import { getLocale, t } from "../i18n";
+import { useSession } from "../ui/session";
 import "./NotificationsTemplatesPanel.css";
 
 const text = (en: string, zh: string) => (getLocale() === "zh" ? zh : en);
@@ -67,6 +68,7 @@ export function NotificationsTemplatesPanel({
   tick: number;
   notify: (value: string, error?: boolean) => void;
 }) {
+  const { canAdmin } = useSession();
   const [templates, setTemplates] = useState<NotificationTemplate[]>([]);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
@@ -114,7 +116,7 @@ export function NotificationsTemplatesPanel({
           >
             <RefreshCw size={15} />
           </button>
-          <button className="primary" onClick={() => setEditor("new")}>
+          <button className="primary" disabled={!canAdmin} onClick={() => setEditor("new")}>
             <Plus size={15} />
             {text("Add template", "添加模板")}
           </button>
@@ -158,11 +160,11 @@ export function NotificationsTemplatesPanel({
                 </td>
                 <td>
                   <div className="row-actions">
-                    <button onClick={() => setEditor(value)}>
+                    <button disabled={!canAdmin} onClick={() => setEditor(value)}>
                       <Pencil size={14} />
                       {t("Edit")}
                     </button>
-                    <button onClick={() => setRemoving(value)}>
+                    <button disabled={!canAdmin} onClick={() => setRemoving(value)}>
                       <Trash2 size={14} />
                       {t("Delete")}
                     </button>
@@ -440,10 +442,11 @@ export function NotificationTemplateFields({
       <legend>{text("Notification templates", "通知模板")}</legend>
       <p className="notification-help">
         {text(
-          'Leave both fields empty to keep the default webhook payload. Each expression can call a saved definition with {{ template "name" . }}.',
-          '两项留空时使用默认 Webhook 载荷。表达式可以用 {{ template "name" . }} 调用已保存的定义。',
+          'Leave both fields empty for the default message. Reuse saved definitions with {{ template "name" . }}. Values are rendered once as plain text.',
+          '两项留空时使用默认消息。用 {{ template "name" . }} 复用已保存的定义。数据仅渲染一次并按纯文本展示。',
         )}
       </p>
+      <p className="notification-help">{text('Placeholders: .Status, .Receiver, .CommonLabels.instance; inside {{ range .Alerts }} use .Labels.resource, .Annotations.title, .Values.A and .Rule.ForSeconds / .Rule.KeepFiringForSeconds / .Rule.NotificationCooldownSeconds. The card adds status, timers and values independently of custom text.', '占位符：.Status、.Receiver、.CommonLabels.instance；在 {{ range .Alerts }} 内可用 .Labels.resource、.Annotations.title、.Values.A、.Rule.ForSeconds / .Rule.KeepFiringForSeconds / .Rule.NotificationCooldownSeconds。卡片始终独立保留状态、持续时间与实际值。')}</p>
       {(["title", "message"] as const).map((field) => (
         <label key={field}>
           {text(

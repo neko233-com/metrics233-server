@@ -4,14 +4,15 @@
 
 | 凭据 | 服务端环境变量 | 权限 |
 | --- | --- | --- |
-| 管理 Token | `METRICSPANEL_TOKEN` | 原有 workspace 管理、读取和上报权限，包括修改来源策略 |
+| 账号会话 | `METRICSPANEL_AUTH=local` | 按 Admin/Editor/Viewer 权限访问后台；生产推荐 |
+| 管理 Token | `METRICSPANEL_TOKEN` | 兼容 workspace 管理、读取和上报权限；local 下仍是旧 Admin 凭据，账号专用部署必须清空 |
 | 上报专用 Token | `METRICSPANEL_INGEST_TOKEN` | 仅 POST 原生 JSON、两条 remote-write 和两条 OTLP 地址；仍受来源 IP 策略约束 |
 
 ## 启动配置
 
-上报专用变量只在 `METRICSPANEL_AUTH=token` / `--auth=token` 支持；在 local 模式配置会明确拒绝启动，不绕过用户认证或授权服务。必须同时配置独立的管理 Token（至少 16 字符），专用 Token 为 **32–8192 个可打印 ASCII 非空白字符**，且不能和管理 Token 相同。建议分别生成随机 64 位十六进制值，只保存于权限受控的私有配置。
+上报专用变量同时支持 `METRICSPANEL_AUTH=local` 和兼容的 `token` 模式。账号登录的生产部署先[离线初始化 Admin](local-auth.md)，设置 `METRICSPANEL_AUTH=local`，清空 `METRICSPANEL_TOKEN`，仅向上报程序提供 `METRICSPANEL_INGEST_TOKEN`。token 模式则必须同时配置独立的管理 Token（至少 16 字符）。专用 Token 为 **32–8192 个可打印 ASCII 非空白字符**，且不能和任何已配置的管理 Token 相同。建议生成随机 64 位十六进制值，只保存于权限受控的私有配置。
 
-`METRICSPANEL_INGEST_TOKEN` 没有命令行参数，避免出现在进程参数或 shell 历史。错误、帮助和 CLI schema 只返回字段名/约束，不打印实际值。环境变量不是数据库加密凭据：Linux 部署应使用 root/服务用户可读的私有 EnvironmentFile，不把文件、Token 或真实来源地址提交仓库。变量为空时保留旧配置兼容行为；未配置管理 Token 的 loopback 开发模式不能公开到反向代理。
+`METRICSPANEL_INGEST_TOKEN` 没有命令行参数，避免出现在进程参数或 shell 历史。错误、帮助和 CLI schema 只返回字段名/约束，不打印实际值。环境变量不是数据库加密凭据：Linux 部署应使用 root/服务用户可读的私有 EnvironmentFile，不把文件、Token 或真实来源地址提交仓库。变量为空时保留旧配置兼容行为；token 模式中未配置管理 Token 的 loopback 开发实例不能公开到反向代理。
 
 只把专用值交给上报程序，例如 SDK 使用 `metrics.New(url, metrics.WithToken(privateIngestToken))`。`WithLabels`、Counter/Gauge/Batch 等视图沿用同一 Token，每次 Push 使用它；SDK API 和旧版本客户端无需变化。SDK 示例中的 `METRICS233_TOKEN` 是调用应用自己的环境变量，应装入专用值，和服务器变量名称不必相同。
 
@@ -23,7 +24,7 @@
 - `POST /v1/metrics`
 - `POST /otlp/v1/metrics`
 
-携带匹配的专用凭据访问查询、来源列表/策略、告警/通知、Live/session、其他方法、未知地址，甚至公共静态/health 地址，都返回 403。未携带凭据的原公共 health/静态契约不变。缺少/错误凭据、错误认证格式和重复/混合 Authorization 返回 401；URL 参数、cookie 不能代替头。管理 Token 保留原权限，也仍能上报。UI 管理会话必须使用管理凭据。
+携带匹配的专用凭据访问查询、来源列表/策略、告警/通知、登录/初始化账号、Live/session、其他方法、未知地址，甚至公共静态/health 地址，都返回 403；附带有效 Admin cookie 也不会扩大此权限。未携带凭据的原公共 health/静态契约不变。缺少/错误凭据、错误认证格式和重复/混合 Authorization 返回 401；URL 参数、cookie 不能代替头。local 模式只在上述五条精确 POST 路径分配本物理存储组织的 Editor system principal，不授予 Admin 或跨组织权限；配置自定义授权提供器时拒绝该旁路。UI 使用账号登录后的会话，管理 Token 保留兼容权限，账号专用生产必须清空该变量。
 
 专用 Token 是单 workspace 的共享写凭据，不是每应用独立账号。它不能自助解封 IP 或读取指标，但知晓它的上报者可以从已允许的地址写入有效样本。轮换该值会影响所有使用此值的上报方；没有按 Token 单独吊销或计费身份。HTTPS、网络隔离和协议/容量上限仍需正确配置。
 
@@ -41,4 +42,4 @@
 
 ## 验证
 
-真实本地 HTTP 验证专用 Token 五入口、管理拒绝/防自解封、重复头与替代凭据；定向测试还覆盖鉴权优先、策略表失败零读体/零写入、辅助记录失败保留 ACK、部分 remote-write 计数、IPv4-mapped/代理链、跨组织隔离、并发计数/CAS 和满容量回滚。浏览器、不可变产物及线上 Token 配置由交付任务分别验收；本地回归没有读取线上凭据。
+真实本地 HTTP/TLS 验证 token 与 local 模式五入口、账号登录/安全 cookie/登出、专用 Token 管理拒绝/防自解封、重复头与替代凭据；定向测试还覆盖 scoped Editor principal、自定义授权拒绝、鉴权优先、策略表失败零读体/零写入、辅助记录失败保留 ACK、部分 remote-write 计数、IPv4-mapped/代理链、跨组织隔离、并发计数/CAS 和满容量回滚。浏览器、不可变产物及线上 Token 配置由交付任务分别验收；本地回归没有读取线上凭据。

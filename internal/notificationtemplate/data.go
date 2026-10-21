@@ -14,6 +14,16 @@ import (
 )
 
 type KV = amtemplate.KV
+
+// RuleMetadata is a frozen notification-time rule view, not executable source.
+type RuleMetadata struct {
+	UID                         string `json:"uid"`
+	Title                       string `json:"title"`
+	Expr                        string `json:"expr"`
+	ForSeconds                  int    `json:"for_seconds"`
+	KeepFiringForSeconds        int    `json:"keep_firing_for_seconds"`
+	NotificationCooldownSeconds int    `json:"notification_cooldown_seconds"`
+}
 type Alert struct {
 	Status       string             `json:"status"`
 	Labels       KV                 `json:"labels"`
@@ -29,6 +39,7 @@ type Alert struct {
 	Values       map[string]float64 `json:"values"`
 	ValueString  string             `json:"valueString"`
 	OrgID        *int64             `json:"orgId,omitempty"`
+	Rule         RuleMetadata       `json:"rule"`
 }
 type Alerts []Alert
 

@@ -949,6 +949,38 @@ Object.assign(zh, {
   "Enter a Grafana.com dashboard ID or HTTPS URL": "请输入 Grafana.com 仪表盘 ID 或 HTTPS 地址",
   "Add a matching datasource in Plugins & datasources before importing.": "请先在“插件与数据源”中添加对应类型的数据源。",
 });
+Object.assign(zh, {
+  "Passwords do not match.": "两次输入的密码不一致。",
+  "Use at least 12 characters for the password.": "密码至少需要 12 个字符。",
+  "Set up MetricsPanel233": "初始化 MetricsPanel233",
+  "Enter the setup token printed by the server, then create the administrator account.": "输入服务端输出的一次性初始化凭据，创建管理员账号。",
+  "Setup token": "初始化凭据", Login: "账号", Email: "邮箱", "Confirm password": "确认密码",
+  "Create administrator": "创建管理员",
+  "The setup token is shown once in the server console and disappears after initialization.": "初始化凭据仅在服务端控制台显示，创建首个账号后即失效。",
+  "Sign in to your workspace.": "使用账号密码登录工作空间。", "Sign in": "登录", "Sign out": "退出登录",
+  "Sessions are stored in an HttpOnly same-site cookie.": "登录会话使用 HttpOnly 同站 Cookie 保存。",
+  "Switch language": "切换语言", "No data": "暂无数据", Gauge: "仪表", "Bar gauge": "条形仪表",
+  "Connect a collector": "接入采集器",
+  "Scrape a Prometheus exporter or connect MySQL, Redis or PostgreSQL directly.": "采集 Prometheus exporter，或直接连接 MySQL、Redis、PostgreSQL。",
+  "See live data": "查看实时指标", "Explore the metrics this workspace is already collecting.": "查看工作空间已采集的指标和趋势。",
+  "Open Explore": "打开指标查询", "Create your first alert": "创建首条告警",
+  "Turn a PromQL query into a durable alert with a pending period.": "为 PromQL 查询配置阈值、持续时间、恢复和通知冷却。",
+  "Getting started": "快速开始", "Everything is connected. This checklist can be dismissed.": "接入已完成，可以收起此引导。",
+  "Three steps to a working single-node setup.": "三步完成采集、查询与告警。", Dismiss: "收起引导", Review: "查看",
+  "User created": "用户已创建", "Role updated": "角色已更新", "User enabled": "用户已启用", "User disabled": "用户已停用",
+  Users: "用户管理", accounts: "个账号", "Roles apply to the whole workspace.": "角色权限作用于整个工作空间。",
+  "Create user": "创建用户", Role: "角色", Active: "已启用", Enable: "启用", Disable: "停用",
+  "Label key": "标签名称", "Label value": "标签值",
+  "Select a Tempo data source to load trace details": "选择 Tempo 数据源以查看链路详情",
+  "Trace details": "链路详情", "Close trace details": "关闭链路详情", "Loading trace details…": "正在加载链路详情…",
+  "No spans found for this trace": "此链路暂无跨度数据", spans: "个跨度", errors: "个错误",
+  "Trace span timeline": "链路跨度时间线", "Service / operation": "服务 / 操作", Timeline: "时间线",
+  Expand: "展开", Collapse: "收起", "Span attributes": "跨度属性", Attributes: "属性", Loading: "加载中",
+  "Uptime": "运行时长", uptime: "运行时长", "Warning threshold": "预警阈值", "Critical threshold": "严重阈值",
+  "Risk thresholds": "风险预警线", "Safe": "安全", Warning: "预警", Critical: "严重",
+  "Leave both blank for a neutral chart. Values at or above the warning/critical line use yellow/red.": "两项均留空时使用中性色。达到预警线显示黄色，达到严重线显示红色。",
+  "Thresholds need finite numbers with critical greater than warning.": "请填写有效阈值，严重阈值须大于预警阈值。",
+});
 export function t(text: string): string {
   return locale === "zh" ? zh[text] || text : text;
 }

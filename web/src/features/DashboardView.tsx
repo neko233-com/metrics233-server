@@ -138,6 +138,8 @@ export function DashboardView({
   ) =>
     !!variableState.variables.length ||
     p.config?.targets !== undefined ||
+    p.visualization === "stat" ||
+    !!p.config?.fieldConfig?.defaults?.thresholds ||
     !["timeseries", "stat", "table", undefined].includes(p.visualization) ? (
       <Suspense
         fallback={
@@ -259,7 +261,7 @@ export function DashboardView({
             <strong>
               {stats ? formatValue(stats.storage_bytes, "bytes") : "—"}{" "}
               <small>
-                {stats?.retention_days || 30}
+                {stats?.retention_days || 15}
                 {tr("d retention")}
               </small>
             </strong>
@@ -423,6 +425,7 @@ export function DashboardView({
               unit,
               visualization,
               labels,
+              thresholds,
             } = p;
             await save(editor.baseline, {
               action:
@@ -439,6 +442,7 @@ export function DashboardView({
                 unit,
                 visualization,
                 labels,
+                thresholds,
               },
               position,
             });
@@ -509,7 +513,7 @@ function PanelEditor({
   panel?: Panel;
   metrics: Metric[];
   onClose: () => void;
-  onSave: (p: Panel) => Promise<void>;
+  onSave: (p: Panel & {thresholds?: {warning:number;critical:number}|null}) => Promise<void>;
 }) {
   const [title, setTitle] = useState(panel?.title || "");
   const [metric, setMetric] = useState(panel?.metric || metrics[0]?.name || "");
@@ -520,6 +524,11 @@ function PanelEditor({
     panel?.visualization || "timeseries",
   );
   const [labels, setLabels] = useState(JSON.stringify(panel?.labels || {}));
+  const steps = panel?.config?.fieldConfig?.defaults?.thresholds?.steps?.filter(step=>step.value!=null&&Number.isFinite(step.value)) || [];
+  const initialWarning=steps.length>1?String(steps[steps.length-2].value):"";
+  const initialCritical=steps.length>1?String(steps[steps.length-1].value):"";
+  const [warning,setWarning]=useState(initialWarning);
+  const [critical,setCritical]=useState(initialCritical);
   const [error, setError] = useState(""),
     [saving, setSaving] = useState(false);
   const configured = panel?.config?.targets !== undefined;
@@ -534,6 +543,7 @@ function PanelEditor({
           setSaving(true);
           setError("");
           try {
+            if ((warning!=="" || critical!=="") && (warning==="" || critical==="" || !Number.isFinite(Number(warning)) || !Number.isFinite(Number(critical)) || Number(critical)<=Number(warning))) throw new Error(tr("Thresholds need finite numbers with critical greater than warning."));
             await onSave({
               ...panel,
               id:
@@ -550,6 +560,7 @@ function PanelEditor({
               unit,
               visualization,
               labels: parseLabels(labels),
+              thresholds: warning===initialWarning && critical===initialCritical ? undefined : warning==="" && critical==="" ? null : { warning:Number(warning),critical:Number(critical) },
             });
           } catch (e) {
             setError(
@@ -645,7 +656,7 @@ function PanelEditor({
             {tr("Unit")}
             <select value={unit} onChange={(e) => setUnit(e.target.value)}>
               <option value="">{tr("Auto / number")}</option>
-              {["bytes", "seconds", "percent", "count", "ops"].map((u) => (
+              {["bytes", "seconds", "uptime", "percent", "count", "ops"].map((u) => (
                 <option key={u} value={u}>
                   {tr(u)}
                 </option>
@@ -653,6 +664,14 @@ function PanelEditor({
             </select>
           </label>
         </div>
+        <fieldset className="native-threshold-fields">
+          <legend>{tr("Risk thresholds")}</legend>
+          <p className="subtle">{tr("Leave both blank for a neutral chart. Values at or above the warning/critical line use yellow/red.")}</p>
+          <div className="form-row">
+            <label>{tr("Warning threshold")}<input type="number" step="any" value={warning} onChange={event=>setWarning(event.target.value)} /></label>
+            <label>{tr("Critical threshold")}<input type="number" step="any" value={critical} onChange={event=>setCritical(event.target.value)} /></label>
+          </div>
+        </fieldset>
         {!configured && (
           <label>
             {tr("Label filters")}

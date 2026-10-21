@@ -422,7 +422,11 @@ func TestNativeGrafanaReadsAndSavesNativePrometheusPanels(t *testing.T) {
 	assert.Equal(t, "ops", classic.Panels[2].FieldConfig.Defaults.Unit)
 	for i, panel := range classic.Panels {
 		assert.Equal(t, i+1, panel.ID)
-		assert.Equal(t, "timeseries", panel.Type)
+		if panel.Targets[0].Expr == "metricspanel_uptime_seconds" {
+			assert.Equal(t, "stat", panel.Type)
+		} else {
+			assert.Equal(t, "timeseries", panel.Type)
+		}
 		assert.Equal(t, "metricspanel", panel.Datasource.UID)
 		assert.Equal(t, "prometheus", panel.Datasource.Type)
 	}

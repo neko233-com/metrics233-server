@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 type Service = { url: string; token: string; ingestToken: string };
-const test = base.extend<{}, { service: Service }>({
+const test = base.extend<{ service: Service }>({
   service: [async ({}, use) => {
     const temp = await mkdtemp(path.join(os.tmpdir(), "metrics233-reporting-sources-e2e-"));
     const token = randomBytes(24).toString("hex");
@@ -37,7 +37,7 @@ const test = base.extend<{}, { service: Service }>({
       if (!resolved.startsWith(path.resolve(os.tmpdir()) + path.sep) || !path.basename(resolved).startsWith("metrics233-reporting-sources-e2e-")) throw new Error("Unsafe reporting-source fixture cleanup");
       await rm(resolved, { recursive: true, force: true, maxRetries: 3 });
     }
-  }, { scope: "worker" }],
+  }, { scope: "test" }],
 });
 
 async function open(page: Page, service: Service, locale = "en") {
@@ -47,6 +47,96 @@ async function open(page: Page, service: Service, locale = "en") {
   }, { token: service.token, locale });
   await page.goto(service.url + "/#reporting-sources");
 }
+
+test("Chinese onboarding, numeric uptime and editable historical risk lines render without creating alerts", async ({ page, service }, info) => {
+  const headers = { Authorization: `Bearer ${service.token}` }, now = Date.now();
+  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+  const samples = Array.from({ length: 60 }, (_, i) => ({ name: "ui_risk_cpu", timestamp: now - (60-i)*5000, value: [20,90,99,40][i%4] }));
+  expect((await page.request.post(service.url+"/api/v1/ingest", { headers, data:{ samples } })).ok()).toBeTruthy();
+  const created = await page.request.post(service.url+"/api/v1/dashboards", { headers, data:{ id:"ui-risk-fixture", name:"Risk fixture", panels:[
+    { id:"cpu", title:"CPU risk", metric:"ui_risk_cpu", expr:"ui_risk_cpu", aggregation:"last", visualization:"timeseries", unit:"percent", config:{ fieldConfig:{defaults:{color:{mode:"thresholds"},thresholds:{mode:"absolute",steps:[{value:null,color:"green"},{value:85,color:"yellow"},{value:95,color:"red"}]}},overrides:[]} } },
+    { id:"uptime", title:"Uptime", metric:"metricspanel_uptime_seconds", aggregation:"last", visualization:"stat", unit:"uptime" },
+  ] } });
+  expect(created.ok()).toBeTruthy();
+  const saved = await created.json();
+  await open(page,service,"zh");
+  await page.goto(service.url+"/d/"+encodeURIComponent(saved.id)+"/Risk%20fixture");
+  const chart=page.getByRole("region",{name:"CPU risk",exact:true});
+  await expect(chart.locator("canvas")).toBeVisible();
+  await expect(chart.locator(".native-risk-legend")).toContainText("预警 ≥ 85");
+  await expect(chart.locator(".native-risk-legend")).toContainText("严重 ≥ 95");
+  const colors=await chart.locator("canvas").evaluate((canvas:HTMLCanvasElement)=>{
+    const pixels=canvas.getContext("2d")!.getImageData(0,0,canvas.width,canvas.height).data; let green=0,yellow=0,red=0;
+    for(let i=0;i<pixels.length;i+=4){const[r,g,b]=[pixels[i],pixels[i+1],pixels[i+2]];if(g>130&&r<130&&b<200)green++;if(r>170&&g>130&&b<140)yellow++;if(r>170&&g<130&&b<170)red++;}
+    return{green,yellow,red};
+  });
+  expect(colors.green).toBeGreaterThan(5);expect(colors.yellow).toBeGreaterThan(5);expect(colors.red).toBeGreaterThan(5);
+  const uptime=page.getByRole("region",{name:"Uptime",exact:true});
+  await expect(uptime.locator("canvas,.native-timeseries-plot-host")).toHaveCount(0);
+  await expect(uptime).toContainText(/秒|分钟/);
+  await chart.getByRole("button",{name:"编辑 CPU risk",exact:true}).click();
+  const dialog=page.getByRole("dialog");
+  await dialog.getByLabel("预警阈值",{exact:true}).fill("75");
+  await dialog.getByLabel("严重阈值",{exact:true}).fill("90");
+  await dialog.getByRole("button",{name:"保存面板",exact:true}).click();
+  await expect(dialog).not.toBeVisible();
+  await expect(chart.locator(".native-risk-legend")).toContainText("预警 ≥ 75");
+  await expect(chart.locator(".native-risk-legend")).toContainText("严重 ≥ 90");
+  let dashboard=(await(await page.request.get(service.url+"/api/v1/dashboards",{headers})).json()).find((item:any)=>item.id===saved.id);
+  expect(dashboard.panels[0].expr).toBe("ui_risk_cpu");
+  for(const [color,css] of [["dark-red","rgb(196, 22, 42)"],["invalid-fixture-color","rgb(133, 170, 255)"]]) {
+    dashboard.panels[0].config.fieldConfig.defaults.thresholds.steps[2].color=color;
+    const update=await page.request.put(service.url+"/api/v1/dashboards/"+saved.id,{headers:{...headers,"If-Match":String(dashboard.updated_at)},data:dashboard});
+    expect(update.ok()).toBeTruthy();dashboard=await update.json();await page.reload();
+    await expect(chart.locator("canvas")).toBeVisible();
+    await expect(chart.locator(".native-risk-legend > span > span").last()).toHaveCSS("color",css);
+    await chart.getByRole("button",{name:"编辑 CPU risk",exact:true}).click();
+    await page.getByRole("dialog").getByRole("button",{name:"保存面板",exact:true}).click();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+    dashboard=(await(await page.request.get(service.url+"/api/v1/dashboards",{headers})).json()).find((item:any)=>item.id===saved.id);
+    expect(dashboard.panels[0].config.fieldConfig.defaults.thresholds.steps[2].color).toBe(color);
+  }
+  expect((await(await page.request.get(service.url+"/api/v1/alerts/rules",{headers})).json())).toEqual([]);
+  await page.screenshot({path:info.outputPath("chinese-risk-uptime.png"),fullPage:true});
+  await page.goto(service.url+"/d/system/System%20overview");
+  await expect(page.getByRole("heading",{name:"快速开始",exact:true})).toBeVisible();
+  await expect(page.getByText("接入采集器",{exact:true})).toBeVisible();
+  await expect(page.getByText("查看实时指标",{exact:true})).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
+test("retention defaults to fifteen days, persists and rejects a stale administrative edit", async ({ page, service }) => {
+  const errors: string[] = [];
+  page.on("pageerror", error => errors.push(error.message));
+  await open(page, service);
+  await page.getByRole("button", { name: "Collectors", exact: true }).click();
+  const section = page.getByRole("region", { name: "Data retention", exact: true });
+  const input = section.getByLabel("Retention days", { exact: true });
+  await expect(input).toHaveValue("15");
+  await input.fill("7");
+  await section.getByRole("button", { name: "Save retention", exact: true }).click();
+  await expect(page.getByText("Data retention saved", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(input).toHaveValue("7");
+  const headers = { Authorization: `Bearer ${service.token}` };
+  const endpoint = service.url + "/api/v1/settings/retention";
+  const current = await (await page.request.get(endpoint, { headers })).json();
+  expect((await page.request.put(endpoint, { headers, data: { days: 14, version: current.version } })).ok()).toBeTruthy();
+  await input.fill("6");
+  await section.getByRole("button", { name: "Save retention", exact: true }).click();
+  await expect(input).toHaveValue("14");
+  await expect(page.getByText(/Retention changed elsewhere/)).toBeVisible();
+  await input.fill("15");
+  await section.getByRole("button", { name: "Save retention", exact: true }).click();
+  await expect(section.getByRole("button", { name: "Save retention", exact: true })).toBeDisabled();
+  for (const width of [390, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(section).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBeTruthy();
+  }
+  await page.screenshot({ path: path.join(os.tmpdir(), "metrics233-data-retention-verified.png") });
+  expect(errors).toEqual([]);
+});
 
 test("observed canonical IP can be blocked, unblocked and allowlisted without trusting visitor labels", async ({ page, service }) => {
   test.setTimeout(60000);
