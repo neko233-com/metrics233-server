@@ -112,6 +112,8 @@ func TestBootstrapRequiresProtectedAbsoluteNonLinkPath(t *testing.T) {
 	require.Error(t, validateBootstrapPath(path))
 	require.NoError(t, os.Remove(path))
 	require.NoError(t, os.WriteFile(path+"-wal", []byte("synthetic unsafe sidecar"), 0644))
+	// A restrictive operator umask must not silently turn the unsafe fixture into a protected file.
+	require.NoError(t, os.Chmod(path+"-wal", 0644))
 	require.Error(t, validateBootstrapPath(path))
 }
 
