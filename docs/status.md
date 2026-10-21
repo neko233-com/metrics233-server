@@ -2,6 +2,21 @@
 
 Updated: 2026-10-21. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
+### 2026-10-21 — Transport timeout diagnostics
+
+- A full Linux race run exposed a deadline ordering case: the HTTP client's timeout can finish before the
+  request context's timer. Notification delivery now recognizes wrapped context and network deadline errors
+  as the same fixed, sanitized timeout diagnostic. Cancellation and ordinary transport failures retain their
+  generic diagnostic; receiver URLs, credentials and error bodies are never persisted. Retry and cooldown
+  behavior are unchanged.
+- Windows `go test ./internal/alerting -count=1 -timeout=3m` and `go vet ./internal/alerting` passed.
+  Four deterministic transport cases supplement the existing real TLS timeout/cancellation test. The final
+  Linux race rerun, immutable release and production acceptance remain separate gates. Overall weighting below
+  is unchanged.
+- The fresh full browser sweep of the preceding UI candidate passed 93 cases, with two SQL-environment skips
+  covered by the separately executed six real SQL Docker browser cases; no failures or retries. This
+  notification diagnostic change does not modify the UI or database contracts.
+
 ### 2026-10-21 — Feishu cards and safe message templates (local acceptance)
 
 - Feishu now defaults to an interactive card, with explicit text compatibility. Cards show localized status/severity,

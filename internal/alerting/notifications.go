@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
@@ -161,7 +162,9 @@ func (e *Engine) deliverNotification(ctx context.Context, delivery model.Notific
 	if err != nil {
 		// Transport errors can embed the URL or credentials. Persist only a
 		// fixed diagnostic; never retain receiver response bodies either.
-		if requestCtx.Err() == context.DeadlineExceeded {
+		var timeout net.Error
+		// Client and transport deadlines can win the request context's timer.
+		if errors.Is(err, context.DeadlineExceeded) || requestCtx.Err() == context.DeadlineExceeded || errors.As(err, &timeout) && timeout.Timeout() {
 			return 0, "Webhook request timed out"
 		}
 		return 0, "Webhook request failed"

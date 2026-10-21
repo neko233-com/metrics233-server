@@ -6,10 +6,13 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -220,6 +223,31 @@ func TestFeishuTimeoutAndCancellation(t *testing.T) {
 	cancel()
 	_, message = e.deliverNotification(ctx, model.NotificationDelivery{}, model.ContactPoint{Type: "feishu", TimeoutSeconds: 1}, map[string]string{"webhook_url": syntheticFeishuURL}, json.RawMessage(`{}`), false)
 	require.NotEmpty(t, message)
+}
+
+func TestFeishuTransportDeadlineBeforeContextTimerRemainsSanitized(t *testing.T) {
+	for _, test := range []struct {
+		name    string
+		err     error
+		message string
+	}{
+		{"client deadline", &url.Error{Op: "Post", URL: syntheticFeishuURL, Err: context.DeadlineExceeded}, "Webhook request timed out"},
+		{"network deadline", &net.OpError{Op: "dial", Net: "tcp", Err: os.ErrDeadlineExceeded}, "Webhook request timed out"},
+		{"cancellation", context.Canceled, "Webhook request failed"},
+		{"ordinary transport", errors.New("synthetic-private-transport-value"), "Webhook request failed"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+			defer cancel()
+			e := &Engine{notificationTransport: feishuFixtureTransport(func(*http.Request) (*http.Response, error) { return nil, test.err })}
+			code, message := e.deliverNotification(ctx, model.NotificationDelivery{}, model.ContactPoint{Type: "feishu", TimeoutSeconds: 30}, map[string]string{"webhook_url": syntheticFeishuURL}, json.RawMessage(`{}`), false)
+			require.NoError(t, ctx.Err(), "classification must work before the caller's context expires")
+			require.Zero(t, code)
+			require.Equal(t, test.message, message)
+			require.NotContains(t, message, syntheticFeishuURL)
+			require.NotContains(t, message, "synthetic-private-transport-value")
+		})
+	}
 }
 
 func TestFeishuFiringAndResolvedUseExistingAlertPolicy(t *testing.T) {

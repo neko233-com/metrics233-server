@@ -196,6 +196,8 @@
 
 ## 历史归档
 
+- [x] **通知超时诊断竞态**：客户端/传输层 deadline 先于 request context 时，仍返回固定去敏超时信息；取消和普通网络错误保持通用失败。新增四项确定性用例，保留真实 TLS 超时用例；Windows alerting 测试与 vet 通过，最终 Linux race、不可变发布和生产验收独立记录。
+
 - [~] **飞书卡片与自定义通知模板（2026-10-21）**：默认状态色卡片、文本兼容、主机/资源/评估值/for/恢复/CD、可信工作台详情按钮；复用有界单次模板和持久化快照，Admin-only 示例预览不外发。定向 Go/TLS/权限/ACK/CD、Linux vet/race 两轮 80 项、最终统一 UI 通知浏览器 4 项和业务 3 项已通过。真实 DB 两轮及最终源码 runtime/browser 两轮通过，分层输入与资源证据见 `docs/docker-validation.md`；完整 Docker race target 本轮未重跑。不可变发布和真实群卡片由主任务独立收口，不降低正式资源规则的持续触发时间。契约见 `docs/feishu-notifications.md`。
 
 - [~] **A3 — 上报来源与来源访问限制**：主导航、协议/接收计数/最近时间、Admin 一键拉黑/解除/允许、可选白名单模式。
