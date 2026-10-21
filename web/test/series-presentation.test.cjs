@@ -10,6 +10,19 @@ vm.runInNewContext(ts.transpileModule(fs.readFileSync("src/render/series-present
 const present = (inputs, locale = "zh") => helpers.seriesPresentations(inputs, locale);
 const plain = value => JSON.parse(JSON.stringify(value));
 
+test("native rate presentation distinguishes derived requests per second from the raw counter", () => {
+  const labels = { __name__: "metricspanel_http_requests_total", instance: "self" };
+  const [raw] = present([{ labels }]);
+  const [rate] = present([{ labels, aggregation: "rate" }]);
+  assert.match(raw.name, /累计/);
+  assert.equal(rate.name, "监控服务 HTTP 请求速率");
+  assert.match(rate.description, /不是原始采样值或累计总次数/);
+  assert.equal(rate.metric, raw.metric);
+  assert.equal(rate.rawName, raw.rawName);
+  assert.equal(present([{ labels, aggregation: "rate", displayName: "My alias" }])[0].name, "My alias");
+  assert.equal(present([{ labels, aggregation: "rate" }], "en")[0].name, "Monitoring service HTTP request rate");
+});
+
 test("uptime replaces SDK label soup, with exact source and every label retained for details", () => {
   const labels = Object.freeze({ __name__: "metricspanel_uptime_seconds", instance: "random-host:7333", job: "self" });
   const [item] = present([{ labels }]);
@@ -20,6 +33,31 @@ test("uptime replaces SDK label soup, with exact source and every label retained
   assert.deepEqual(plain(item.rawLabels), labels);
   assert.notEqual(item.rawLabels, labels);
   assert.equal(present([{ labels }], "en")[0].name, "Monitoring service uptime");
+});
+
+test("all four default self metrics have exact bilingual definitions without guessing future metrics or rates", () => {
+  const expected = [
+    ["metricspanel_uptime_seconds", "监控服务运行时长", "Monitoring service uptime"],
+    ["metricspanel_memory_bytes", "监控服务 Go 堆内存", "Monitoring service allocated Go heap"],
+    ["metricspanel_goroutines", "监控服务协程数", "Monitoring service goroutines"],
+    ["metricspanel_http_requests_total", "监控服务累计 HTTP 请求数", "Monitoring service cumulative HTTP requests"],
+  ];
+  for (const [metric, zh, en] of expected) {
+    const labels = { __name__: metric, job: "metricspanel", instance: "opaque-host" };
+    assert.equal(present([{ labels }])[0].name, zh);
+    assert.equal(present([{ labels }], "en")[0].name, en);
+    assert.equal(helpers.metricPresentation(metric, "zh").known, true);
+    assert.equal(helpers.metricPresentation(metric, "en").known, true);
+  }
+  assert.match(helpers.metricPresentation("metricspanel_memory_bytes", "zh").description, /MemStats.Alloc.*不是进程 RSS/);
+  assert.match(helpers.metricPresentation("metricspanel_goroutines", "zh").description, /NumGoroutine/);
+  assert.match(helpers.metricPresentation("metricspanel_http_requests_total", "zh").description, /原始值不是速率/);
+  const [derived] = present([{ fallbackName: "HTTP 请求速率", labels: {} }]);
+  assert.equal(derived.name, "HTTP 请求速率");
+  assert.equal(derived.known, false);
+  const [unknown] = present([{ metric: "metricspanel_future_total" }]);
+  assert.equal(unknown.name, "metricspanel_future_total");
+  assert.equal(unknown.known, false);
 });
 
 test("explicit field names win; legend templates preserve punctuation and missing labels match datasource rules", () => {

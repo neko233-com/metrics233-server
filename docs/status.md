@@ -26,6 +26,13 @@ Updated: 2026-10-21. This file is the durable progress ledger. Update it wheneve
 - Online release remains a separate gate in the private deployment ledger. Existing
   v0.2.6 full Go/CI/Docker evidence retains its original source attribution. The user explicitly excluded signing
   into a game with a test account; this UI acceptance does not claim a nonzero player lifecycle.
+- Live v0.2.7 acceptance found three built-in self metrics still using their technical names. The follow-up
+  explicitly defines Go allocated heap (not RSS), goroutines and cumulative handler requests, and distinguishes
+  native request-rate aggregation from the source counter. This follow-up has its own source/verification gate;
+  the earlier UI results are not silently reassigned to it.
+- The self-metric follow-up passed **141/141 frontend units**, TypeScript/Vite, an embedded webui build and the
+  same **nine browser cases without retries in 29.4 seconds**, now including the real default overview's three
+  friendly self-metric legends. The final live upgrade is recorded separately by the release operator.
 - Weighted overall remains 94% under the existing workstream basis; this scoped UI correction is not a new
   sustained-load or universal production-certification claim.
 

@@ -7,6 +7,9 @@ query expressions, source authorization, stored samples and business scope filte
 - Explicit field display names and query legends take precedence. Known metric names have exact English/Chinese
   definitions; unknown metrics keep their original names. A ratio/rate expression that loses `__name__` uses its
   panel title, without inheriting a raw counter's meaning.
+- The four built-in monitoring-service metrics have exact definitions: allocated Go heap bytes (`MemStats.Alloc`,
+  not RSS), live goroutine count, cumulative handler request count and process uptime. Native `rate` aggregation
+  has an explicit derived rate name/description, so the request-rate chart never claims to show a cumulative total.
 - Business server, role, environment/channel and resource dimensions remain visible. Additional differing labels
   distinguish colliding names; a singleton's opaque instance/job labels stay in details. Native time-series IDs
   remain stable when locale or display names change, preserving visibility state.

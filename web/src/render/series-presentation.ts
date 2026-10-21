@@ -10,6 +10,8 @@ export type SeriesInput = {
   fallbackName?: string;
   reference?: string;
   comparison?: boolean;
+  /** Native query aggregation, never inferred from arbitrary PromQL. */
+  aggregation?: string;
 };
 export type SeriesPresentation = MetricPresentation & {
   custom: boolean;
@@ -22,6 +24,9 @@ type Definition = readonly [zh: string, en: string, zhDescription: string, enDes
 // query alias; a metric's original counter semantics cannot describe that result.
 const METRICS: Readonly<Record<string, Definition>> = {
   metricspanel_uptime_seconds: ["监控服务运行时长", "Monitoring service uptime", "当前监控服务进程的运行秒数；重启后重新计时。", "Seconds since the current monitoring service process started; resets on restart."],
+  metricspanel_memory_bytes: ["监控服务 Go 堆内存", "Monitoring service allocated Go heap", "runtime.MemStats.Alloc：当前已分配的 Go 堆对象字节数；随分配和垃圾回收变化，不是进程 RSS 或主机内存。", "runtime.MemStats.Alloc: bytes allocated to Go heap objects; varies with allocation and garbage collection, not process RSS or host memory."],
+  metricspanel_goroutines: ["监控服务协程数", "Monitoring service goroutines", "runtime.NumGoroutine()：当前监控服务进程中存在的 Go goroutine 数量；不是主机线程数。", "runtime.NumGoroutine(): current Go goroutines in the monitoring service process; not host threads."],
+  metricspanel_http_requests_total: ["监控服务累计 HTTP 请求数", "Monitoring service cumulative HTTP requests", "当前服务实例 HTTP handler 接收的累计请求次数；重启后重新计数。每秒速率由 rate 查询计算，原始值不是速率。", "Cumulative requests received by the current service instance's HTTP handler; resets on restart. A rate query computes requests per second; the original counter is not a rate."],
   up: ["采集目标状态", "Scrape target status", "最近一次采集成功为 1，失败为 0；没有样本不代表成功。", "The last scrape succeeded at 1 or failed at 0; missing samples do not mean success."],
   scrape_duration_seconds: ["采集耗时", "Scrape duration", "一次采集请求消耗的秒数。", "Seconds spent on one scrape."],
   scrape_samples_scraped: ["采集样本数", "Scraped samples", "最近一次采集读取的样本数。", "Number of samples read in the latest scrape."],
@@ -143,7 +148,17 @@ export function seriesPresentations(inputs: readonly SeriesInput[], locale: Pres
   const result = inputs.map(input => {
     const rawLabels = Object.fromEntries(Object.entries(input.labels || {}).filter(([, value]) => typeof value === "string"));
     const metric = rawLabels.__name__ || input.metric || "";
-    const presentation = metricPresentation(metric, locale);
+    const source = metricPresentation(metric, locale);
+    const rate = input.aggregation === "rate";
+    const presentation = !rate ? source : {
+      ...source,
+      name: metric === "metricspanel_http_requests_total"
+        ? locale === "zh" ? "监控服务 HTTP 请求速率" : "Monitoring service HTTP request rate"
+        : source.name + (locale === "zh" ? "（每秒变化率）" : " (per-second change)"),
+      description: locale === "zh"
+        ? "当前显示源指标的每秒变化率，不是原始采样值或累计总次数；实际单位和口径请结合来源与查询确认。"
+        : "This query returns the source metric's per-second change, not its raw sample or cumulative total. Confirm the unit and meaning with the source and query.",
+    };
     const legend = explicitName(input.legend)?.replace(/\{\{\s*([\w]+)\s*\}\}/g,
       (_, key: string) => Object.hasOwn(rawLabels, key) ? rawLabels[key] : "");
     const alias = explicitName(input.displayName) || explicitName(legend);

@@ -115,6 +115,9 @@ test("Chinese onboarding, numeric uptime and editable historical risk lines rend
   await expect(page.getByRole("heading",{name:"快速开始",exact:true})).toBeVisible();
   await expect(page.getByText("接入采集器",{exact:true})).toBeVisible();
   await expect(page.getByText("查看实时指标",{exact:true})).toBeVisible();
+  await expect(page.locator(".chart-legend").filter({hasText:"监控服务 Go 堆内存"})).toBeVisible();
+  await expect(page.locator(".chart-legend").filter({hasText:"监控服务协程数"})).toBeVisible();
+  await expect(page.locator(".chart-legend").filter({hasText:"监控服务 HTTP 请求速率"})).toBeVisible();
   expect(errors).toEqual([]);
 });
 

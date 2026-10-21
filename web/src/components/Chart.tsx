@@ -196,6 +196,7 @@ export function Chart({
       displayName: panel.config?.fieldConfig?.defaults?.displayName,
       legend: panel.config?.targets?.[Math.max(0, Number(series.labels.query || 1) - 1)]?.legendFormat,
       fallbackName: tr(panel.title), reference: series.labels.query, comparison: series.comparison,
+      aggregation: !panel.expr && !panel.expressions?.length ? panel.aggregation : undefined,
     })), locale);
     return source.map((series, index) => {
       const id = simpleSeriesIdentity(series.labels, series.comparison);
