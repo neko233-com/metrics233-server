@@ -2,7 +2,7 @@
 
 Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
-### 2026-10-22 — Native panels, managed hosts and MySQL (local acceptance complete)
+### 2026-10-22 — Native panels, managed hosts and MySQL (scoped acceptance complete)
 
 - Common native panels add categorical bar/pie and state views, bounded virtual lists, honest gaps and corrected
   histogram semantics. Navigation groups monitoring, metadata and system settings. Counts omit thousands separators;
@@ -19,14 +19,19 @@ Updated: 2026-10-22. This file is the durable progress ledger. Update it wheneve
 - Final runtime-source Docker end-to-end passed in 201.59 seconds for SQLite and ClickHouse, including real MariaDB,
   Redis/PostgreSQL/ClickHouse collection, native SQL and restart/isolation/persistence checks. It used one 2 CPU/2 GiB
   container and removed its containers/network/volumes. This does not claim a new race-detector or hosted-CI run.
-- Immutable production release, target service installation and independent Darwin heartbeat/sample acceptance
-  remain separate gates in the private ledger. Overall weighting stays 94%; no general shell orchestrator, automatic LAN relay,
+- Immutable production releases 0.2.12 and 0.2.13, target service installation and independent Darwin heartbeat/sample
+  acceptance passed and are recorded separately in the private ledger. Overall weighting stays 94%; no general shell orchestrator, automatic LAN relay,
   whole-cluster completion or universal production certification is claimed. See [managed hosts](managed-hosts.md).
 - Production 0.2.12 and a real Darwin arm64 LaunchDaemon were accepted separately: protected per-host bootstrap,
   dedicated non-login identity, matching artifact digest and 467 actual MySQL samples per batch. Initial zsh installation
   revealed tail-exec changing sudo's no-TTY parent ticket. The corrected installer keeps the shell alive, passes the
-  parent-identity/cached-credential regressions and the real Mac installation. Server-side rollout of that correction
-  is a distinct follow-up release; the successful agent installation does not imply that the old remote installer changed.
+  parent-identity/cached-credential regressions and the real Mac installation. Source `24d3805f8556ce66fd119ad45cfe70902a4a2dc9`
+  was then published as 0.2.13 with full worker Go/frontend and native token/local readiness gates. The actual Mac agent
+  was updated from the matching approved artifact. A real control round trip reached paused version 2/2 and then
+  collecting version 3/3 with another 467-sample batch. Public HTTPS missing/wrong ingest credentials returned 401,
+  ingest-only query/admin access returned 403 and an authenticated empty batch was rejected without storing samples.
+  Dedicated process identities, protected files, exact runtime provenance, preserved stopped-data snapshots and
+  authenticated Edge views were checked. Final documentation commits do not change that deployed runtime source.
 
 ### 2026-10-21 — Template center and instance dashboards
 
