@@ -20,7 +20,7 @@ func (s *Server) retentionRoutes(api routeRegistrar) {
 			fail(w, 503, errors.New("retention setting unavailable"))
 			return
 		}
-		writeJSON(w, 200, map[string]any{"days": value.Days, "version": value.Version, "editable": s.Store.Kind() == "sqlite", "cleanup_interval_seconds": 3600, "backend": s.Store.Kind()})
+		writeJSON(w, 200, map[string]any{"days": value.Days, "version": value.Version, "editable": s.Store.Kind() == "sqlite" || s.Store.Kind() == "embedded", "cleanup_interval_seconds": 3600, "backend": s.Store.Kind(), "compressed_timeseries": s.Store.Kind() == "embedded", "embedded_vectors": s.Store.Kind() == "embedded"})
 	}
 	api.HandleFunc("GET /api/v1/settings/retention", respond)
 	api.HandleFunc("PUT /api/v1/settings/retention", func(w http.ResponseWriter, r *http.Request) {

@@ -147,6 +147,13 @@ func (r *Registry) openLocked(ctx context.Context, org identity.Organization) (*
 	}
 	if r.config.StorageFactory != nil {
 		control.Backend, err = r.config.StorageFactory(ctx, org, path)
+	} else if _, ok := r.config.PrimaryServer.Store.Backend.(*store.Embedded); ok {
+		setting, e := control.MetricRetention(ctx, r.config.PrimaryServer.RetentionDays)
+		if e != nil {
+			err = e
+		} else {
+			control.Backend, err = store.OpenEmbedded(ctx, control, filepath.Join(filepath.Dir(path), "metrics"), setting.Days)
+		}
 	} else if primary, ok := r.config.PrimaryServer.Store.Backend.(*store.ClickHouse); ok {
 		var database string
 		database, err = ClickHouseDatabase(primary.Database, org.ID)
@@ -157,11 +164,11 @@ func (r *Registry) openLocked(ctx context.Context, org identity.Organization) (*
 		err = errors.New("organization storage requires a configured backend factory")
 	}
 	if err != nil {
-		control.DB.Close()
+		control.Close()
 		return nil, err
 	}
 	if err := r.validateBackendLocked(control.Backend, org.ID); err != nil {
-		control.DB.Close()
+		control.Close()
 		return nil, err
 	}
 	primary := r.config.PrimaryServer
@@ -379,5 +386,5 @@ func closeServer(s *server.Server) error {
 	s.Live.Close()
 	s.Plugins.Close()
 	s.CloseSQLSources()
-	return s.Store.DB.Close()
+	return s.Store.Close()
 }

@@ -42,7 +42,9 @@ Use `npm run dev` when you want only the frontend server and already have the AP
 
 ### Single-node binary (default)
 
-One executable contains the API, the UI and the default SQLite storage. Docker is optional.
+One executable contains the API, UI, compressed time-series engine and local vector database. SQLite stores
+configuration independently. Docker is optional. See [embedded storage and verified migration](docs/embedded-storage.md)
+before upgrading an existing SQLite metric database.
 
 ```sh
 # Build the executable once

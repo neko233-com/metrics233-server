@@ -70,12 +70,8 @@ func (s *Store) Query(ctx context.Context, q model.Query) (model.QueryResult, er
 		return out, err
 	}
 	defer rows.Close()
-	type state struct {
-		labels   map[string]string
-		buckets  map[int64]float64
-		previous *model.Point
-	}
-	states := map[int64]*state{}
+
+	states := map[int64]*bucketState{}
 	ids = []int64{}
 	count := 0
 	for rows.Next() {
@@ -94,7 +90,7 @@ func (s *Store) Query(ctx context.Context, q model.Query) (model.QueryResult, er
 			if len(states) >= 200 {
 				return out, errors.New("query exceeds 200 series; add label filters")
 			}
-			st = &state{buckets: map[int64]float64{}}
+			st = &bucketState{buckets: map[int64]float64{}}
 			if err = json.Unmarshal([]byte(labels), &st.labels); err != nil {
 				return out, err
 			}
@@ -123,6 +119,16 @@ func (s *Store) Query(ctx context.Context, q model.Query) (model.QueryResult, er
 	if err = rows.Err(); err != nil {
 		return out, err
 	}
+	return finishBucketQuery(out, q, states, ids)
+}
+
+type bucketState struct {
+	labels   map[string]string
+	buckets  map[int64]float64
+	previous *model.Point
+}
+
+func finishBucketQuery(out model.QueryResult, q model.Query, states map[int64]*bucketState, ids []int64) (model.QueryResult, error) {
 	points := func(buckets map[int64]float64) []model.Point {
 		times := make([]int64, 0, len(buckets))
 		for t := range buckets {

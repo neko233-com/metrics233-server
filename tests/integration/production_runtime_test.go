@@ -216,7 +216,7 @@ func (e *productionRuntime) start(mode string) {
 	args := []string{"run", "-d", "--name", e.name, "--label", "metricspanel.verify=" + e.prefix,
 		"--read-only", "--cap-drop=ALL", "--security-opt=no-new-privileges:true", "--pids-limit=128", "--memory=256m", "--cpus=1",
 		"--tmpfs", "/tmp:rw,noexec,nosuid,size=16m,mode=1777", "--publish", "127.0.0.1::7333", "--mount", "type=volume,src=" + e.volume + ",dst=/data",
-		"--env", "METRICSPANEL_TOKEN", "--env", "METRICSPANEL_AUTH=" + mode, "--env", "METRICSPANEL_STORAGE=sqlite"}
+		"--env", "METRICSPANEL_TOKEN", "--env", "METRICSPANEL_AUTH=" + mode, "--env", "METRICSPANEL_STORAGE=embedded"}
 	if e.publicOrigin != "" {
 		args = append(args, "--env", "METRICSPANEL_ROOT_URL="+e.publicOrigin)
 	}
@@ -402,9 +402,13 @@ func (e *productionRuntime) verifyProxyOrigin() {
 
 func (e *productionRuntime) verifyBusinessMetrics() {
 	ts := time.Now().UnixMilli()
-	for _, value := range []float64{233, 234} {
-		e.request("POST", "/api/v1/ingest", map[string]any{"samples": []model.Sample{{Name: "business_orders_total", Labels: map[string]string{"service": "shop", "region": "cn"}, Value: value, Timestamp: ts}}}, e.bearer(), 200)
+	for index, value := range []float64{233, 234} {
+		e.request("POST", "/api/v1/ingest", map[string]any{"samples": []model.Sample{{Name: "business_orders_total", Labels: map[string]string{"service": "shop", "region": "cn"}, Value: value, Timestamp: ts + int64(index)}}}, e.bearer(), 200)
 	}
+	// Identical retransmission is idempotent; conflicting observations are not
+	// an OLTP update operation and must not change the acknowledged value.
+	e.request("POST", "/api/v1/ingest", map[string]any{"samples": []model.Sample{{Name: "business_orders_total", Labels: map[string]string{"service": "shop", "region": "cn"}, Value: 234, Timestamp: ts + 1}}}, e.bearer(), 200)
+	e.request("POST", "/api/v1/ingest", map[string]any{"samples": []model.Sample{{Name: "business_orders_total", Labels: map[string]string{"service": "shop", "region": "cn"}, Value: 999, Timestamp: ts + 1}}}, e.bearer(), 400)
 	batch := make([]model.Sample, 10000)
 	for i := range batch {
 		batch[i] = model.Sample{Name: "business_load_probe", Labels: map[string]string{"shard": strconv.Itoa(i % 20)}, Value: float64(i), Timestamp: ts - int64(i/20)*1000}

@@ -14,7 +14,9 @@ flowchart LR
   CLI[metricspanel CLI] --> API
   API --> Store
   API --> Compat[Optional Grafana compatibility adapters]
-  Store --> SQLite[SQLite control and default metric storage]
+  Store --> SQLite[SQLite control metadata]
+  Store --> TSDB[Embedded XOR and Zstd time-series storage]
+  Store --> Vectors[Embedded Badger and HNSW vectors]
   Store --> ClickHouse[Optional ClickHouse metric storage]
   Vite[Vite development server] -->|proxy| API
 ```

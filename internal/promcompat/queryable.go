@@ -19,6 +19,9 @@ import (
 type Queryable struct{ Store *store.Store }
 
 func (q Queryable) Querier(start, end int64) (storage.Querier, error) {
+	if native, ok := q.Store.Backend.(storage.Queryable); ok {
+		return native.Querier(start, end)
+	}
 	return &querier{store: q.Store, start: start, end: end}, nil
 }
 

@@ -64,7 +64,8 @@ func usage() {
 
 Usage: metricspanel <command> [flags]
 
-  serve        Start collector, SQLite storage and embedded web UI
+  serve        Start collector, compressed time-series/vector storage and web UI
+  storage      migrate (offline, verified backup and exact restart checksum)
   bootstrap-admin Initialize the first local Admin offline from protected stdin
   health       Check server health
   stats        Show storage and collection statistics
@@ -114,6 +115,8 @@ func run(args []string) error {
 		return serve(args[1:])
 	case "bootstrap-admin":
 		return bootstrapAdminCommand(args[1:])
+	case "storage":
+		return storageCommand(args[1:])
 	case "version":
 		return output(map[string]string{"version": version, "go": "1.27"})
 	case "schema":
@@ -1394,7 +1397,8 @@ func serve(args []string) error {
 	listen := f.String("listen", "127.0.0.1:7333", "HTTP listen address")
 	dbPath := f.String("db", "data/metrics.db", "SQLite database path")
 	retention := f.Int("retention-days", store.DefaultRetentionDays, "default sample retention in days (1–3650); saved workspace setting takes precedence")
-	backend := f.String("storage", env("METRICSPANEL_STORAGE", "sqlite"), "metrics backend: sqlite or clickhouse")
+	backend := f.String("storage", env("METRICSPANEL_STORAGE", "embedded"), "metrics backend: embedded (compressed TSDB + local vector DB), sqlite (legacy), or clickhouse")
+	metricsDir := f.String("metrics-dir", env("METRICSPANEL_METRICS_DIR", ""), "compressed metrics directory; default metrics beside the control database")
 	clickhouseURL := f.String("clickhouse-url", env("CLICKHOUSE_URL", "http://127.0.0.1:8123"), "ClickHouse HTTP endpoint")
 	token := f.String("token", env("METRICSPANEL_TOKEN", ""), "API token; mandatory on non-loopback interfaces")
 	authMode := f.String("auth", env("METRICSPANEL_AUTH", "token"), "authentication mode: token (single workspace Bearer) or local (users, passwords and browser sessions)")
@@ -1453,8 +1457,21 @@ func serve(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer storage.DB.Close()
-	if *backend == "clickhouse" {
+	defer storage.Close()
+	if *backend == "embedded" {
+		setting, err := storage.MetricRetention(context.Background(), *retention)
+		if err != nil {
+			return err
+		}
+		path := *metricsDir
+		if path == "" {
+			path = filepath.Join(filepath.Dir(*dbPath), "metrics")
+		}
+		storage.Backend, err = store.OpenEmbedded(context.Background(), storage, path, setting.Days)
+		if err != nil {
+			return err
+		}
+	} else if *backend == "clickhouse" {
 		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
 		engine, err := store.OpenClickHouse(ctx, *clickhouseURL, env("CLICKHOUSE_DATABASE", "metricspanel"), env("CLICKHOUSE_USER", "default"), env("CLICKHOUSE_PASSWORD", ""), *retention)
@@ -1463,7 +1480,7 @@ func serve(args []string) error {
 		}
 		storage.Backend = engine
 	} else if *backend != "sqlite" {
-		return errors.New("--storage must be sqlite or clickhouse")
+		return errors.New("--storage must be embedded, sqlite or clickhouse")
 	}
 	var authHandler *localauth.Handler
 	var setupRequired bool
@@ -1754,5 +1771,6 @@ func schema() any {
 	result["annotations"].(map[string]any)["configuration_editor"] = map[string]any{"sdk": "AnnotationSupport.QueryEditor before components.QueryEditor; official datasource context, range and preview PanelData; onChange, onAnnotationChange and onRunQuery", "native": "optional dashboard annotations array; 32 queries and 128 KiB in SQLite extras; absent uses builtin defaults, [] disables all; retained by dashboard CLI save/export", "templates": "classic/V1/V2 original envelopes and unknown fields retained; unmodified V2 query resources unchanged", "controls": "datasource, enable, color, ordering, panel filters, builtin tags, PromQL, standard event mappings and advanced JSON", "preview": "actual datasource frames and events; 60 second idle timeout; cancellation on stop or unmount", "save": "cancel/preview do not write; detected version changes since opening require reopening"}
 	result["annotations"].(map[string]any)["time_regions"] = map[string]any{"query": "builtin target.queryType timeRegions plus target.timeRegion; native/classic/V1/V2", "editor": "Chinese/English weekday/time or advanced Cron, timezone and duration; real preview", "parser": "Croner 9.1.0 as pinned by Grafana 13.2.3; five/six fields, names, L and #", "timezone": "browser/utc/IANA; omitted uses browser; new queries default to dashboard timezone; starts follow DST, SDK-converted duration is added as fixed milliseconds", "window": "actual panel range; full overlapping regions preserved; end equal to lower bound excluded, start equal to upper bound included", "limits": map[string]int{"regions_per_query": 1000}, "events": "namespaced read-only native bands and SDK time/timeEnd/text annotation frames; never persisted", "agent": "dashboard save/export preserves configuration; annotations list reads stored records only; recurrence executes in browser"}
 	addMonitoringWorkflowsSchema(result, routes)
+	result["storage"] = map[string]any{"default": "embedded", "timeseries": "embedded Prometheus TSDB, lossless XOR chunks, Zstd WAL, local blocks", "vectors": "embedded Badger Zstd payloads and bounded in-process HNSW; explicit exact reranking option", "control": "independent SQLite WAL", "retention_default_days": 15, "active_series_limit": store.EmbeddedMaxSeries, "vector_limit": 100000, "migration": "offline storage migrate --source-stopped --backup-dir NEW_DIRECTORY [--prune-legacy]; backup and reopened lossless fingerprint precede reclamation", "compatibility": []string{"--storage sqlite", "--storage clickhouse"}}
 	return result
 }

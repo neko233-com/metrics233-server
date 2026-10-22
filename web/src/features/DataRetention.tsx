@@ -43,9 +43,11 @@ export function DataRetention({ notify, reload }: { notify: (s: string, error?: 
     } finally { setBusy(false); }
   }
   return <section className="list-panel" aria-labelledby="data-retention-title">
-    <div className="section-heading"><h2 id="data-retention-title">{text("Data retention", "数据保留")}</h2></div>
+    <div className="section-heading"><h2 id="data-retention-title">{text("Storage & retention", "存储与保留")}</h2></div>
     <form onSubmit={save} style={{ padding: "0 20px 20px", maxWidth: 620 }}>
       <p className="subtle">{text("Keep recent metric samples. Expired samples are permanently deleted at startup and hourly; accounts, dashboards and alert configuration are retained.", "只保留最近的指标数据。启动时及每小时自动永久删除过期样本；账号、仪表盘与告警配置会保留。")}</p>
+      {saved?.backend === "embedded" && <p>{text("Compressed time series · XOR blocks + Zstd WAL. Built-in vector database · HNSW search + Zstd storage. Configuration is stored separately.", "压缩时序 · XOR 数据块 + Zstd 日志。内置向量库 · HNSW 检索 + Zstd 存储。配置独立保存。")}</p>}
+      {saved?.backend === "sqlite" && <p className="subtle">{text("Legacy SQLite metric storage. Stop the service and run storage migrate to enable compressed storage.", "当前使用兼容版 SQLite 指标存储；停服执行 storage migrate 后可启用压缩存储。")}</p>}
       {error && <Alert severity="error" title={error} />}
       <Field label={text("Retention days", "保留天数")}>
         <Input type="number" min={1} max={3650} step={1} required value={days}

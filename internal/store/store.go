@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	"github.com/neko233-com/metrics233-server/internal/model"
@@ -20,6 +22,7 @@ type Store struct {
 	secretKey      []byte
 	organizationID int64
 	pluginRegistry *Store
+	retentionMu    sync.Mutex
 }
 
 // OrganizationID is the immutable owner of this physical control-plane store.
@@ -50,9 +53,24 @@ type MetricBackend interface {
 
 func (s *Store) Kind() string {
 	if s.Backend != nil {
+		if backend, ok := s.Backend.(interface{ Kind() string }); ok {
+			return backend.Kind()
+		}
 		return "clickhouse"
 	}
 	return "sqlite"
+}
+
+// Close drains a local metric engine before closing its independent control DB.
+func (s *Store) Close() error {
+	var err error
+	if backend, ok := s.Backend.(interface{ Close() error }); ok {
+		err = backend.Close()
+	}
+	if s.DB != nil {
+		err = errors.Join(err, s.DB.Close())
+	}
+	return err
 }
 func (s *Store) Health(ctx context.Context) error {
 	if err := s.DB.PingContext(ctx); err != nil {
@@ -358,6 +376,11 @@ type Stats struct {
 	CollectorsTotal  int     `json:"collectors_total"`
 	StartedAt        int64   `json:"started_at"`
 	LastSample       int64   `json:"last_sample"`
+	Backend          string  `json:"backend,omitempty"`
+	TimeSeriesBytes  int64   `json:"timeseries_bytes,omitempty"`
+	VectorBytes      int64   `json:"vector_bytes,omitempty"`
+	ControlBytes     int64   `json:"control_bytes,omitempty"`
+	Vectors          int     `json:"vectors,omitempty"`
 }
 
 func (s *Store) Stats(ctx context.Context) (Stats, error) {

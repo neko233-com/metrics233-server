@@ -48,6 +48,35 @@ func registryFixture(t *testing.T) (*Registry, *identity.Store, *server.Server) 
 	return r, catalog, primary
 }
 
+func TestEmbeddedOrganizationHasIndependentEngineAndRetention(t *testing.T) {
+	r, catalog, primary := registryFixture(t)
+	engine, err := store.OpenEmbedded(t.Context(), primary.Store, filepath.Join(t.TempDir(), "primary-metrics"), 15)
+	require.NoError(t, err)
+	primary.Store.Backend = engine
+	t.Cleanup(func() { engine.Close() })
+	_, one := activate(t, r, catalog, "Native One")
+	_, two := activate(t, r, catalog, "Native Two")
+	require.Equal(t, "embedded", one.Store.Kind())
+	require.Equal(t, "embedded", two.Store.Kind())
+	require.NotSame(t, one.Store.Backend, two.Store.Backend)
+	require.NoError(t, one.Store.Ingest(t.Context(), []model.Sample{{Name: "private_value", Value: 1}}))
+	require.NoError(t, two.Store.Ingest(t.Context(), []model.Sample{{Name: "private_value", Value: 2}}))
+	for _, item := range []struct {
+		s    *server.Server
+		want float64
+	}{{one, 1}, {two, 2}} {
+		rows, e := item.s.Store.LoadSeries(t.Context(), 0, time.Now().Add(time.Minute).UnixMilli(), nil)
+		require.NoError(t, e)
+		require.Len(t, rows, 1)
+		require.Equal(t, item.want, rows[0].Points[0].Value)
+	}
+	_, err = one.Store.SaveMetricRetention(t.Context(), store.MetricRetention{Days: 2})
+	require.NoError(t, err)
+	setting, err := two.Store.MetricRetention(t.Context(), 15)
+	require.NoError(t, err)
+	require.Equal(t, 15, setting.Days)
+}
+
 func activate(t *testing.T, r *Registry, catalog *identity.Store, name string) (identity.Organization, *server.Server) {
 	t.Helper()
 	ctx := context.Background()

@@ -2,7 +2,18 @@
 
 Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
-### 2026-10-22 — Staggered recovery grouping (regression reproduced and fixed; rollout pending)
+### 2026-10-22 — Embedded storage (local acceptance; production cutover pending)
+
+- Separate lossless XOR/Zstd TSDB, durable Badger/HNSW vectors and SQLite control metadata. Native indexed PromQL,
+  versioned retention, per-organization engines and bounded memory/query work are implemented. Offline migration
+  backs up catalogs/keys and checks counts, float bits and vector payloads after reopening before reclaiming legacy rows.
+- Go full suite/vet, 157 frontend units/build, Linux abrupt-exit/migration and million-point profile passed. The
+  profile measured 68.37 MB SQLite versus 5.05 MB TSDB / 6.34 MB complete native data. Production Docker runtime
+  token/local auth, restart and fresh-volume backup recovery passed in 68.69s under 1 CPU/256 MiB. See embedded-storage.md.
+- Next: fixed-source private worker release, stopped-data migration, live reporting/query continuity and final Edge UI
+  acceptance. This entry does not claim that a source implementation alone changed the online storage backend.
+
+### 2026-10-22 — Staggered recovery grouping (fixed-source rollout and provider retest accepted)
 
 - The fixed-source host/UI release passed its private worker gates and was deployed; the updated dedicated Darwin
   collector reported actual CPU, memory and writable data-volume observations. Six sustained/recovery/CD rules and
@@ -13,8 +24,9 @@ Updated: 2026-10-22. This file is the durable progress ledger. Update it wheneve
   first-period recovery, not a second-period firing bypassing CD. The owned temporary rules were removed.
 - Added a deterministic failing regression for staggered group recovery, then a quiet-window fix for CD-enabled
   groups. Existing zero-wait behavior is preserved and recovery waits are capped at 30 seconds. Targeted grouping,
-  cooldown and Feishu tests passed. Fixed-source rollout and a new real-clock/provider acceptance are pending;
-  the failed acceptance is not counted as success. Storage work remains independent and in progress.
+  cooldown and Feishu tests passed. Fixed-source 0.2.15 rollout passed the full private worker. A new real-clock
+  run produced exactly 24 transitions, one firing and one resolved signed Feishu ACK; second-cycle notifications
+  were suppressed by the 1h CD. Owned temporary rules were removed. The earlier failed acceptance remains distinct.
 
 ### 2026-10-22 — Host resources and operations UI (source/browser accepted; production pending)
 

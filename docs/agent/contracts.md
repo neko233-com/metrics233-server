@@ -65,10 +65,13 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 
 ## Storage and vectors
 
-- SQLite WAL is the zero-configuration default for control data and metrics.
+- Embedded compressed TSDB (XOR chunks/Zstd WAL) and a local Badger/HNSW vector database are the metric default;
+  SQLite WAL stores control data separately. Explicit SQLite metrics remain a legacy compatibility backend.
+- Existing metrics require offline backed-up, exact-fingerprint-verified migration before native cutover.
+  See [embedded storage](../embedded-storage.md) for quotas, disk accounting, durability and rollback boundaries.
 - ClickHouse is optional for high-volume metrics and HNSW vector search.
 - SQLite vector search is exact with a 50,000 candidate cap; ClickHouse uses approximate HNSW.
-- Metric retention defaults to 15 days. SQLite Admins can save a versioned 1–3650 day setting under Collectors; startup/hourly cleanup reads the setting and deletes expired samples in one transaction. Monitoring/account configuration remains. ClickHouse settings remain read-only; changing its TTL requires an explicit `ALTER TABLE`. See [data retention](../data-retention.md).
+- Metric retention defaults to 15 days. Embedded and SQLite Admins can save a versioned 1–3650 day setting under Collectors; startup/hourly cleanup uses that setting. Monitoring/account configuration remains. ClickHouse settings remain read-only; changing its TTL requires an explicit `ALTER TABLE`. See [data retention](../data-retention.md).
 - Native SQLite non-rate queries reduce bucket-last values in SQL (5M source observations); rate retains raw points
   (250k). PromQL never consumes display-decimated observations. See [query planning](../storage-query-planning.md).
 
@@ -106,5 +109,5 @@ database, `identity.db`, `secrets.key` and `plugins/` together. Do not expose th
 See `docs/public-deployment.md`.
 
 `Dockerfile` defaults to the small non-root `runtime`; database fixtures and Linux race validation are explicit
-targets. Default Compose uses one hardened SQLite service. `compose.clickhouse.yml` explicitly selects ClickHouse;
+targets. Default Compose uses one hardened embedded service. `compose.clickhouse.yml` explicitly selects ClickHouse;
 existing ClickHouse installations must retain that overlay, because backend switching does not migrate samples.
