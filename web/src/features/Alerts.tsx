@@ -529,6 +529,7 @@ export function Alerts({
                                             : v.value.toLocaleString(
                                                 undefined,
                                                 {
+                                                  useGrouping: false,
                                                   maximumFractionDigits: 4,
                                                 },
                                               ))}

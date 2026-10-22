@@ -242,7 +242,7 @@ export default function TimeSeriesRenderer({
       const field = items[0]?.field;
       return field && items.every(item => item.field.config.unit === field.config.unit)
         ? ticks.map(value => formatValue(field, value, resolved.timezone))
-        : ticks.map(value => value.toLocaleString(locale, { maximumSignificantDigits: 4 }));
+        : ticks.map(value => value.toLocaleString(locale, { useGrouping: false, maximumSignificantDigits: 4 }));
     };
     const chartOptions: uPlot.Options = {
       width: size.width,

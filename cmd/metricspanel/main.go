@@ -72,6 +72,7 @@ Usage: metricspanel <command> [flags]
   query        Query a metric (--metric NAME --range 30m --aggregation last)
   ingest       Push JSON samples (--file samples.json or --file - for stdin)
   targets      catalog | exporters | list | add | set | delete | scrape
+  hosts        list | save | fingerprint | deploy | deploy-local | events
   dashboards   list | save | export | delete | community | import-community
                preview-grafana | import-grafana | move | library-add | library-unlink
                history | version | version-export | compare | restore | layout | queries
@@ -121,7 +122,7 @@ func run(args []string) error {
 	command := args[0]
 	rest := args[1:]
 	action := ""
-	if command == "targets" || command == "dashboards" || command == "patterns" || command == "alerts" || command == "contacts" || command == "notifications" || command == "silences" || command == "mute-timings" || command == "notification-templates" || command == "inhibition-rules" || command == "plugins" || command == "datasources" || command == "live" || command == "annotations" || command == "folders" || command == "library" || command == "users" {
+	if command == "hosts" || command == "targets" || command == "dashboards" || command == "patterns" || command == "alerts" || command == "contacts" || command == "notifications" || command == "silences" || command == "mute-timings" || command == "notification-templates" || command == "inhibition-rules" || command == "plugins" || command == "datasources" || command == "live" || command == "annotations" || command == "folders" || command == "library" || command == "users" {
 		if len(rest) == 0 || strings.HasPrefix(rest[0], "-") {
 			return fmt.Errorf("%s requires an action (see --help)", command)
 		}
@@ -146,6 +147,8 @@ func run(args []string) error {
 	file := f.String("file", "-", "JSON file; - reads stdin")
 	format := f.String("format", "native", "dashboard export format: native or grafana (original source)")
 	id := f.String("id", "", "resource ID")
+	hostVersion := f.Int64("host-version", 0, "expected managed host version for deployment")
+	collectorArtifacts := f.String("collector-artifacts", "", "absolute trusted collector artifact directory for LAN installation")
 	inhibitionVersion := f.Int("version", 0, "expected inhibition rule version for save or delete")
 	dashboardRevision := f.Int64("revision", 0, "expected updated_at for an atomic native dashboard save")
 	dashboardVersion := f.Int64("dashboard-version", 0, "saved dashboard version to read, export or restore")
@@ -245,6 +248,8 @@ func run(args []string) error {
 		return fmt.Errorf("invalid --labels: %w", err)
 	}
 	switch command {
+	case "hosts":
+		return managedHostsCommand(client, action, *id, *file, *hostVersion, *collectorArtifacts)
 	case "users":
 		switch action {
 		case "list":

@@ -11,6 +11,23 @@ export function setLocale(value: Locale) {
   document.documentElement.lang = value === "zh" ? "zh-CN" : "en";
 }
 const zh: Record<string, string> = {
+  "Histogram counts must be non-negative. Cumulative buckets need unique increasing bounds; do not mix them with raw observations.": "直方图计数不能为负；累计桶边界须唯一递增，不能与原始观测混合。",
+  "MySQL availability":"MySQL 可用状态", "MySQL uptime":"MySQL 运行时长", "MySQL connection usage":"MySQL 连接使用率", "MySQL active threads":"MySQL 执行中线程", "MySQL queries per second":"MySQL 每秒查询", "MySQL connections":"MySQL 连接数", "MySQL statement throughput":"MySQL SQL 吞吐", "MySQL transaction throughput":"MySQL 显式事务吞吐", "MySQL buffer pool usage":"MySQL 缓冲池占用", "MySQL buffer pool reads":"MySQL 缓冲池读取", "MySQL InnoDB IO":"MySQL InnoDB 读写", "MySQL network traffic":"MySQL 网络流量", "MySQL current row lock waits":"MySQL 当前行锁等待", "MySQL row lock waits":"MySQL 行锁等待次数", "MySQL row lock wait time":"MySQL 行锁累计等待速率", "MySQL aborted connections":"MySQL 异常连接", "MySQL temporary tables":"MySQL 临时表", "MySQL slow query counter":"MySQL 慢查询速率",
+  "Running threads":"执行中线程", "Queries /s":"查询 /秒", "Connected":"已连接", "Running":"执行中", "Buffer pool":"缓冲池", "Logical reads":"逻辑读取", "Physical reads":"实际读盘", "Read":"读取", "Written":"写入", "Received":"接收", "Sent":"发送", "Current waits":"当前等待", "Waits /s":"等待 /秒", "Wait seconds /s":"累计等待秒 /秒", "Aborted clients":"异常退出客户端", "Aborted connects":"失败连接", "Temporary tables":"临时表", "On disk":"落盘临时表", "Slow queries /s":"慢查询 /秒",
+  "Monitoring": "监控", "Metadata": "元数据", "System settings": "系统设置", "Host management": "主机管理",
+  "Bar chart": "分类柱图", "Pie chart": "饼图", "State timeline": "状态时间线", "Status history": "状态历史",
+  "Heatmap": "热力图", "Histogram": "直方图", "All categories": "全部分类", "All states": "全部状态",
+  "Histogram buckets must be non-negative cumulative counts with unique increasing bounds.": "直方图累计桶需为非负递增计数，桶边界不能重复；请检查查询结果。",
+  "Categories": "个分类", "Other": "其他", "Out of range": "超出数值范围",
+  "Panel display budget reached. Narrow the query to see remaining categories.": "已达到面板显示上限，请缩小查询范围查看其余分类。",
+  "Pie charts require non-negative values. Use a bar chart for signed values.": "饼图需要非负数，含负值的数据请使用分类柱图。",
+  "No positive values to show proportions": "当前没有正值，无法计算占比；完整数值见下方列表。",
+  "State panels need a time field and state values": "需要包含时间和状态值的查询结果。",
+  "Blank intervals have no observations; values are not filled across gaps.": "空白区间没有观测数据，不跨缺样区间补值。",
+  "State values": "状态值显示", "Original values": "原始数值", "Availability: 0 unavailable, 1 available": "可用性：0 异常，1 正常",
+  "Keep custom value mappings": "保留自定义状态映射", "Available": "正常", "Unavailable": "异常",
+  "Small slices are combined visually; all categories remain listed.": "小扇区合并为“其他”，下方仍列出全部分类。",
+  "Last observed": "最近观测",
   "Metric details": "指标详情", "Data series": "数据序列",
   Query: "查询表达式", Seconds: "秒", Count: "数量", Environment: "环境", Channel: "渠道",
   "Data at cursor": "光标位置的数据",

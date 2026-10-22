@@ -7,6 +7,14 @@ import { TableRenderer } from "./table/TableRenderer";
 import TimeSeriesRenderer from "./timeseries/TimeSeriesRenderer";
 import TracesRenderer from "./traces/TracesRenderer";
 import VectorRenderer from "./vector/VectorRenderer";
+import { CategoryRenderer, StateRenderer } from "./discrete/DiscreteRenderer";
+
+for (const kind of ["barchart", "piechart", "pie"]) {
+  registerRenderer({ kind, label: kind === "barchart" ? "Bar chart" : "Pie chart", capabilities: { streaming: true }, component: CategoryRenderer });
+}
+for (const kind of ["state-timeline", "status-history"]) {
+  registerRenderer({ kind, label: kind === "state-timeline" ? "State timeline" : "Status history", capabilities: { streaming: true }, component: StateRenderer });
+}
 
 registerRenderer({
   kind: "table",

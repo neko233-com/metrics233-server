@@ -41,6 +41,7 @@ type Props = { dashboards: Dashboard[]; open: (dashboard: Dashboard) => void; re
 function environmentLabel(environment: string): string {
   if (environment === "release") return text("Production · release", "正式环境 · release");
   if (environment === "test") return text("Test · test", "测试环境 · test");
+  if (environment === "intranet") return text("Intranet · intranet", "内网环境 · intranet");
   if (environment === "shared") return text("Shared · shared", "共享环境 · shared");
   return environment ? text(`Other environment · ${environment}`, `其他环境 · ${environment}`) : text("Environment not reported", "环境未上报");
 }

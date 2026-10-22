@@ -73,6 +73,7 @@ const Dashboards = lazy(() => import("./features/Dashboards").then((module) => (
 const Explore = lazy(() => import("./features/Explore").then((module) => ({ default: module.Explore })));
 const Collectors = lazy(() => import("./features/Collectors").then((module) => ({ default: module.Collectors })));
 const ReportingSources = lazy(() => import("./features/ReportingSources"));
+const ManagedHosts = lazy(() => import("./features/ManagedHosts"));
 const AgentCLI = lazy(() => import("./features/AgentCLI").then((module) => ({ default: module.AgentCLI })));
 const TemplateView = lazy(() => import("./features/TemplateView").then((module) => ({ default: module.TemplateView })));
 const Alerts = lazy(() => import("./features/Alerts").then((module) => ({ default: module.Alerts })));
@@ -84,6 +85,7 @@ type View =
   | "explore"
   | "collectors"
   | "reporting-sources"
+  | "hosts"
   | "business"
   | "alerts"
   | "plugins"
@@ -92,11 +94,12 @@ type View =
 type AppView = View | "app";
 const baseNavigation = [
   { id: "overview", name: "Overview", icon: LayoutDashboard },
+  { id: "business", name: "Dashboards", icon: Activity },
   { id: "dashboards", name: "Template center", icon: ChartNoAxesColumn },
   { id: "explore", name: "Explore", icon: Search },
   { id: "collectors", name: "Collectors", icon: Server },
   { id: "reporting-sources", name: "Reporting sources", icon: Network },
-  { id: "business", name: "Dashboards", icon: Activity },
+  { id: "hosts", name: "Host management", icon: Monitor },
   { id: "alerts", name: "Alerts", icon: Bell },
   { id: "cli", name: "Command line", icon: Terminal },
 ] as const;
@@ -775,11 +778,18 @@ export default function App() {
           <span>{tr("MetricsPanel233")}</span>
         </a>
         <nav aria-label={tr("Main navigation")}>
-          {navigation.map((item) => (
+          {[
+            { name: "Monitoring", items: ["overview", "business", "dashboards"] },
+            { name: "Metadata", items: ["explore", "collectors", "reporting-sources", "hosts"] },
+            { name: "System settings", items: ["alerts", "cli", "users", "plugins"] },
+          ].map(group => <section className="nav-group" key={group.name} aria-label={tr(group.name)}>
+            <h2 className="nav-group-title">{tr(group.name)}</h2>
+          {navigation.filter(item => group.items.includes(item.id)).map((item) => (
             <button
               key={item.id}
               aria-label={tr(item.name)}
               title={tr(item.name)}
+              aria-current={view === item.id || (view === "dashboard" && item.id === "dashboards") ? "page" : undefined}
               className={
                 view === item.id ||
                 (view === "dashboard" && item.id === "dashboards")
@@ -792,7 +802,7 @@ export default function App() {
               <span>{tr(item.name)}</span>
             </button>
           ))}
-          {apps.map((app) => (
+          {group.name === "System settings" && apps.map((app) => (
             <a
               className="app-nav-link"
               key={app.id}
@@ -809,6 +819,7 @@ export default function App() {
               <span>{app.name}</span>
             </a>
           ))}
+          </section>)}
         </nav>
         <div className="workspace">
           <Monitor size={22} />
@@ -966,6 +977,7 @@ export default function App() {
             <Collectors targets={targets} reload={load} notify={notify} />
           )}
           {view === "reporting-sources" && <ReportingSources notify={notify} />}
+          {view === "hosts" && <ManagedHosts notify={notify} />}
           {view === "cli" && <AgentCLI />}
           {view === "plugins" && <Plugins notify={notify} />}
           {view === "app" && (

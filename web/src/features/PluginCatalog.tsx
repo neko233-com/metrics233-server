@@ -182,7 +182,7 @@ export function PluginCatalog({ plugins, onInstalled, notify }: Props) {
                     </td>
                     <td className="plugin-catalog-downloads">
                       {Number.isFinite(item.downloads)
-                        ? item.downloads.toLocaleString()
+                        ? String(item.downloads)
                         : "—"}
                     </td>
                     <td>

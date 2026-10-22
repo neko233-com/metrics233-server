@@ -3,46 +3,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { t } from "../../i18n";
 import type { RendererProps } from "../types";
 import "./HistogramRenderer.css";
-
-type Bar = { label: string; value: number };
-
-function histogramBars(frames: RendererProps["frames"]): Bar[] {
-  const frame = frames[0];
-  if (!frame) return [];
-  const strings = frame.fields.filter((field) => field.type === "string");
-  const numbers = frame.fields.filter((field) => field.type === "number");
-  if (strings.length && numbers.length === 1) {
-    const labels = strings[0].values;
-    const values = numbers[0].values;
-    return Array.from(values, (value, index) => {
-      const number = Number(value);
-      return {
-        label: String(labels[index] ?? index),
-        value: Number.isFinite(number) ? number : 0,
-      };
-    });
-  }
-  return numbers.flatMap((field) => {
-    let value: number | undefined;
-    for (let index = field.values.length - 1; index >= 0; index -= 1) {
-      const number = Number(field.values[index]);
-      if (Number.isFinite(number)) {
-        value = number;
-        break;
-      }
-    }
-    if (value == null) return [];
-    return [{
-      label:
-        field.labels?.le ||
-        field.labels?.bucket ||
-        field.labels?.upper_bound ||
-        field.name ||
-        "",
-      value,
-    }];
-  });
-}
+import { histogramBins } from "../discrete/model";
 
 export default function HistogramRenderer({
   panel,
@@ -55,7 +16,8 @@ export default function HistogramRenderer({
   onRemove,
 }: RendererProps) {
   const config = panel.config;
-  const bars = useMemo(() => histogramBars(frames), [frames]);
+  const model = useMemo(() => histogramBins(frames), [frames]);
+  const bars = model.bins.slice(0, 200);
   const max = useMemo(
     () => bars.reduce((highest, bar) => Math.max(highest, bar.value), 0),
     [bars],
@@ -96,6 +58,8 @@ export default function HistogramRenderer({
         </div>
       </div>
       {timeInfo ? <p className="panel-time-info">{timeInfo}</p> : null}
+      {model.invalid && <p className="form-error" role="alert">{t("Histogram counts must be non-negative. Cumulative buckets need unique increasing bounds; do not mix them with raw observations.")}</p>}
+      {(model.truncated || model.bins.length > bars.length) && <p className="subtle" role="status">{t("Panel display budget reached. Narrow the query to see remaining categories.")}</p>}
       {queryError ? (
         <p className="form-error" role="alert">
           {t(queryError)}
@@ -110,7 +74,7 @@ export default function HistogramRenderer({
                 <span
                   className="native-histogram-fill"
                   style={{
-                    height: `${max > 0 ? Math.max(2, (bar.value / max) * 100) : 2}%`,
+                    height: `${max > 0 && bar.value > 0 ? Math.max(2, (bar.value / max) * 100) : 0}%`,
                   }}
                 />
                 <span className="native-histogram-label" title={bar.label}>

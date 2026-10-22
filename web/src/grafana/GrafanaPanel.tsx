@@ -226,7 +226,7 @@ export default function GrafanaPanel({
         />
       );
   }
-  if (["logs", "traces", "heatmap", "histogram", "vector"].includes(type)) {
+  if (["logs", "traces", "heatmap", "histogram", "vector", "barchart", "piechart", "pie", "state-timeline", "status-history"].includes(type)) {
     const Component = getRenderer(type)?.component;
     if (Component)
       return (

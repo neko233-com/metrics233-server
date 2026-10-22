@@ -144,7 +144,7 @@ export default function StatRenderer({
         </p>
       ) : null}
       <div
-        className={`grafana-values ${config?.options?.orientation || "auto"}`}
+        className={`grafana-values ${config?.options?.orientation || "auto"} ${stats.length > 1 ? "multiple" : "single"}`}
       >
         {stats.map((stat, i) => {
           const min = stat.field.config.min ?? 0,
@@ -161,7 +161,7 @@ export default function StatRenderer({
           );
           return (
             <div className="grafana-value" key={i}>
-              <span className="subtle native-stat-name">{stat.name}</span>
+              <span className="subtle native-stat-name" title={stat.name}>{stat.name}</span>
               {type === "gauge" && stat.value != null ? (
                 <svg
                   viewBox="0 0 160 90"

@@ -23,7 +23,7 @@ var secretEnvelope = []byte("MetricsPanel233\x00GCM\x02\x00")
 
 func (s *Store) secretAAD(reference string) []byte {
 	kind, id := "datasource", reference
-	for _, prefix := range []string{"app:", "target:", "contact-point:"} {
+	for _, prefix := range []string{"app:", "target:", "contact-point:", "managed-host:"} {
 		if strings.HasPrefix(reference, prefix) {
 			kind, id = strings.TrimSuffix(prefix, ":"), strings.TrimPrefix(reference, prefix)
 			break

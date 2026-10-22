@@ -51,10 +51,10 @@ function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; k
     const value = row.values[key];
     if (value == null || !Number.isFinite(value)) return "—";
     if (isSQL && key.endsWith("_window") && key !== "avg_ms_window") {
-      return value === 0 ? "0" : value > 0 && value < 0.1 ? "≈ < 0.1" : `≈ ${value.toLocaleString(getLocale(), { maximumFractionDigits: 1 })}`;
+      return value === 0 ? "0" : value > 0 && value < 0.1 ? "≈ < 0.1" : `≈ ${value.toLocaleString(getLocale(), { useGrouping: false, maximumFractionDigits: 1 })}`;
     }
     if (key === "avg_ms_window" && value > 0 && value < 0.001) return "< 0.001";
-    return value.toLocaleString(getLocale(), { maximumFractionDigits: key === "avg_ms_window" ? 3 : 2 });
+    return value.toLocaleString(getLocale(), { useGrouping: false, maximumFractionDigits: key === "avg_ms_window" ? 3 : 2 });
   };
   return <>
     {error && <Alert severity="error" title={text("Metric query failed", "指标查询失败")}>{error}</Alert>}

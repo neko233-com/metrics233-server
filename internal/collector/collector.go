@@ -7,19 +7,27 @@ import (
 	"sync"
 	"time"
 
-	"github.com/neko233-com/metrics233-server/internal/model"
-	"github.com/neko233-com/metrics233-server/internal/store"
+	model "github.com/neko233-com/metrics233-server/internal/telemetry"
 )
 
+// TargetStore is the scheduler's narrow persistence port. Protocol readers and
+// the outbound agent must not import the control-plane/TSDB implementation.
+type TargetStore interface {
+	TargetSecrets(context.Context, int64) (map[string]string, error)
+	Ingest(context.Context, []model.Sample) error
+	TargetResult(context.Context, int64, int, int64, error) error
+	Targets(context.Context) ([]model.Target, error)
+}
+
 type Collector struct {
-	Store  *store.Store
+	Store  TargetStore
 	Client *http.Client
 	slots  chan struct{}
 	mu     sync.Mutex
 	busy   map[int64]bool
 }
 
-func New(s *store.Store) *Collector {
+func New(s TargetStore) *Collector {
 	return &Collector{Store: s, Client: &http.Client{Timeout: 10 * time.Second, CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}, slots: make(chan struct{}, 8), busy: map[int64]bool{}}
 }
 
@@ -58,7 +66,11 @@ func (c *Collector) Scrape(ctx context.Context, t model.Target) (int, error) {
 		labels[k] = v
 	}
 	upCtx, upCancel := context.WithTimeout(context.WithoutCancel(ctx), 3*time.Second)
-	if saveErr := c.Store.Ingest(upCtx, []model.Sample{{Name: "up", Labels: labels, Value: up}, {Name: "scrape_duration_seconds", Labels: labels, Value: time.Since(start).Seconds()}, {Name: "scrape_samples_scraped", Labels: labels, Value: float64(count)}}); saveErr != nil {
+	health := []model.Sample{{Name: "up", Labels: labels, Value: up}, {Name: "scrape_duration_seconds", Labels: labels, Value: time.Since(start).Seconds()}, {Name: "scrape_samples_scraped", Labels: labels, Value: float64(count)}}
+	if err != nil && t.Kind == "mysql" {
+		health = append(health, model.Sample{Name: "mysql_up", Labels: labels, Value: 0})
+	}
+	if saveErr := c.Store.Ingest(upCtx, health); saveErr != nil {
 		slog.Error("save scrape health", "error", saveErr)
 	}
 	upCancel()

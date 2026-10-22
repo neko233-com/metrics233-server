@@ -40,8 +40,8 @@ test("environment groups keep release, test, shared and unknown identities separ
   vm.runInNewContext(ts.transpileModule(fs.readFileSync("src/features/business-instance-groups.ts", "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, { exports: grouped });
-  const values = [instance("other"), instance("shared"), instance(""), instance("test"), instance("release"), instance("production")];
+  const values = [instance("other"), instance("shared"), instance(""), instance("test"), instance("release"), instance("production"), instance("intranet")];
   const result = grouped.groupBusinessInstances(values);
-  assert.deepEqual(Array.from(result, group => group.environment), ["release", "test", "shared", "", "other", "production"]);
-  assert.deepEqual(Array.from(values, item => item.id), ["other", "shared", "", "test", "release", "production"]);
+  assert.deepEqual(Array.from(result, group => group.environment), ["release", "test", "intranet", "shared", "", "other", "production"]);
+  assert.deepEqual(Array.from(values, item => item.id), ["other", "shared", "", "test", "release", "production", "intranet"]);
 });

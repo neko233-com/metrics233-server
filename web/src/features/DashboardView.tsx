@@ -39,6 +39,7 @@ import { layoutPanels } from "../grafana/layout";
 import { queryValues } from "../grafana/variables";
 import { isBusinessTemplateCandidate } from "./business-template-model";
 import { nativePanelUnitEdit, nativePanelUnitSelection, preserveCustomUnit } from "./native-panel-units";
+import { nativeStateMapping } from "./native-panel-states";
 import {
   DashboardLayoutButton,
   DashboardLayoutEditor,
@@ -265,7 +266,7 @@ function DashboardContent({
           <div>
             <span>{tr("Active series")}</span>
             <strong>
-              {stats?.series.toLocaleString() || "—"}{" "}
+              {stats?.series ?? "—"}{" "}
               <small>{tr("series")}</small>
             </strong>
           </div>
@@ -437,6 +438,7 @@ function DashboardContent({
               aggregation,
               unit,
               display_unit,
+              state_mapping,
               visualization,
               labels,
               thresholds,
@@ -455,6 +457,7 @@ function DashboardContent({
                 aggregation,
                 unit,
                 display_unit,
+                state_mapping,
                 visualization,
                 labels,
                 thresholds,
@@ -528,7 +531,7 @@ function PanelEditor({
   panel?: Panel;
   metrics: Metric[];
   onClose: () => void;
-  onSave: (p: Panel & {thresholds?: {warning:number;critical:number}|null; display_unit?: "" | "binBps"}) => Promise<void>;
+  onSave: (p: Panel & {thresholds?: {warning:number;critical:number}|null; display_unit?: "" | "binBps"; state_mapping?: string}) => Promise<void>;
 }) {
   const [title, setTitle] = useState(panel?.title || "");
   const [metric, setMetric] = useState(panel?.metric || metrics[0]?.name || "");
@@ -538,6 +541,7 @@ function PanelEditor({
   const [visualization, setVisualization] = useState(
     panel?.visualization || "timeseries",
   );
+  const [stateMapping, setStateMapping] = useState(() => nativeStateMapping(panel));
   const [labels, setLabels] = useState(JSON.stringify(panel?.labels || {}));
   const steps = panel?.config?.fieldConfig?.defaults?.thresholds?.steps?.filter(step=>step.value!=null&&Number.isFinite(step.value)) || [];
   const initialWarning=steps.length>1?String(steps[steps.length-2].value):"";
@@ -574,6 +578,7 @@ function PanelEditor({
               aggregation,
               ...nativePanelUnitEdit(panel, unit),
               visualization,
+              state_mapping: ["state-timeline", "status-history"].includes(visualization) && stateMapping !== nativeStateMapping(panel) && stateMapping !== "custom" ? stateMapping : undefined,
               labels: parseLabels(labels),
               thresholds: warning===initialWarning && critical===initialCritical ? undefined : warning==="" && critical==="" ? null : { warning:Number(warning),critical:Number(critical) },
             });
@@ -610,14 +615,25 @@ function PanelEditor({
             <option value="table">{tr("Table")}</option>
             <option value="gauge">{tr("Gauge")}</option>
             <option value="bargauge">{tr("Bar gauge")}</option>
+            <option value="barchart">{tr("Bar chart")}</option>
+            <option value="piechart">{tr("Pie chart")}</option>
+            <option value="state-timeline">{tr("State timeline")}</option>
+            <option value="status-history">{tr("Status history")}</option>
+            <option value="heatmap">{tr("Heatmap")}</option>
+            <option value="histogram">{tr("Histogram")}</option>
             {visualization &&
-            !["timeseries", "stat", "table", "gauge", "bargauge"].includes(
+            !["timeseries", "stat", "table", "gauge", "bargauge", "barchart", "piechart", "state-timeline", "status-history", "heatmap", "histogram"].includes(
               visualization,
             ) ? (
               <option value={visualization}>{visualization}</option>
             ) : null}
           </select>
         </label>
+        {["state-timeline", "status-history"].includes(visualization) && <label>{tr("State values")}<select aria-label={tr("State values")} value={stateMapping} onChange={event => setStateMapping(event.target.value)}>
+          <option value="">{tr("Original values")}</option>
+          <option value="availability">{tr("Availability: 0 unavailable, 1 available")}</option>
+          {nativeStateMapping(panel) === "custom" && <option value="custom">{tr("Keep custom value mappings")}</option>}
+        </select></label>}
         {configured ? (
           <p className="subtle">
             {tr("Edit datasource queries using Panel queries.")}

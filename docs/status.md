@@ -1,6 +1,27 @@
 # Project status and progress protocol
 
-Updated: 2026-10-21. This file is the durable progress ledger. Update it whenever a progress unit completes.
+Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
+
+### 2026-10-22 — Native panels, managed hosts and MySQL (local acceptance complete)
+
+- Common native panels add categorical bar/pie and state views, bounded virtual lists, honest gaps and corrected
+  histogram semantics. Navigation groups monitoring, metadata and system settings. Counts omit thousands separators;
+  explicit intranet identities remain separate from release/test/shared.
+- Admin host control includes encrypted credentials, revision checks, pinned SSH keys, checksummed fixed installers,
+  dedicated non-login service accounts, independent outbound credentials, pause and credential revocation. MySQL uses
+  fixed read-only status/capacity queries and an 18-panel dashboard with fixed host scope and preserved customizations.
+- `internal/telemetry` and `collector.TargetStore` decouple protocol readers from control persistence. The stripped
+  macOS arm64 agent decreased from 76338898 to 11080050 bytes without linking the control store/query engine/web UI.
+- The unified candidate passed 155 frontend units, TypeScript/Vite/webui builds and full owning Go packages/vet;
+  the final dashboard-language/ID correction passed its targeted model/server tests and another frontend build.
+  Edge verified all eleven native panel types, 240-category virtual scrolling, state gaps/mappings, grouped navigation,
+  host creation/pause/revocation, and eighteen panels with actual read-only MySQL data. Browser warnings/errors were empty.
+- Final runtime-source Docker end-to-end passed in 201.59 seconds for SQLite and ClickHouse, including real MariaDB,
+  Redis/PostgreSQL/ClickHouse collection, native SQL and restart/isolation/persistence checks. It used one 2 CPU/2 GiB
+  container and removed its containers/network/volumes. This does not claim a new race-detector or hosted-CI run.
+- Immutable production release, target service installation and independent Darwin heartbeat/sample acceptance
+  remain separate gates in the private ledger. Overall weighting stays 94%; no general shell orchestrator, automatic LAN relay,
+  whole-cluster completion or universal production certification is claimed. See [managed hosts](managed-hosts.md).
 
 ### 2026-10-21 — Template center and instance dashboards
 

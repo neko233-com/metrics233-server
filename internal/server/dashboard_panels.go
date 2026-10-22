@@ -22,6 +22,7 @@ type nativePanelEdit struct {
 		Visualization string            `json:"visualization"`
 		Unit          string            `json:"unit"`
 		DisplayUnit   *string           `json:"display_unit,omitempty"`
+		StateMapping  *string           `json:"state_mapping,omitempty"`
 		Metric        string            `json:"metric"`
 		Expr          string            `json:"expr"`
 		Aggregation   string            `json:"aggregation"`
@@ -157,6 +158,19 @@ func applyNativePanelEdit(d model.Dashboard, input nativePanelEdit) (model.Dashb
 	_ = json.Unmarshal(fields["defaults"], &defaults)
 	if defaults == nil {
 		defaults = rawObject{}
+	}
+	if input.Panel.StateMapping != nil {
+		if p.Visualization != "state-timeline" && p.Visualization != "status-history" || *input.Panel.StateMapping != "" && *input.Panel.StateMapping != "availability" {
+			return d, errors.New("state_mapping requires a state visualization and must be empty or availability")
+		}
+		if *input.Panel.StateMapping == "" {
+			delete(defaults, "mappings")
+		} else {
+			defaults["mappings"] = rawValue([]any{map[string]any{"type": "value", "options": map[string]any{
+				"0": map[string]any{"text": "Unavailable", "color": "red"},
+				"1": map[string]any{"text": "Available", "color": "green"},
+			}}})
+		}
 	}
 	if len(input.Panel.Thresholds) > 0 {
 		if string(input.Panel.Thresholds) == "null" {

@@ -15,6 +15,54 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestNativePanelStateMappingIsExplicitBoundedAndPreservesOpaqueConfig(t *testing.T) {
+	db, handler := setup(t, "fixture-state-mapping-admin")
+	d, err := db.SaveDashboard(context.Background(), model.Dashboard{ID: "native-state", Name: "State mapping", Panels: []model.Panel{{ID: "state", Title: "State", Aggregation: "last", Expr: "vector(1)", Visualization: "state-timeline", Config: json.RawMessage(`{"id":1,"type":"state-timeline","owner":"keep","opaque":9007199254740993,"fieldConfig":{"defaults":{"unit":"short","mappings":[{"type":"value","options":{"2":{"text":"custom"}}}]},"overrides":[{"keep":true}]},"targets":[{"refId":"A","expr":"vector(1)"}]}`)}}})
+	require.NoError(t, err)
+	request := func(value, kind string, revision int64, token string) *httptest.ResponseRecorder {
+		body := `{"action":"save","sourceId":"state","panel":{"id":"state","title":"State","visualization":` + strconv.Quote(kind) + `,"unit":"count"` + value + `}}`
+		r := httptest.NewRequest(http.MethodPatch, "/api/v1/dashboards/"+d.ID+"/panels", bytes.NewBufferString(body))
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("If-Match", strconv.FormatInt(revision, 10))
+		if token != "" {
+			r.Header.Set("Authorization", "Bearer "+token)
+		}
+		w := httptest.NewRecorder()
+		handler.ServeHTTP(w, r)
+		if w.Code == http.StatusOK {
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &d))
+		}
+		return w
+	}
+	read := func() string {
+		current, e := db.Dashboard(context.Background(), d.ID)
+		require.NoError(t, e)
+		return string(current.Panels[0].Config)
+	}
+	const token = "fixture-state-mapping-admin"
+	require.Equal(t, 401, request(`,"state_mapping":"availability"`, "state-timeline", d.UpdatedAt, "").Code)
+	before := read()
+	for _, input := range []struct{ value, kind string }{{`,"state_mapping":7`, "state-timeline"}, {`,"state_mapping":true`, "status-history"}, {`,"state_mapping":"other"`, "state-timeline"}, {`,"state_mapping":"availability"`, "stat"}} {
+		require.Equal(t, 400, request(input.value, input.kind, d.UpdatedAt, token).Code)
+		require.Equal(t, before, read())
+	}
+	require.Equal(t, 200, request("", "state-timeline", d.UpdatedAt, token).Code)
+	require.Contains(t, read(), `"text":"custom"`)
+	previous := d.UpdatedAt
+	require.Equal(t, 200, request(`,"state_mapping":"availability"`, "status-history", d.UpdatedAt, token).Code)
+	configured := read()
+	require.Contains(t, configured, `"text":"Available"`)
+	require.Contains(t, configured, `"text":"Unavailable"`)
+	require.Contains(t, configured, `"owner":"keep"`)
+	require.Contains(t, configured, `9007199254740993`)
+	require.Contains(t, configured, `"overrides":[{"keep":true}]`)
+	require.Contains(t, configured, `"expr":"vector(1)"`)
+	require.Equal(t, 409, request(`,"state_mapping":""`, "status-history", previous, token).Code)
+	require.Equal(t, configured, read())
+	require.Equal(t, 200, request(`,"state_mapping":""`, "status-history", d.UpdatedAt, token).Code)
+	require.NotContains(t, read(), `"mappings"`)
+}
+
 func TestNativePanelEditAndDuplicatePreserveQueriesAndOpaqueValues(t *testing.T) {
 	db, handler := setup(t, "")
 	d, err := db.SaveDashboard(context.Background(), model.Dashboard{ID: "native-edit", Name: "Native", Panels: []model.Panel{

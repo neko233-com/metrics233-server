@@ -10,6 +10,8 @@ export type RendererKind =
   | "stat"
   | "gauge"
   | "bargauge"
+  | "barchart"
+  | "piechart"
   | "logs"
   | "traces"
   | "heatmap"

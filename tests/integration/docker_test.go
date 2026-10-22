@@ -132,6 +132,10 @@ func (e environment) verifyNativeCollectors(address string) {
 		require.Eventually(e.t, func() bool { value, ok := e.value(address, item.metric); return ok && value >= 0 }, 10*time.Second, 100*time.Millisecond, "native %s metrics not ingested", item.kind)
 	}
 	e.t.Log("real MySQL-compatible MariaDB, Redis, PostgreSQL and ClickHouse native collection passed; credentials masked")
+	require.Eventually(e.t, func() bool {
+		value, ok := e.value(address, "mysql_global_variables_max_connections")
+		return ok && value > 0
+	}, 10*time.Second, 100*time.Millisecond, "native MySQL capacity settings were not collected")
 	for _, fixture := range []struct{ kind, metric string }{
 		{"prometheus", "fixture_requests_total"}, {"hadoop", "hadoop_memheapusedm"}, {"hdfs", "hdfs_capacityused"}, {"hive", "hive_count"}, {"kafka", "kafka_count"}, {"spark", "spark_gauges_driver_jvm_heap_used_value"}, {"elasticsearch", "elasticsearch_jvm_mem_heap_used_in_bytes"}, {"flink", "flink_status_jvm_memory_heap_used"},
 	} {

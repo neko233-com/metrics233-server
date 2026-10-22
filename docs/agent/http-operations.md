@@ -8,6 +8,8 @@ Read before changing. Preserve resource versions, use `If-Match` for native pane
 
 Native panel `PATCH /api/v1/dashboards/{id}/panels` accepts optional `panel.display_unit`: omission retains a custom display unit, explicit `""` restores the base-unit mapping, and `"binBps"` requires `panel.unit="bytes"`; only `config.fieldConfig.defaults.unit` changes, preserving other configuration and the existing permission/revision boundary.
 
+State panels (`state-timeline`, `status-history`) accept optional `panel.state_mapping`: `"availability"` maps 0/1 to red/green Unavailable/Available, omission preserves custom mappings, and `""` explicitly clears them. The change is limited to `fieldConfig.defaults.mappings` and retains the same permission/CAS checks. See [native panel types](../native-panel-types.md).
+
 Preview alert queries and Feishu templates through their dedicated preview endpoints. Rule `evaluate`, scrape, contact-point test and notification delivery can have runtime/external effects and are not previews. A queued notification is not a delivered notification; inspect delivery state and the provider ACK separately.
 
 Configure pending duration, recovery duration, no-data/error behavior and notification cooldown explicitly. A dashboard risk color is a display threshold, not an alert trigger. Missing metrics do not prove recovery or zero utilization. Business instance labels identify observations and fix template variables; they never grant authentication, source allowlisting or dashboard ACLs.

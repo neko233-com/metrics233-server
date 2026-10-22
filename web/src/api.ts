@@ -326,20 +326,21 @@ export function formatValue(value: number, unit = ""): string {
       0,
       Math.min(4, Math.floor(Math.log(Math.max(value, 1)) / Math.log(1024))),
     );
-    return `${(value / 1024 ** index).toLocaleString("en", { maximumFractionDigits: 1 })} ${units[index]}`;
+    return `${(value / 1024 ** index).toLocaleString("en", { useGrouping: false, maximumFractionDigits: 1 })} ${units[index]}`;
   }
   if (unit === "seconds") {
     const magnitude = Math.abs(value);
     if (magnitude === 0 || magnitude >= 1) return `${value.toFixed(1)} s`;
     const [scale, suffix] = magnitude >= 1e-3 ? [1e3, "ms"] : magnitude >= 1e-6 ? [1e6, "µs"] : [1e9, "ns"];
     const scaled = value * Number(scale);
-    const text = Math.abs(scaled) < 1e-3 ? scaled.toPrecision(3) : scaled.toLocaleString("en", { maximumFractionDigits: 3 });
+    const text = Math.abs(scaled) < 1e-3 ? scaled.toPrecision(3) : scaled.toLocaleString("en", { useGrouping: false, maximumFractionDigits: 3 });
     return `${text} ${suffix}`;
   }
   if (unit === "percent") return `${value.toFixed(1)}%`;
   if (unit === "percentunit") return `${(value * 100).toFixed(1)}%`;
   if (unit === "binBps") return `${formatValue(value, "bytes")} /s`;
-  const text = Math.abs(value) > 0 && Math.abs(value) < 0.01 ? value.toLocaleString("en", { maximumSignificantDigits: 3 }) : value.toLocaleString("en", {
+  const text = Math.abs(value) > 0 && Math.abs(value) < 0.01 ? value.toLocaleString("en", { useGrouping: false, maximumSignificantDigits: 3 }) : value.toLocaleString("en", {
+    useGrouping: false,
     maximumFractionDigits: Math.abs(value) < 10 ? 2 : 1,
     notation: Math.abs(value) >= 10000 ? "compact" : "standard",
   });

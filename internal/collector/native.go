@@ -21,7 +21,7 @@ import (
 
 	mysql "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
-	"github.com/neko233-com/metrics233-server/internal/model"
+	model "github.com/neko233-com/metrics233-server/internal/telemetry"
 )
 
 const maxBody = 4 << 20
@@ -129,7 +129,23 @@ func collectMySQL(ctx context.Context, t model.Target, secrets map[string]string
 	db := sql.OpenDB(connector)
 	defer db.Close()
 	db.SetMaxOpenConns(1)
-	rows, err := db.QueryContext(ctx, "SHOW GLOBAL STATUS")
+	out, err := mysqlNumericMetrics(ctx, db, t, "SHOW GLOBAL STATUS", "mysql_global_status_")
+	if err != nil {
+		return nil, err
+	}
+	// Capacity is configuration, not a status counter. Keep the two namespaces
+	// distinct and read only a fixed allowlist; never enumerate application data.
+	capacity, err := mysqlNumericMetrics(ctx, db, t, "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('max_connections','innodb_buffer_pool_size','table_open_cache','thread_cache_size','tmp_table_size','max_heap_table_size','innodb_log_buffer_size','key_buffer_size')", "mysql_global_variables_")
+	if err != nil {
+		return nil, err
+	}
+	out = append(out, capacity...)
+	out = append(out, nativeSample(t, "mysql_up", 1, nil))
+	return out, nil
+}
+
+func mysqlNumericMetrics(ctx context.Context, db *sql.DB, t model.Target, query, prefix string) ([]model.Sample, error) {
+	rows, err := db.QueryContext(ctx, query)
 	if err != nil {
 		return nil, err
 	}
@@ -141,13 +157,12 @@ func collectMySQL(ctx context.Context, t model.Target, secrets map[string]string
 			return nil, err
 		}
 		if number, err := strconv.ParseFloat(value, 64); err == nil && !math.IsNaN(number) && !math.IsInf(number, 0) {
-			out = append(out, nativeSample(t, "mysql_global_status_"+metricKey(key), number, nil))
+			out = append(out, nativeSample(t, prefix+metricKey(key), number, nil))
 		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	out = append(out, nativeSample(t, "mysql_up", 1, nil))
 	return out, nil
 }
 func collectPostgres(ctx context.Context, t model.Target, secrets map[string]string) ([]model.Sample, error) {

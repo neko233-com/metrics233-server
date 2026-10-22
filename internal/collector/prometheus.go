@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/neko233-com/metrics233-server/internal/model"
+	model "github.com/neko233-com/metrics233-server/internal/telemetry"
 	dto "github.com/prometheus/client_model/go"
 	"github.com/prometheus/common/expfmt"
 	prommodel "github.com/prometheus/common/model"

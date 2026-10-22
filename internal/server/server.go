@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
@@ -52,18 +53,29 @@ type Server struct {
 	PublicHTTPS bool
 	// Authorizer is immutable after Handler construction. Nil preserves the
 	// existing single-workspace deployment; it does not enable multi-user access.
-	Authorizer        RequestAuthorizer
-	requests          atomic.Uint64
-	dashboardImportMu sync.Mutex
-	sqlSources        sqlSourcePool
-	reporting         *reportingSourceAccess
-	ingestToken       string
+	Authorizer         RequestAuthorizer
+	requests           atomic.Uint64
+	dashboardImportMu  sync.Mutex
+	sqlSources         sqlSourcePool
+	reporting          *reportingSourceAccess
+	ingestToken        string
+	CollectorArtifacts string
+	hostDeployMu       sync.Mutex
+	hostDeploying      map[string]bool
+	hostDeploySlots    chan struct{}
+	hostAgentSlots     chan struct{}
 }
 
 func New(s *store.Store, token string, retention int) *Server {
 	prom := promcompat.New(s)
 	server := &Server{Store: s, Collector: collector.New(s), Alerts: alerting.New(s, prom), Prometheus: prom, Plugins: plugins.New(s, "", nil), Token: token, RetentionDays: retention, Started: time.Now()}
 	server.Live = live.New(func() *plugins.Manager { return server.Plugins })
+	server.hostDeploying = map[string]bool{}
+	server.hostDeploySlots = make(chan struct{}, 2)
+	server.hostAgentSlots = make(chan struct{}, 8)
+	if executable, err := os.Executable(); err == nil {
+		server.CollectorArtifacts = filepath.Join(filepath.Dir(executable), "collectors")
+	}
 	server.Alerts.GraphSource = server.expressionSourceQuery
 	return server
 }
@@ -168,6 +180,7 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 	prom := s.Prometheus
 	promRoutes := s.authorizationMux(http.NewServeMux(), RoutePrometheus, &manifest)
 	s.agentRoutes(api, &manifest)
+	s.managedHostRoutes(api, mux)
 	s.promAlertRoutes(promRoutes)
 	promRoutes.HandleFunc("POST /api/v1/write", s.reportingIngest("remote_write", s.remoteWrite))
 	promRoutes.Handle("/", prom.Handler())
@@ -398,7 +411,10 @@ func (s *Server) stats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	retention, err := s.retentionSetting(r.Context())
-	if err != nil { fail(w,503,errors.New("retention setting unavailable")); return }
+	if err != nil {
+		fail(w, 503, errors.New("retention setting unavailable"))
+		return
+	}
 	v.RetentionDays = retention.Days
 	v.StartedAt = s.Started.UnixMilli()
 	v.CollectorsTotal = 1

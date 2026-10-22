@@ -1,0 +1,52 @@
+.managed-host-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  gap: 18px;
+}
+.managed-host-card dl {
+  display: grid;
+  grid-template-columns: 105px minmax(0, 1fr);
+  gap: 9px 15px;
+  font-size: 13px;
+}
+.managed-host-card dt {
+  color: var(--text-secondary);
+}
+.managed-host-card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+.managed-host-card .actions {
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.managed-host-form {
+  width: min(850px, calc(100vw - 32px));
+  max-height: 90vh;
+  overflow: auto;
+}
+.managed-host-form .form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.managed-host-form .checkbox-field {
+  display: flex;
+  gap: 8px;
+  margin: 15px 0;
+}
+.managed-host-form h3 {
+  margin-top: 22px;
+}
+@media (max-width: 600px) {
+  .managed-host-form .form-grid {
+    grid-template-columns: 1fr;
+  }
+  .managed-host-card .panel-heading {
+    flex-wrap: wrap;
+  }
+  .managed-host-card dl {
+    grid-template-columns: 85px minmax(0, 1fr);
+  }
+}

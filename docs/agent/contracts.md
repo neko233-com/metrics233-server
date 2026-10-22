@@ -41,6 +41,9 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
   semantics and exact label filters. It never injects samples or chooses business alert thresholds.
 - Native MySQL/MariaDB, Redis, PostgreSQL and supported service/database metrics APIs.
 - Collector secrets are encrypted; responses expose presence flags only.
+- Managed-host SSH and credentials are Admin-only. Independent outbound host credentials grant only own-configuration
+  reads and own-metric/heartbeat writes. Installation, applied settings, heartbeat and source data are separate gates.
+  See [managed hosts](../managed-hosts.md); private networks need a reachable LAN installation executor.
 - `/#reporting-sources` observes actual accepted push batches, independently of scrape targets and internal self-metrics.
   All five ingest paths use canonical client-IP policy before parsing or writing; labels never authorize a source.
   Admin-only versioned policy supports block/allow/reset and explicit allowlist-only mode. Observations (1024 LRU)
@@ -89,8 +92,11 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 - Above 50k time/numeric cells, TimeSeries prepares transferable buffers in slices and uses a Worker to normalize,
   stack and preserve min/max/gap boundaries. All series share the soft pixel budget; zoom re-queries. JSON parsing
   and the unavailable-Worker fallback remain main-thread work. See the measured performance baseline.
-- Heatmap, histogram and vector are first-party: canvas time-bucket heatmap, normalized bars and 64-dimension heat
-  strips. Optional Grafana-only kinds (pie, candlestick, geomap, node graph, state timeline) are out of scope.
+- Heatmap, histogram and vector remain first-party. The editor also offers native bar/pie charts and state
+  timeline/status history, with bounded models, virtualized category/state rows, missing-data gaps and explicit
+  availability mappings. Histogram distinguishes raw distributions from classic cumulative `le` buckets.
+  See [native panel types](../native-panel-types.md) for the full catalog comparison and the dedicated financial,
+  graph/profiling/map/layout/widget types that have no verified native implementation.
 - The Grafana bridge is allowed only for imported resources and plugins under `web/src/grafana`.
 
 ## Deployment

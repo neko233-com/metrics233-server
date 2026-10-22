@@ -239,6 +239,10 @@ CREATE TABLE IF NOT EXISTS app_settings(id TEXT PRIMARY KEY,payload TEXT NOT NUL
 		db.Close()
 		return nil, err
 	}
+	if err := s.initializeManagedHosts(); err != nil {
+		db.Close()
+		return nil, err
+	}
 	if err := s.migrateOrganizationSecrets(context.Background()); err != nil {
 		db.Close()
 		return nil, err

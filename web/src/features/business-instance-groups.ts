@@ -8,9 +8,9 @@ export function groupBusinessInstances<T extends { identity: { environment: stri
     entries.push(item);
     groups.set(environment, entries);
   }
-  const order = ["release", "test", "shared"];
+  const order = ["release", "test", "intranet", "shared"];
   return [...groups].sort(([a], [b]) => {
     const aIndex = order.indexOf(a), bIndex = order.indexOf(b);
-    return (aIndex < 0 ? 3 : aIndex) - (bIndex < 0 ? 3 : bIndex) || a.localeCompare(b);
+    return (aIndex < 0 ? order.length : aIndex) - (bIndex < 0 ? order.length : bIndex) || a.localeCompare(b);
   }).map(([environment, instances]) => ({ environment, instances }));
 }
