@@ -52,7 +52,8 @@ test("stat, gauge, bar gauge, logs, traces, heatmap, histogram and vector are fi
   assert.match(index, /HeatmapRenderer/);
   assert.match(index, /HistogramRenderer/);
   assert.match(index, /VectorRenderer/);
-  assert.match(read("src/render/stat/StatRenderer.tsx"), /role="meter"/);
+  assert.match(read("src/render/stat/StatRenderer.tsx"), /RiskGauge/);
+  assert.match(read("src/ui/RiskGauge.tsx"), /role=\{valid \? "meter" : "img"\}/);
   assert.match(read("src/render/logs/LogsRenderer.tsx"), /role="log"/);
   assert.match(read("src/render/traces/TracesRenderer.tsx"), /Sort by duration/);
   assert.match(read("src/render/heatmap/HeatmapRenderer.tsx"), /data-cell-count/);

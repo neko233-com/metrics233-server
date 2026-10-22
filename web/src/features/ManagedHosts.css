@@ -1,7 +1,52 @@
 .managed-host-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
+}
+.managed-host-card { padding: 0; overflow: visible; }
+.managed-host-card > .panel-heading { padding: 20px 22px; margin: 0; gap: 14px; border-bottom: 1px solid var(--border); }
+.host-icon { color: #b5c9d9; }
+.host-identity { flex: 1; min-width: 0; }
+.host-identity h2 { margin: 0 0 6px; font-size: 19px; }
+.host-identity p { margin: 0; color: var(--muted); font-size: 12px; }
+.host-enrollment-help { margin: 0 0 18px; font-size: 12px; color: var(--muted); }
+.host-enrollment-help summary { cursor: pointer; width: fit-content; }
+.host-view-nav { display: flex; align-items: center; gap: 24px; padding: 0 22px; min-height: 52px; border-bottom: 1px solid var(--border); }
+.host-view-nav > span { align-self: stretch; display: flex; align-items: center; border-bottom: 2px solid var(--accent); font-size: 13px; font-weight: 600; }
+.host-view-nav button { border: 0; background: transparent; padding: 8px 0; min-height: 36px; color: var(--muted); }
+.host-view-nav small { margin-left: auto; color: var(--muted); font-size: 11px; }
+.host-resources { padding: 12px; }
+.host-instruments, .host-trends { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.host-instrument, .host-trend, .host-disk-section, .host-resource-legend { border: 1px solid var(--border); border-radius: 6px; min-width: 0; background: #141d25; }
+.host-resources h3 { margin: 15px 16px 0; font-size: 13px; font-weight: 600; }
+.host-capacity { padding: 0 12px 14px; margin: -4px 0 0; text-align: center; color: #b0c0cf; font-size: 12px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.host-trends { margin-top: 10px; }
+.host-trend h3 { display: flex; justify-content: space-between; gap: 12px; }
+.host-trend h3 span { font-size: 10px; font-weight: 400; color: var(--muted); }
+.host-trend svg { display: block; width: 100%; padding: 8px 12px; }
+.host-trend text { font-family: inherit; fill: var(--muted); font-size: 9px; }
+.host-trend-empty { min-height: 150px; display: grid; place-items: center; color: var(--muted); font-size: 12px; }
+.host-trend small { display: block; padding: 0 16px 10px; color: #edb84b; }
+.host-resource-footer { display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; margin-top: 10px; }
+.host-disk-table { overflow-x: auto; padding: 12px 16px 16px; }
+.host-disk-table table { width: 100%; font-size: 12px; }
+.host-disk-table th, .host-disk-table td { padding: 10px 8px; white-space: nowrap; text-align: left; font-variant-numeric: tabular-nums; }
+.host-disk-table td:first-child { white-space: normal; overflow-wrap: anywhere; max-width: 200px; }
+.host-disk-table progress { width: 65px; height: 7px; margin-left: 8px; accent-color: var(--green); }
+.host-risk-normal { color: var(--green); }.host-risk-warning { color: #edb84b; }.host-risk-critical { color: #f46b73; }
+.host-resource-legend p, .host-resource-legend > span { display: block; margin: 12px 16px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.host-resource-legend > span { font-size: 11px; }
+.host-resource-note { margin: 4px 6px 12px; color: var(--muted); font-size: 12px; }
+.host-more { margin: 0 12px 12px; border: 1px solid var(--border); border-radius: 6px; padding: 0 16px; }
+.host-more > summary { display: flex; align-items: center; gap: 8px; width: fit-content; min-height: 42px; cursor: pointer; color: var(--muted); font-size: 12px; }
+.host-more[open] { padding-bottom: 16px; }
+@media (max-width: 900px) { .host-resource-footer { grid-template-columns: 1fr; } .host-instrument .risk-gauge-value { font-size: 27px; } }
+@media (max-width: 640px) {
+  .host-instruments, .host-trends { grid-template-columns: 1fr; }
+  .host-instrument .risk-gauge { max-width: 300px; }
+  .host-view-nav { gap: 16px; padding: 0 14px; }
+  .host-view-nav small { display: none; }
+  .managed-host-card > .panel-heading { padding: 16px; }
 }
 .managed-host-card dl {
   display: grid;

@@ -6,7 +6,7 @@ import "./FeishuNotificationPreview.css";
 
 const text = (en: string, zh: string) => getLocale() === "zh" ? zh : en;
 type PlainText = { tag?: string; content?: string };
-type CardElement = { tag: string; text?: PlainText; elements?: PlainText[]; actions?: { text?: PlainText; url?: string }[] };
+type CardElement = { tag: string; text?: PlainText; fields?: { text?: PlainText }[]; elements?: PlainText[]; actions?: { text?: PlainText; url?: string }[] };
 type Preview = { format: string; bytes: number; sent: false; message: {
   msg_type: "interactive" | "text"; content?: { text?: string }; card?: {
     header: { template: string; title: PlainText }; elements: CardElement[];
@@ -54,7 +54,10 @@ export function FeishuNotificationPreview({format, title, message, disabled}: {
         <header data-color={preview.message.card.header.template}>{preview.message.card.header.title.content}</header>
         <div className="feishu-preview-body">{preview.message.card.elements.map((element, index) => {
           if (element.tag === "hr") return <hr key={index} />;
-          if (element.tag === "div") return <p key={index}>{element.text?.content}</p>;
+          if (element.tag === "div") return element.fields ? <dl className="feishu-preview-fields" key={index}>{element.fields.map((field, i) => {
+            const [label, ...lines] = (field.text?.content || "").split("\n");
+            return <div key={i}><dt>{label}</dt><dd>{lines.join("\n")}</dd></div>;
+          })}</dl> : <p key={index}>{element.text?.content}</p>;
           if (element.tag === "note") return <small key={index}>{element.elements?.map((value) => value.content).join(" ")}</small>;
           // Preview deliberately renders the trusted action as a visual button,
           // without navigating or accepting URLs from response/user content.

@@ -75,7 +75,7 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 	// content. Structural fields/signature survive and valid UTF-8 is preserved.
 	for budget := 1000; budget >= 125; budget /= 2 {
 		elements := []any{}
-		host := firstFeishu(data.CommonLabels["instance"], data.CommonLabels["serverId"], data.CommonLabels["hostname"])
+		host := firstFeishu(data.CommonLabels["host"], data.CommonLabels["hostname"], data.CommonLabels["instance"], data.CommonLabels["serverId"])
 		if host == "" {
 			host = "按资源查看主机"
 		}
@@ -83,7 +83,7 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 		if isTest || acceptance {
 			heading = "飞书通知通道"
 		}
-		elements = append(elements, feishuDiv(heading+"\n"+feishuTime(createdAt)+"（北京时间）", budget))
+		elements = append(elements, feishuDiv(heading, budget))
 		if message, _ := payload["message"].(string); message != "" {
 			shown := false
 			if !acceptance && !isTest {
@@ -109,44 +109,62 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 				break
 			}
 			name := feishuAlertName(alert)
-			severity := feishuSeverity(alert.Labels["severity"])
-			peer := firstFeishu(alert.Labels["instance"], alert.Labels["serverId"], host)
-			identity := severity
-			if peer != host {
-				identity += " · " + peer
-			}
+			peer := firstFeishu(alert.Labels["host"], alert.Labels["hostname"], alert.Labels["instance"], alert.Labels["serverId"], host)
 			if mount := alert.Labels["mountpoint"]; mount != "" {
-				identity += " · " + mount
+				peer += " · " + mount
 			}
-			elements = append(elements, map[string]any{"tag": "hr"}, feishuDiv(name+" · "+identity+"\n"+feishuActualValue(alert), budget))
+			if i > 0 {
+				elements = append(elements, map[string]any{"tag": "hr"})
+			}
+			elements = append(elements, feishuDiv(name+" · "+feishuSeverity(alert.Labels["severity"]), min(budget, 240)),
+				feishuFields([][2]string{{"主机", peer}, {"当前观测", feishuActualValue(alert)}}, budget))
 			threshold := firstFeishu(alert.Annotations["threshold"], alert.Annotations["condition"], "见规则详情")
-			cooldown := "未设置冷却"
-			if alert.Rule.NotificationCooldownSeconds > 0 {
-				cooldown = "通知冷却 " + feishuDuration(alert.Rule.NotificationCooldownSeconds)
+			if alert.Status == "resolved" {
+				threshold = firstFeishu(alert.Annotations["recovery_threshold"], "已满足恢复条件；原告警线 "+threshold)
 			}
-			timing := "持续 " + feishuDuration(alert.Rule.ForSeconds) + " 后通知 · 恢复确认 " + feishuDuration(alert.Rule.KeepFiringForSeconds) + " · " + cooldown
-			if alert.Rule.UID == "" {
-				timing = "触发 / 恢复 / CD：旧记录未保存规则元数据，请查看当前规则"
-			}
-			stamp := "开始 · " + feishuTime(alert.StartsAt)
 			end := createdAt
 			if !alert.EndsAt.IsZero() {
 				end = alert.EndsAt
-				stamp += "\n恢复 · " + feishuTime(alert.EndsAt)
 			}
+			duration := "未记录"
 			if !alert.StartsAt.IsZero() && !end.Before(alert.StartsAt) {
-				stamp += "\n本轮持续 " + feishuDuration(int(end.Sub(alert.StartsAt).Seconds()))
+				duration = feishuDuration(int(end.Sub(alert.StartsAt).Seconds()))
 			}
-			details := "条件 · " + threshold + "\n" + timing + "\n" + stamp
-			if description := firstFeishu(alert.Annotations["action"], alert.Annotations["description"]); description != "" {
-				details += "\n" + description
+			timeLabel, timeValue := "开始时间", feishuTime(alert.StartsAt)
+			if alert.Status == "resolved" {
+				timeLabel, timeValue = "恢复时间", feishuTime(alert.EndsAt)
 			}
-			elements = append(elements, feishuDiv(details, budget))
+			cooldown := "未设置"
+			if alert.Rule.NotificationCooldownSeconds > 0 {
+				cooldown = feishuDuration(alert.Rule.NotificationCooldownSeconds)
+			}
+			elements = append(elements, feishuFields([][2]string{{"恢复条件", threshold}, {"本轮持续", duration}, {timeLabel, timeValue}, {"通知冷却", cooldown}}, min(budget, 240)))
+			if alert.Status != "resolved" {
+				// The label is different for firing, but the field layout stays stable.
+				fields := elements[len(elements)-1].(map[string]any)["fields"].([]any)
+				fields[0] = map[string]any{"is_short": true, "text": feishuPlain("告警条件\n"+threshold, min(budget, 240))}
+			}
+			timing := ""
+			if alert.Rule.UID != "" {
+				timing = "持续 " + feishuDuration(alert.Rule.ForSeconds) + " 后通知 · 恢复需连续 " + feishuDuration(alert.Rule.KeepFiringForSeconds)
+			}
+			if timing != "" {
+				elements = append(elements, feishuDiv(timing, min(budget, 160)))
+			}
+			if action := firstFeishu(alert.Annotations["action"], alert.Annotations["description"]); action != "" {
+				elements = append(elements, feishuDiv(action, min(budget, 240)))
+			}
+
 		}
 		if link := trustedFeishuAlertURL(trustedRoot); link != "" {
-			elements = append(elements, map[string]any{"tag": "action", "actions": []any{map[string]any{"tag": "button", "text": feishuPlain("查看告警详情", 100), "type": "primary", "url": link}}})
+			label := "查看告警详情"
+			if dashboard := trustedFeishuDashboardURL(trustedRoot, data.Alerts); dashboard != "" {
+				link = dashboard
+				label = "查看主机仪表盘"
+			}
+			elements = append(elements, map[string]any{"tag": "action", "actions": []any{map[string]any{"tag": "button", "text": feishuPlain(label, 100), "type": "primary", "url": link}}})
 		}
-		note := "Metrics233 · 北京时间 · 仪表盘默认查看最近 60 分钟"
+		note := "Metrics233 · " + feishuTime(createdAt) + " 北京时间 · 最近 60 分钟"
 		if id := payload["notificationId"]; id != nil && fmt.Sprint(id) != "" {
 			note += " · 通知 " + fmt.Sprint(id)
 		}
@@ -162,6 +180,27 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 }
 
 var feishuURLText = regexp.MustCompile(`(?i)https?://|www\.`)
+var feishuDashboardUID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,40}$`)
+
+func trustedFeishuDashboardURL(root *url.URL, alerts []notificationtemplate.Alert) string {
+	if trustedFeishuAlertURL(root) == "" || len(alerts) == 0 {
+		return ""
+	}
+	uid := alerts[0].Annotations["__dashboardUid__"]
+	if !feishuDashboardUID.MatchString(uid) {
+		return ""
+	}
+	for _, alert := range alerts {
+		if alert.Annotations["__dashboardUid__"] != uid {
+			return ""
+		}
+	}
+	copy := *root
+	copy.Path = strings.TrimRight(copy.Path, "/") + "/d/" + uid + "/host"
+	copy.RawPath = ""
+	copy.Fragment = ""
+	return copy.String()
+}
 
 func safeFeishuText(value string, limit int) string {
 	value = strings.Map(func(r rune) rune {
@@ -179,6 +218,13 @@ func feishuPlain(value string, limit int) map[string]string {
 }
 func feishuDiv(value string, limit int) map[string]any {
 	return map[string]any{"tag": "div", "text": feishuPlain(value, limit)}
+}
+func feishuFields(fields [][2]string, limit int) map[string]any {
+	out := []any{}
+	for _, field := range fields {
+		out = append(out, map[string]any{"is_short": true, "text": feishuPlain(field[0]+"\n"+field[1], limit)})
+	}
+	return map[string]any{"tag": "div", "fields": out}
 }
 func firstFeishu(values ...string) string {
 	for _, value := range values {
@@ -220,9 +266,17 @@ func feishuActualValue(alert notificationtemplate.Alert) string {
 		return "通知测试已结束"
 	}
 	if alert.Status == "resolved" && (alert.Labels["resource"] == "cpu" || alert.Labels["resource"] == "memory" || alert.Labels["resource"] == "disk") {
-		if value, ok := alert.Values["A"]; ok && value == 0 {
+		if value, ok := alert.Values["A"]; ok && value == 0 && alert.Annotations["value_ref"] == "" {
 			return "已满足恢复条件"
 		}
+	}
+	// Graph rules keep the raw measurement separate from boolean condition refs.
+	// A trusted rule annotation selects the numeric ref; labels never become code.
+	if ref := alert.Annotations["value_ref"]; ref != "" {
+		if value, ok := alert.Values[ref]; ok && !math.IsNaN(value) && !math.IsInf(value, 0) {
+			return firstFeishu(alert.Annotations["value_label"], "使用率") + " · " + strconv.FormatFloat(value, 'f', 2, 64) + alert.Annotations["unit"]
+		}
+		return "当前值 · 暂无有效观测"
 	}
 	keys := make([]string, 0, len(alert.Values))
 	for key := range alert.Values {

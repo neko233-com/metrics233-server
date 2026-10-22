@@ -1,0 +1,13 @@
+.risk-gauge { width: 100%; max-width: 360px; margin: 0 auto; }
+.risk-gauge svg { display: block; width: 100%; height: auto; max-height: none; overflow: visible; }
+.risk-gauge-track { fill: none; stroke: #2a3542; stroke-width: 7; }
+.risk-gauge-tick { stroke: #627487; stroke-width: 1; }
+.risk-gauge-major { stroke: #c1cfdb; stroke-width: 1.5; }
+.risk-gauge-scale { fill: #a6b7c8; font-size: 10px; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.risk-gauge-needle { transform-origin: 140px 132px; transition: transform 450ms ease-out; }
+.risk-gauge-value { font-size: 30px; font-weight: 620; letter-spacing: -.7px; text-anchor: middle; font-variant-numeric: tabular-nums; }
+.risk-gauge-state { font-size: 11px; text-anchor: middle; }
+.risk-gauge-empty .risk-gauge-tick, .risk-gauge-empty .risk-gauge-major { stroke: #485766; }
+.grafana-gauge .grafana-value { width: 100%; max-width: 400px; }
+.grafana-gauge .grafana-value .risk-gauge svg { width: 100%; max-height: none; }
+@media (prefers-reduced-motion: reduce) { .risk-gauge-needle { transition: none; } }

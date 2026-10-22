@@ -2,6 +2,24 @@
 
 Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
+### 2026-10-22 — Host resources and operations UI (source/browser accepted; production pending)
+
+- Goal: add local CPU, reclaimable-memory and writable-disk observations to the existing bounded outbound agent;
+  expose a scoped host dashboard, last-hour views, native threshold instruments and concise Feishu fields.
+- Changed: `internal/hostagent`, `internal/telemetry`, host catalog/HTTP validation, native host dashboard/rule
+  factories, shared first-party UI tokens, host resources page and gauge renderer. No extra exporter/listener.
+  macOS mount enumeration uses cached local metadata so a stale network mount cannot block enumeration.
+- Verification: full local Go package suite passed before the final bounded-observation validation; the final
+  affected telemetry/server/alerting cases and owning-package vet passed separately. 157 frontend units passed;
+  TypeScript/Vite and CGO-disabled Darwin arm64 build passed. Edge rendered the actual embedded host page with
+  explicitly marked fixture observations, all three needles/last-hour trends, disk capacity and collapsed actions.
+  Those fixtures are visual QA, not live host reporting or real notification-delivery evidence.
+- Next acceptance: fixed-source private release, actual OS agent samples and dashboard, persisted sustained
+  thresholds/recovery/cooldown, real Feishu provider ACK and second-cycle suppression. Storage compression work is
+  separately in progress; no benchmark or data migration is claimed here. Overall roadmap weighting remains 94%.
+- Risks: reference gauge rails are identified as reference values; notification policies use versioned rule settings.
+  Foreign-platform build inspection is separate from execution. See [host resources](host-resources.md).
+
 ### 2026-10-22 — Native panels, managed hosts and MySQL (scoped acceptance complete)
 
 - Common native panels add categorical bar/pie and state views, bounded virtual lists, honest gaps and corrected

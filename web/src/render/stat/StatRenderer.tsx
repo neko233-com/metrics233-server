@@ -12,6 +12,7 @@ import type { RendererProps } from "../types";
 import { seriesPresentations } from "../series-presentation";
 import { dataPointTime, MetricDetailsButton, pointTimeText } from "../MetricDetails";
 import { resolveTimeRange } from "../../grafana/time-range";
+import { RiskGauge } from "../../ui/RiskGauge";
 
 function display(
   field: Field,
@@ -162,34 +163,14 @@ export default function StatRenderer({
           return (
             <div className="grafana-value" key={i}>
               <span className="subtle native-stat-name" title={stat.name}>{stat.name}</span>
-              {type === "gauge" && stat.value != null ? (
-                <svg
-                  viewBox="0 0 160 90"
-                  role="meter"
-                  aria-label={stat.name}
-                  aria-valuenow={Number(stat.value)}
-                  aria-valuemin={min}
-                  aria-valuemax={max}
-                >
-                  <path
-                    d="M 15 78 A 65 65 0 0 1 145 78"
-                    fill="none"
-                    stroke="#283044"
-                    strokeWidth="12"
-                  />
-                  <path
-                    d="M 15 78 A 65 65 0 0 1 145 78"
-                    fill="none"
-                    stroke={stat.formatted.color || "#ff9457"}
-                    strokeWidth="12"
-                    pathLength="100"
-                    strokeDasharray={`${fraction * 100} 100`}
-                  />
-                </svg>
-              ) : null}
-              <strong style={{ color: stat.formatted.color }}>
+              {type === "gauge" ? <RiskGauge value={stat.value == null ? null : Number(stat.value)} label={stat.name}
+                formatted={stat.formatted.text} min={min} max={max}
+                steps={stat.field.config.thresholds?.steps || []}
+                percentage={stat.field.config.thresholds?.mode === "percentage"}
+                valueColor={stat.formatted.color} /> : null}
+              {type !== "gauge" ? <strong style={{ color: stat.formatted.color }}>
                 {stat.formatted.text}
-              </strong>
+              </strong> : null}
               {stat.timestamp ? <time className="native-stat-time" dateTime={new Date(stat.timestamp).toISOString()}>
                 {t("Data point time")}: {pointTimeText(stat.timestamp, timezone)}
               </time> : null}

@@ -135,6 +135,7 @@ type Agent struct {
 	nextScrape time.Time
 	revision   int64
 	lastState  string
+	resources  *resourceSampler
 }
 
 func New(cfg model.HostBootstrap, version string) (*Agent, error) {
@@ -159,6 +160,10 @@ func (a *Agent) Step(ctx context.Context) (time.Duration, string, error) {
 	if cfg.Version != a.revision {
 		a.nextScrape = time.Time{}
 		a.revision = cfg.Version
+		a.resources = nil
+	}
+	if !cfg.Enabled {
+		a.resources = nil
 	}
 	if cfg.Enabled && !time.Now().Before(a.nextScrape) {
 		started := time.Now()
@@ -174,6 +179,18 @@ func (a *Agent) Step(ctx context.Context) (time.Duration, string, error) {
 			up = 0
 			report.State = "collection_error"
 			samples = nil
+		}
+		if cfg.CollectHost {
+			if a.resources == nil {
+				a.resources = newResourceSampler()
+			}
+			resources, healthy := a.resources.collect(ctx)
+			samples = append(samples, resources...)
+			if !healthy {
+				report.State = "collection_error"
+			}
+		} else {
+			a.resources = nil
 		}
 		labels := map[string]string{"job": cfg.Target.Name, "instance": cfg.Target.URL}
 		for k, v := range cfg.Target.Labels {

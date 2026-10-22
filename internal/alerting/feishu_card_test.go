@@ -109,7 +109,7 @@ func TestFeishuCardReadableSnapshotAndCustomText(t *testing.T) {
 	alert["annotations"].(map[string]any)["value_label"] = "触发时使用率"
 	body, err := RenderFeishuNotification(payload, "", "", nil, time.Date(2026, 10, 22, 2, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
-	for _, expected := range []string{"持续超限", "触发时使用率 · 88.50%", "23:59:59", "请值班同学检查数据库连接池。", "通知冷却 1小时"} {
+	for _, expected := range []string{"持续超限", "触发时使用率 · 88.50%", "23:59:59", "请值班同学检查数据库连接池。", `通知冷却\n1小时`} {
 		require.Contains(t, string(body), expected)
 	}
 	for _, hidden := range []string{"FIRING", "RESOLVED", "warning", "critical", "CD ", "UTC", "A=", "\\u003cnil\\u003e"} {

@@ -97,7 +97,9 @@ func TestManagedHostsEncryptedCASAndIndependentOutboundCredentials(t *testing.T)
 	current, _, err := db.ManagedHost(ctx, h.ID)
 	require.NoError(t, err)
 	require.Equal(t, "collecting", current.AgentState)
-	require.Equal(t, 4, current.Samples)
+	require.Greater(t, current.Samples, 4)
+	require.NotNil(t, current.Resources)
+	require.Positive(t, current.Resources.MemoryTotal)
 	require.Positive(t, current.LastSeen)
 	// Saved credentials are preserved when not present in an update. A stale
 	// version cannot overwrite a subsequent pause or re-enable collection.

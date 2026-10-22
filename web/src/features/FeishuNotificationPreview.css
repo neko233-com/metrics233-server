@@ -12,4 +12,8 @@
 .feishu-message-preview pre { padding: 0 18px; }
 .feishu-preview-body hr { border: 0; border-top: 1px solid #e3e8ef; margin: 16px 0; }
 .feishu-preview-body small { display: block; margin-top: 16px; font-size: 11px; color: #6b7280; }
-.feishu-preview-action span { display: inline-block; margin-top: 8px; padding: 6px 14px; border: 1px solid #bdd2ff; border-radius: 5px; color: #2563eb; font-size: 13px; }
+.feishu-preview-action span { display: block; margin-top: 12px; padding: 10px 14px; border: 1px solid #bdd2ff; border-radius: 5px; background: #edf3ff; text-align: center; color: #2563eb; font-size: 13px; }
+.feishu-preview-fields { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px 20px; padding: 14px 0; margin: 0; border-bottom: 1px solid #e3e8ef; }
+.feishu-preview-fields dt { color: #6b7788; font-size: 12px; margin-bottom: 5px; }
+.feishu-preview-fields dd { margin: 0; color: #1d2939; font-size: 15px; font-weight: 550; white-space: pre-wrap; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.feishu-preview-fields:first-of-type dd { font-size: 20px; font-weight: 650; }

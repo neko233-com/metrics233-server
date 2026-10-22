@@ -5,17 +5,19 @@
     BlinkMacSystemFont,
     "Segoe UI",
     sans-serif;
-  color: #edf0f9;
-  background: #181b23;
+  color: #edf2f7;
+  background: #101419;
   font-synthesis: none;
   font-weight: 400;
-  --canvas: #181b23;
-  --sidebar: #12151c;
-  --surface: #1b2029;
-  --border: #303744;
-  --muted: #aebbd1;
-  --orange: #ff9457;
-  --green: #39d99c;
+  --canvas: #101419;
+  --sidebar: #111820;
+  --surface: #171e27;
+  --border: #2a3542;
+  --muted: #99aabd;
+  --text-secondary: #99aabd;
+  --accent: #38bfc4;
+  --orange: #38bfc4;
+  --green: #39c98a;
   color-scheme: dark;
 }
 .annotation-dialog {
@@ -92,10 +94,10 @@ button {
   gap: 9px;
   min-height: 42px;
   padding: 9px 15px;
-  border: 1px solid #3a4353;
-  border-radius: 5px;
-  background: #222833;
-  color: #eff2fb;
+  border: 1px solid #344351;
+  border-radius: 6px;
+  background: #1c2732;
+  color: #edf2f7;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -122,7 +124,7 @@ button.primary {
   font-weight: 650;
 }
 button.primary:hover {
-  background: #ffab7d;
+  background: #70d1d4;
 }
 button.danger {
   background: #a83943;
@@ -2653,3 +2655,23 @@ dialog::backdrop {
   padding: 16px;
   overflow: auto;
 }
+
+/* Shared operations chrome: one hierarchy across monitoring, metadata and settings. */
+.topbar { background: var(--canvas); border-color: var(--border); }
+.sidebar nav .app-nav-link[aria-current="page"], .sidebar nav button.active {
+  background: #18323d; color: #e5f8fa; border-radius: 6px; box-shadow: inset 2px 0 var(--accent);
+}
+.sidebar nav .app-nav-link, .sidebar nav button { width: calc(100% - 20px); margin-inline: 10px; padding-inline: 14px; }
+.nav-group-title { color: #7e92a5; font-size: 10px; letter-spacing: .08em; }
+.page-heading h1 { font-size: clamp(23px, 2vw, 30px); letter-spacing: -.6px; }
+.page-heading p { font-size: 13px; line-height: 1.65; }
+.chart-panel, .status-panel { border-color: var(--border); background: var(--surface); border-radius: 7px; box-shadow: none; }
+.panel-heading h2 { font-size: 15px; letter-spacing: -.15px; }
+.status.warning { color: #edb84b; }
+.status.critical, .form-error { color: #f58c94; }
+input, select, textarea { border-color: #344351; background-color: #101820; color: #edf2f7; border-radius: 5px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px;
+}
+button:disabled { cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }

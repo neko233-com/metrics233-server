@@ -577,7 +577,7 @@ export default function App() {
     return (
       <main className="login" role="status" aria-live="polite">
         <Activity size={42} />
-        <h1>{tr("MetricsPanel233")}</h1>
+        <h1>{"Metrics233"}</h1>
         <p>{tr("Connecting to your workspace…")}</p>
       </main>
     );
@@ -672,7 +672,7 @@ export default function App() {
       <main className="login">
         {languageButton}
         <Activity size={42} />
-        <h1>{tr("MetricsPanel233")}</h1>
+        <h1>{"Metrics233"}</h1>
         <p>{tr("Sign in to your workspace.")}</p>
         <form onSubmit={submitLogin}>
           <Field label={tr("Login")} required>
@@ -716,7 +716,7 @@ export default function App() {
       <main className="login">
         {languageButton}
         <Activity size={42} />
-        <h1>{tr("MetricsPanel233")}</h1>
+        <h1>{"Metrics233"}</h1>
         <p>{tr("Enter your workspace API token.")}</p>
         <form
           onSubmit={async (e) => {
@@ -771,11 +771,11 @@ export default function App() {
             navigate("overview");
           }}
           className="brand"
-          aria-label={tr("MetricsPanel233")}
-          title={tr("MetricsPanel233")}
+          aria-label={"Metrics233"}
+          title={"Metrics233"}
         >
           <Activity size={38} strokeWidth={2} />
-          <span>{tr("MetricsPanel233")}</span>
+          <span>{"Metrics233"}</span>
         </a>
         <nav aria-label={tr("Main navigation")}>
           {[
@@ -889,7 +889,7 @@ export default function App() {
               <i />
               {tr("Self-hosted")}
             </span>
-            <span className="topbar-product">{tr("MetricsPanel233")}</span>
+            <span className="topbar-product">{"Metrics233"}</span>
           </div>
         </header>
         <main>

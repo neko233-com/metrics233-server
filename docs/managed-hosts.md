@@ -5,6 +5,9 @@ It installs a small dedicated collector, not another monitoring server. Protocol
 `collector.TargetStore` scheduling interface and the standard-library wire types in `internal/telemetry`;
 the collector binary does not link the control-plane store, query engine or web UI.
 
+Updated agents also collect local host resources in the same process. See [native host resources](host-resources.md)
+for CPU/memory/disk definitions, the separate host dashboard, missing/stale values and sustained alert defaults.
+
 ## Workflow
 
 1. Add a host and a collector in **Metadata → Host management**. The collector URL is resolved on the target.

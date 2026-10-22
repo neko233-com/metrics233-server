@@ -5,12 +5,13 @@ import {
   useState,
   type FormEvent,
 } from "react";
-import { Monitor, Pencil, Plus, RefreshCw, ShieldCheck } from "lucide-react";
+import { Monitor, MoreHorizontal, Pencil, Plus, RefreshCw, ShieldCheck, ArrowUpRight } from "lucide-react";
 import { api, message, timeAgo, type Target } from "../api";
 import { getLocale } from "../i18n";
 import { Alert, AppModal, Button, Field, Input } from "../ui";
 import { useSession } from "../ui/session";
 import "./ManagedHosts.css";
+import { HostResources, type HostResourcesData } from "./HostResources";
 
 const text = (en: string, zh: string) => (getLocale() === "zh" ? zh : en);
 type Host = {
@@ -33,6 +34,8 @@ type Host = {
   agent_arch: string;
   applied_version: number;
   samples: number;
+  collect_host?: boolean;
+  resources?: HostResourcesData;
 };
 type Draft = {
   host: Host;
@@ -94,7 +97,7 @@ const stateText = (host: Host) =>
         : host.agent_state === "paused"
           ? text("Collection paused", "采集已暂停")
           : host.agent_state === "collection_error"
-            ? text("Collector cannot read source", "采集源连接失败")
+            ? text("Some resources could not be collected", "部分资源采集失败")
             : text("Collecting", "正在采集");
 
 export default function ManagedHosts({
@@ -193,6 +196,7 @@ export default function ManagedHosts({
       | "fingerprint"
       | "events"
       | "dashboard"
+      | "host-dashboard"
       | "revoke",
   ) => {
     if (busy) return;
@@ -221,10 +225,10 @@ export default function ManagedHosts({
             "已保存，等待采集器应用配置",
           ),
         );
-      } else if (kind === "dashboard") {
+      } else if (kind === "dashboard" || kind === "host-dashboard") {
         const dashboard = await api<{ id: string; name: string }>(
           `/api/v1/managed-hosts/${host.id}/dashboard`,
-          { method: "POST", body: JSON.stringify({ language: getLocale() }) },
+          { method: "POST", body: JSON.stringify({ language: getLocale(), kind: kind === "host-dashboard" ? "host" : "mysql" }) },
         );
         location.assign(
           `/d/${encodeURIComponent(dashboard.id)}/${encodeURIComponent(dashboard.name)}`,
@@ -278,8 +282,8 @@ export default function ManagedHosts({
           <h1>{text("Host management", "主机管理")}</h1>
           <p className="subtle">
             {text(
-              "Install over SSH. Agents connect outbound over HTTPS and receive only their own collection settings.",
-              "通过 SSH 安装；采集器使用出站 HTTPS，仅获取自己的采集配置。",
+              "Host resources, databases and collection status.",
+              "主机资源、数据库与采集状态。",
             )}
           </p>
         </div>
@@ -299,12 +303,12 @@ export default function ManagedHosts({
           {error}
         </Alert>
       )}
-      <p className="subtle">
+      <details className="host-enrollment-help"><summary>{text("How hosts connect", "主机接入说明")}</summary><p className="subtle">
         {text(
           "The installer must be able to reach the SSH target. For private networks, run hosts deploy-local from inside that network; subsequent collection settings and pause/resume use the outbound connection.",
           "安装执行器需要能连到目标 SSH。内网主机可在内网执行 hosts deploy-local 完成首次安装；此后的采集配置、暂停与恢复通过出站连接生效。",
         )}
-      </p>
+      </p></details>
       {!loaded && !error && (
         <p role="status">{text("Loading hosts…", "正在加载主机…")}</p>
       )}
@@ -331,12 +335,19 @@ export default function ManagedHosts({
               aria-label={host.name}
             >
               <div className="panel-heading">
-                <h2>{host.name}</h2>
+                <Monitor size={26} className="host-icon" /><div className="host-identity"><h2>{host.name}</h2><p>{host.agent_os === "darwin" ? "macOS" : host.agent_os || "—"} · {host.agent_arch || "—"} · {host.address}</p></div>
                 <span className={`status ${healthy ? "healthy" : "warning"}`}>
                   <i />
                   {stateText(host)}
                 </span>
+                <Button size="sm" disabled={!!busy} onClick={() => void action(host,"host-dashboard")}><ArrowUpRight size={15} />{text("Open dashboard", "打开仪表盘")}</Button>
               </div>
+              <div className="host-view-nav"><span aria-current="page">{text("Host resources", "主机资源")}</span>
+                {host.target.kind === "mysql" ? <button disabled={!!busy} onClick={() => void action(host,"dashboard")}>MySQL <ArrowUpRight size={13} /></button> : null}
+                <small>{text("Last heartbeat", "最近心跳")} {host.last_seen ? timeAgo(host.last_seen) : "—"}</small>
+              </div>
+              <HostResources id={host.id} resources={host.resources} enabled={host.enabled && !host.revoked && fresh && host.collect_host !== false} interval={host.target.interval_seconds} />
+              <details className="host-more"><summary><MoreHorizontal size={17} />{text("Configuration and operations", "配置与操作")}</summary>
               <dl>
                 <dt>SSH</dt>
                 <dd>
@@ -424,6 +435,7 @@ export default function ManagedHosts({
                   {text("Inspect host key", "查看主机指纹")}
                 </Button>
               )}
+              </details>
             </section>
           );
         })}
@@ -539,6 +551,7 @@ export default function ManagedHosts({
               )}
             </label>
             <h3>{text("Read-only collector", "只读采集")}</h3>
+            <label className="checkbox-field"><input type="checkbox" checked={draft.host.collect_host !== false} onChange={event => field("collect_host",event.target.checked)} />{text("Collect host CPU, memory and writable disks", "同时采集主机 CPU、内存与可写磁盘")}</label>
             <div className="form-grid">
               <Field label={text("Type", "类型")}>
                 <select

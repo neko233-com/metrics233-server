@@ -136,6 +136,8 @@ type ManagedHost struct {
 	AgentSHA       string            `json:"agent_sha"`
 	AppliedVersion int64             `json:"applied_version"`
 	Samples        int               `json:"samples"`
+	CollectHost    *bool             `json:"collect_host,omitempty"`
+	Resources      *HostResources    `json:"resources,omitempty"`
 }
 
 var managedUser = regexp.MustCompile(`^[a-zA-Z_][a-zA-Z0-9_-]{0,63}$`)
@@ -179,9 +181,10 @@ func (h ManagedHost) Validate() error {
 }
 
 type HostAgentConfig struct {
-	Version int64  `json:"version"`
-	Enabled bool   `json:"enabled"`
-	Target  Target `json:"target"`
+	Version     int64  `json:"version"`
+	Enabled     bool   `json:"enabled"`
+	Target      Target `json:"target"`
+	CollectHost bool   `json:"collect_host"`
 }
 
 type HostHeartbeat struct {

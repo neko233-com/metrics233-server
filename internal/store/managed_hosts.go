@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/telemetry"
 )
 
 var ErrHostConflict = errors.New("host changed; read it again before saving")
@@ -76,10 +77,12 @@ func (s *Store) readManagedHost(scan func(...any) error) (model.ManagedHost, map
 	h.AppliedVersion = report.AppliedVersion
 	// Only a count is retained in the heartbeat catalog; sample data stays in TSDB.
 	var count struct {
-		Count int `json:"count"`
+		Count     int                  `json:"count"`
+		Resources *model.HostResources `json:"resources"`
 	}
 	_ = json.Unmarshal([]byte(heartbeat), &count)
 	h.Samples = count.Count
+	h.Resources = count.Resources
 	return h, secrets, nil
 }
 
@@ -162,6 +165,7 @@ func (s *Store) saveManagedHost(ctx context.Context, h model.ManagedHost, actor 
 	h.AgentArch = ""
 	h.AgentSHA = ""
 	h.Samples = 0
+	h.Resources = nil
 	h.AppliedVersion = 0
 	h.Target.Enabled = true
 	h.Target.LastScrape = 0
@@ -209,15 +213,32 @@ func (s *Store) AuthenticateHost(ctx context.Context, id, token string) (model.M
 }
 
 func (s *Store) RecordHostHeartbeat(ctx context.Context, id string, report model.HostHeartbeat, count int) error {
+	now := time.Now().UnixMilli()
+	resources := telemetry.HostResourceSnapshot(report.Samples, now)
+	// Preserve the timestamp of the last real observation on paused/transport-only
+	// heartbeats. Clients must check freshness and enabled state before coloring it.
+	if resources == nil {
+		var previous string
+		if err := s.DB.QueryRowContext(ctx, `SELECT heartbeat FROM managed_hosts WHERE id=?`, id).Scan(&previous); err != nil {
+			return err
+		}
+		var old struct {
+			Resources *model.HostResources `json:"resources"`
+		}
+		if json.Unmarshal([]byte(previous), &old) == nil {
+			resources = old.Resources
+		}
+	}
 	report.Samples = nil
 	raw, err := json.Marshal(struct {
 		model.HostHeartbeat
-		Count int `json:"count"`
-	}{report, count})
+		Count     int                  `json:"count"`
+		Resources *model.HostResources `json:"resources,omitempty"`
+	}{report, count, resources})
 	if err != nil {
 		return err
 	}
-	_, err = s.DB.ExecContext(ctx, `UPDATE managed_hosts SET last_seen=?,heartbeat=? WHERE id=?`, time.Now().UnixMilli(), string(raw), id)
+	_, err = s.DB.ExecContext(ctx, `UPDATE managed_hosts SET last_seen=?,heartbeat=? WHERE id=?`, now, string(raw), id)
 	return err
 }
 

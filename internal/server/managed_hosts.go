@@ -17,6 +17,7 @@ import (
 	"github.com/neko233-com/metrics233-server/internal/identity"
 	"github.com/neko233-com/metrics233-server/internal/model"
 	"github.com/neko233-com/metrics233-server/internal/store"
+	"github.com/neko233-com/metrics233-server/internal/telemetry"
 )
 
 func (s *Server) hostAdmin(w http.ResponseWriter, r *http.Request) bool {
@@ -157,6 +158,7 @@ func (s *Server) managedHostRoutes(api routeRegistrar, mux *http.ServeMux) {
 		}
 		input := struct {
 			Language string `json:"language"`
+			Kind     string `json:"kind"`
 		}{Language: "en"}
 		if r.ContentLength != 0 {
 			if err := decode(w, r, &input); err != nil {
@@ -168,12 +170,16 @@ func (s *Server) managedHostRoutes(api routeRegistrar, mux *http.ServeMux) {
 			fail(w, 400, errors.New("language must be en or zh"))
 			return
 		}
+		if input.Kind != "" && input.Kind != "mysql" && input.Kind != "host" {
+			fail(w, 400, errors.New("kind must be host or mysql"))
+			return
+		}
 		h, _, err := s.Store.ManagedHost(r.Context(), r.PathValue("id"))
 		if err != nil {
 			fail(w, 404, errors.New("host not found"))
 			return
 		}
-		if h.Target.Kind != "mysql" {
+		if input.Kind != "host" && h.Target.Kind != "mysql" {
 			fail(w, 400, errors.New("the native database dashboard currently requires a MySQL collector"))
 			return
 		}
@@ -185,6 +191,9 @@ func (s *Server) managedHostRoutes(api routeRegistrar, mux *http.ServeMux) {
 			return
 		}
 		candidate := model.MySQLDashboard(h, input.Language)
+		if input.Kind == "host" {
+			candidate = model.HostDashboard(h, input.Language)
+		}
 		for _, item := range items {
 			if item.ID == candidate.ID {
 				writeJSON(w, 200, item)
@@ -239,7 +248,7 @@ func (s *Server) managedHostRoutes(api routeRegistrar, mux *http.ServeMux) {
 		if h.Enabled {
 			target.SecureSettings = map[string]string{"password": secrets["collector_password"], "bearer_token": secrets["collector_bearer_token"]}
 		}
-		writeJSON(w, 200, model.HostAgentConfig{Version: h.Version, Enabled: h.Enabled, Target: target})
+		writeJSON(w, 200, model.HostAgentConfig{Version: h.Version, Enabled: h.Enabled, Target: target, CollectHost: h.HostCollectionEnabled()})
 	}))
 	mux.HandleFunc("POST /agent/v1/hosts/{id}/heartbeat", s.hostAgentHandler(s.hostHeartbeat))
 	mux.HandleFunc("/agent/", func(w http.ResponseWriter, r *http.Request) {
@@ -348,12 +357,16 @@ func (s *Server) hostHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 	for index := range report.Samples {
 		sample := &report.Samples[index]
+		if strings.HasPrefix(sample.Name, "host_") && (!h.HostCollectionEnabled() || telemetry.ValidateHostObservation(*sample) != nil) {
+			fail(w, 400, errors.New("invalid or disabled host observation"))
+			return
+		}
 		if h.Target.Kind != "prometheus" && h.Target.Kind != "" && sample.Name != "up" && !strings.HasPrefix(sample.Name, "scrape_") {
 			prefix := h.Target.Kind + "_"
 			if h.Target.Kind == "postgresql" {
 				prefix = "pg_"
 			}
-			if !strings.HasPrefix(sample.Name, prefix) {
+			if !strings.HasPrefix(sample.Name, prefix) && !(h.HostCollectionEnabled() && strings.HasPrefix(sample.Name, "host_")) {
 				fail(w, 400, errors.New("metric is outside this collector namespace"))
 				return
 			}
