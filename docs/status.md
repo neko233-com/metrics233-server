@@ -18,7 +18,11 @@ Updated: 2026-10-22. This file is the durable progress ledger. Update it wheneve
 - Follow-up discovery metadata describes resource reads, Admin-only host association schemas and multi-sort cursor
   semantics. The UI marks stale reporting and hides current node-exporter gauges while preserving historical
   trends when collection is paused/stale. Targeted discovery/business tests/vet and 163 frontend units/build
-  passed; this small follow-up still needs its own immutable rollout. Overall roadmap weighting remains 94%.
+  passed. Fixed-source private 0.2.20 subsequently passed the full worker/archive/readiness gates and exact
+  production deployment. Live discovery returned all four resource/host/ranking operations with the expected
+  roles; all six process/physical-host associations and complete-set SQL sorting passed again. Source runtime
+  is e5f93cb41065d4d88c5605006cdc64c8edff72dd; later acceptance documentation does not change its code.
+  Overall roadmap weighting remains 94%.
 
 ### 2026-10-22 — Reporting-server dashboards and multi-column ranking
 
