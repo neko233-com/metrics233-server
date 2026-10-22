@@ -24,6 +24,21 @@ func embeddedFixture(t *testing.T) (*Store, *Embedded, string) {
 	return control, engine, path
 }
 
+func TestEmbeddedEmptyLabelsShareCanonicalIdentityWithoutMutatingCaller(t *testing.T) {
+	_, engine, _ := embeddedFixture(t)
+	at := time.Now().Add(-time.Minute).UnixMilli()
+	attrs := map[string]string{"mountpoint": "/", "device_error": ""}
+	require.NoError(t, engine.Ingest(t.Context(), []model.Sample{{Name: "disk_bytes", Labels: attrs, Timestamp: at, Value: 11}}))
+	require.Equal(t, "", attrs["device_error"])
+	require.Contains(t, attrs, "device_error")
+	require.NoError(t, engine.Ingest(t.Context(), []model.Sample{{Name: "disk_bytes", Labels: map[string]string{"mountpoint": "/"}, Timestamp: at + 1000, Value: 12}}))
+	require.Len(t, engine.refs, 1)
+	rows, err := engine.LoadSeries(t.Context(), at, at+2000, []Matcher{{Name: "device_error", Type: "=", Value: ""}})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Len(t, rows[0].Points, 2)
+}
+
 func TestEmbeddedNativePrecisionRestartAndIndexedQueries(t *testing.T) {
 	control, engine, path := embeddedFixture(t)
 	ctx := t.Context()

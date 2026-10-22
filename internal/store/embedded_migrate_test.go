@@ -12,6 +12,56 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestEmbeddedMigrationCanonicalizesEmptyLabelsWithoutLosingSamples(t *testing.T) {
+	root := t.TempDir()
+	s, err := Open(filepath.Join(root, "control.db"))
+	require.NoError(t, err)
+	defer s.Close()
+	at := time.Now().Add(-3 * time.Hour).UnixMilli()
+	var expected sampleDigest
+	for i := range 120 {
+		point := model.Sample{Name: "node_filesystem_free_bytes", Labels: map[string]string{"mountpoint": "/", "device_error": ""}, Timestamp: at + int64(i)*30000, Value: float64(i) * 1.0000000000000002}
+		require.NoError(t, s.Ingest(t.Context(), []model.Sample{point}))
+		point.Labels = map[string]string{"mountpoint": "/"}
+		expected.add(point)
+	}
+	dest := filepath.Join(root, "metrics")
+	r, err := s.MigrateEmbedded(t.Context(), MigrationOptions{Destination: dest, BackupDirectory: filepath.Join(root, "backup"), SourceStopped: true, PruneLegacy: true, RetentionDays: 15})
+	require.NoError(t, err)
+	require.Equal(t, int64(120), r.Samples)
+	require.Equal(t, 1, r.NormalizedLabelSeries)
+	require.Equal(t, expected.String(), r.Fingerprint)
+	engine, err := OpenEmbedded(t.Context(), s, dest, 15)
+	require.NoError(t, err)
+	defer engine.Close()
+	rows, err := engine.LoadSeries(t.Context(), at, at+3600000, []Matcher{{Name: "device_error", Type: "=", Value: ""}})
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Len(t, rows[0].Points, 120)
+	require.NotContains(t, rows[0].Labels, "device_error")
+}
+
+func TestEmbeddedMigrationRefusesCanonicalIdentityCollision(t *testing.T) {
+	root := t.TempDir()
+	s, err := Open(filepath.Join(root, "control.db"))
+	require.NoError(t, err)
+	defer s.Close()
+	at := time.Now().Add(-time.Hour).UnixMilli()
+	points := []model.Sample{
+		{Name: "disk_bytes", Labels: map[string]string{"mountpoint": "/", "device_error": ""}, Timestamp: at, Value: 11},
+		{Name: "disk_bytes", Labels: map[string]string{"mountpoint": "/"}, Timestamp: at, Value: 12},
+	}
+	require.NoError(t, s.Ingest(t.Context(), points))
+	dest := filepath.Join(root, "metrics")
+	_, err = s.MigrateEmbedded(t.Context(), MigrationOptions{Destination: dest, BackupDirectory: filepath.Join(root, "backup"), SourceStopped: true, PruneLegacy: true, RetentionDays: 15})
+	require.ErrorContains(t, err, "empty-label normalization")
+	_, err = os.Stat(dest)
+	require.True(t, os.IsNotExist(err))
+	var count int
+	require.NoError(t, s.DB.QueryRow(`SELECT count(*) FROM samples`).Scan(&count))
+	require.Equal(t, 2, count, "even identical duplicate observations must never be silently discarded")
+}
+
 func TestEmbeddedMigrationBackupReopenVerifyAndReclaim(t *testing.T) {
 	ctx := t.Context()
 	root := t.TempDir()

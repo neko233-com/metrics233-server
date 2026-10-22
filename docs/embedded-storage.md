@@ -22,6 +22,8 @@ Native PromQL queries use the engine's indexed querier directly. Native bucket
 queries retain the 200-series, 5M-point non-rate and 250000-point rate budgets;
 raw materialization retains its 1M-point limit. Conflicting duplicate timestamps
 are not an update API; producers should emit one value per series/timestamp.
+Empty label values use Prometheus semantics and are normalized to absent labels;
+the native reference cache and migration checksum use that same identity.
 
 Retention defaults to 15 days and remains editable through the versioned HTTP
 settings endpoint. Queries immediately hide expired data. Startup/hourly cleanup
@@ -45,6 +47,11 @@ The destination and backup directory must be new. Migration creates a consistent
 SQLite backup plus adjacent key/identity backups, streams only retained samples
 and windows, flushes blocks, reopens both engines and compares exact float bits,
 sample counts, an order-independent cryptographic fingerprint and vector payloads.
+Legacy label JSON is decoded once per retained series (maximum 100000). Migration
+records how many series had empty labels normalized. If two legacy identities
+would become one canonical series, migration refuses before copying observations;
+it never silently deduplicates potentially conflicting source rows. The protected
+SQLite backup retains the original label representation.
 Only then can `--prune-legacy` delete old metric rows and VACUUM the control DB.
 Configuration and alert history are preserved. Failure leaves the original
 observations until verified publication; partial directories are never silently

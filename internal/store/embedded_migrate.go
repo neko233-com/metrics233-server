@@ -27,10 +27,11 @@ type MigrationOptions struct {
 }
 
 type MigrationResult struct {
-	Samples         int64  `json:"samples"`
-	Patterns        int    `json:"patterns"`
-	Fingerprint     string `json:"fingerprint"`
-	LegacyReclaimed bool   `json:"legacy_reclaimed"`
+	Samples               int64  `json:"samples"`
+	Patterns              int    `json:"patterns"`
+	Fingerprint           string `json:"fingerprint"`
+	LegacyReclaimed       bool   `json:"legacy_reclaimed"`
+	NormalizedLabelSeries int    `json:"normalized_label_series,omitempty"`
 }
 
 // sampleDigest is an order-independent cryptographic multiset checksum. Count
@@ -41,16 +42,20 @@ type sampleDigest struct {
 }
 
 func (d *sampleDigest) add(s model.Sample) {
+	d.addIdentity(s.Name, model.LabelsJSON(s.Labels), s.Timestamp, s.Value)
+}
+
+func (d *sampleDigest) addIdentity(name, attrs string, at int64, value float64) {
 	h := sha256.New()
-	for _, part := range []string{s.Name, model.LabelsJSON(s.Labels)} {
+	for _, part := range []string{name, attrs} {
 		var size [8]byte
 		binary.BigEndian.PutUint64(size[:], uint64(len(part)))
 		h.Write(size[:])
 		h.Write([]byte(part))
 	}
 	var data [16]byte
-	binary.BigEndian.PutUint64(data[:8], uint64(s.Timestamp))
-	binary.BigEndian.PutUint64(data[8:], math.Float64bits(s.Value))
+	binary.BigEndian.PutUint64(data[:8], uint64(at))
+	binary.BigEndian.PutUint64(data[8:], math.Float64bits(value))
 	h.Write(data[:])
 	hash := h.Sum(nil)
 	carry := 0
@@ -76,6 +81,7 @@ func (b *Embedded) fingerprint(ctx context.Context, cutoff int64) (sampleDigest,
 	for set.Next() {
 		series := set.At()
 		name, attrs := seriesIdentity(series.Labels())
+		encoded := model.LabelsJSON(attrs)
 		it := series.Iterator(nil)
 		for kind := it.Next(); kind != chunkenc.ValNone; kind = it.Next() {
 			if err := ctx.Err(); err != nil {
@@ -85,13 +91,54 @@ func (b *Embedded) fingerprint(ctx context.Context, cutoff int64) (sampleDigest,
 				return digest, errors.New("unexpected non-float migration record")
 			}
 			at, value := it.At()
-			digest.add(model.Sample{Name: name, Labels: attrs, Timestamp: at, Value: value})
+			digest.addIdentity(name, encoded, at, value)
 		}
 		if err := it.Err(); err != nil {
 			return digest, err
 		}
 	}
 	return digest, set.Err()
+}
+
+type migrationSeries struct {
+	name, encoded string
+	attrs         map[string]string
+}
+
+func (s *Store) migrationSeries(ctx context.Context, cutoff int64) (map[int64]migrationSeries, int, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT id,name,labels FROM series WHERE EXISTS(SELECT 1 FROM samples WHERE series_id=series.id AND timestamp>=?)`, cutoff)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	series, identities := map[int64]migrationSeries{}, map[string]bool{}
+	normalized := 0
+	for rows.Next() {
+		var id int64
+		var name, raw string
+		var attrs map[string]string
+		if err := rows.Scan(&id, &name, &raw); err != nil {
+			return nil, 0, err
+		}
+		if err := json.Unmarshal([]byte(raw), &attrs); err != nil {
+			return nil, 0, err
+		}
+		canonical := canonicalMetricLabels(attrs)
+		if len(canonical) != len(attrs) {
+			normalized++
+		}
+		encoded := model.LabelsJSON(canonical)
+		key := name + "\x00" + encoded
+		if identities[key] {
+			return nil, 0, errors.New("legacy series identities overlap after empty-label normalization; original data preserved")
+		}
+		if len(series) >= EmbeddedMaxSeries {
+			return nil, 0, errors.New("migration retained-series budget reached; original data preserved")
+		}
+		identities[key] = true
+		series[id] = migrationSeries{name: name, encoded: encoded, attrs: canonical}
+	}
+	return series, normalized, rows.Err()
 }
 
 // Compact flushes the complete offline head. Live ingestion never calls it.
@@ -202,6 +249,11 @@ func (s *Store) MigrateEmbedded(ctx context.Context, opt MigrationOptions) (resu
 	if err = syncStorageDirectory(filepath.Dir(backup)); err != nil {
 		return result, err
 	}
+	cutoff := time.Now().Add(-time.Duration(setting.Days) * 24 * time.Hour).UnixMilli()
+	series, normalized, err := s.migrationSeries(ctx, cutoff)
+	if err != nil {
+		return result, err
+	}
 	prepared, err := os.MkdirTemp(filepath.Dir(dest), ".metrics-migrate-")
 	if err != nil {
 		return result, err
@@ -215,8 +267,7 @@ func (s *Store) MigrateEmbedded(ctx context.Context, opt MigrationOptions) (resu
 			err = errors.Join(err, engine.Close())
 		}
 	}()
-	cutoff := time.Now().Add(-time.Duration(setting.Days) * 24 * time.Hour).UnixMilli()
-	rows, err := s.DB.QueryContext(ctx, `SELECT s.name,s.labels,m.timestamp,m.value FROM samples m JOIN series s ON s.id=m.series_id WHERE m.timestamp>=? ORDER BY m.timestamp,m.series_id`, cutoff)
+	rows, err := s.DB.QueryContext(ctx, `SELECT series_id,timestamp,value FROM samples WHERE timestamp>=? ORDER BY timestamp,series_id`, cutoff)
 	if err != nil {
 		return result, err
 	}
@@ -224,14 +275,17 @@ func (s *Store) MigrateEmbedded(ctx context.Context, opt MigrationOptions) (resu
 	batch := make([]model.Sample, 0, 5000)
 	for rows.Next() {
 		var sample model.Sample
-		var attrs string
-		if err = rows.Scan(&sample.Name, &attrs, &sample.Timestamp, &sample.Value); err != nil {
+		var id int64
+		if err = rows.Scan(&id, &sample.Timestamp, &sample.Value); err != nil {
 			break
 		}
-		if err = json.Unmarshal([]byte(attrs), &sample.Labels); err != nil {
+		identity, ok := series[id]
+		if !ok {
+			err = errors.New("offline source series changed during migration; original data preserved")
 			break
 		}
-		expected.add(sample)
+		sample.Name, sample.Labels = identity.name, identity.attrs
+		expected.addIdentity(identity.name, identity.encoded, sample.Timestamp, sample.Value)
 		batch = append(batch, sample)
 		if len(batch) == cap(batch) {
 			if err = engine.Ingest(ctx, batch); err != nil {
@@ -292,7 +346,7 @@ func (s *Store) MigrateEmbedded(ctx context.Context, opt MigrationOptions) (resu
 		return result, err
 	}
 	if actual != expected {
-		return result, errors.New("migration sample count or lossless fingerprint mismatch; original data preserved")
+		return result, fmt.Errorf("migration sample count or lossless fingerprint mismatch (source=%d target=%d); original data preserved", expected.count, actual.count)
 	}
 	for id, hash := range patternHashes {
 		p, e := engine.Pattern(ctx, id)
@@ -307,6 +361,7 @@ func (s *Store) MigrateEmbedded(ctx context.Context, opt MigrationOptions) (resu
 	engine.manifest.Migrated = true
 	engine.manifest.Samples = actual.count
 	engine.manifest.Fingerprint = actual.String()
+	engine.manifest.NormalizedLabelSeries = normalized
 	if err = writeEmbeddedManifest(prepared, engine.manifest); err != nil {
 		return result, err
 	}
@@ -320,7 +375,7 @@ func (s *Store) MigrateEmbedded(ctx context.Context, opt MigrationOptions) (resu
 	if err = syncStorageDirectory(filepath.Dir(dest)); err != nil {
 		return result, err
 	}
-	result = MigrationResult{Samples: actual.count, Patterns: len(patternHashes), Fingerprint: actual.String()}
+	result = MigrationResult{Samples: actual.count, Patterns: len(patternHashes), Fingerprint: actual.String(), NormalizedLabelSeries: normalized}
 	if opt.PruneLegacy {
 		tx, e := s.DB.BeginTx(ctx, nil)
 		if e != nil {

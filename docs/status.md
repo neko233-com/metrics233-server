@@ -19,6 +19,13 @@ Updated: 2026-10-22. This file is the durable progress ledger. Update it wheneve
 - The online baseline remained 0.2.15 / SQLite with about 15.5M samples. Edge could read and capture the host UI,
   but navigation/submit commands stalled after reconnects. Read-only build records still showed the prior successful
   release; operator submission has not yet produced a verified new build receipt. Production migration remains pending.
+- A subsequent authorized fixed-source SSH worker completed the private release gates and attempted cutover.
+  Exact migration verification rejected 40 empty-label series; the deployment restored stopped data and the old
+  binary, leaving reporting healthy on 0.2.15. Offline comparison found all 16106623 samples present, with the
+  difference limited to Prometheus omitting empty labels. A failing regression now passes with canonical identities,
+  explicit collision refusal, normalized-series accounting and per-series decoding. Full retained-data replay then
+  passed reopening/count/float-bit fingerprint checks for all 16106623 samples and 40 normalized series in 166s.
+  The original offline source and protected backups remain. A new immutable online release is still pending.
 
 ### 2026-10-22 — Staggered recovery grouping (fixed-source rollout and provider retest accepted)
 

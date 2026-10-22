@@ -31,12 +31,13 @@ import (
 const EmbeddedMaxSeries = 100000
 
 type embeddedManifest struct {
-	Format         string `json:"format"`
-	Version        int    `json:"version"`
-	OrganizationID int64  `json:"organization_id"`
-	Migrated       bool   `json:"migrated"`
-	Samples        int64  `json:"migrated_samples,omitempty"`
-	Fingerprint    string `json:"fingerprint,omitempty"`
+	Format                string `json:"format"`
+	Version               int    `json:"version"`
+	OrganizationID        int64  `json:"organization_id"`
+	Migrated              bool   `json:"migrated"`
+	Samples               int64  `json:"migrated_samples,omitempty"`
+	Fingerprint           string `json:"fingerprint,omitempty"`
+	NormalizedLabelSeries int    `json:"normalized_label_series,omitempty"`
 }
 
 type Embedded struct {
@@ -245,14 +246,15 @@ func (b *Embedded) Ingest(ctx context.Context, samples []model.Sample) error {
 			at = now
 		}
 		last = max(last, at)
-		key := sample.Name + "\x00" + model.LabelsJSON(sample.Labels)
+		attrs := canonicalMetricLabels(sample.Labels)
+		key := sample.Name + "\x00" + model.LabelsJSON(attrs)
 		ref := updates[key]
 		if ref == 0 {
 			ref = b.refs[key]
 		}
-		builder := labels.NewScratchBuilder(len(sample.Labels) + 1)
+		builder := labels.NewScratchBuilder(len(attrs) + 1)
 		builder.Add(labels.MetricName, sample.Name)
-		for k, v := range sample.Labels {
+		for k, v := range attrs {
 			builder.Add(k, v)
 		}
 		builder.Sort()
@@ -293,6 +295,23 @@ func (b *Embedded) Ingest(ctx context.Context, samples []model.Sample) error {
 	slot.count += len(samples)
 	b.rateMu.Unlock()
 	return nil
+}
+
+// Prometheus treats an empty label value as an absent label. Copy only when
+// normalization is needed; caller-owned maps may be shared by reporting code.
+func canonicalMetricLabels(attrs map[string]string) map[string]string {
+	for _, value := range attrs {
+		if value == "" {
+			out := make(map[string]string, len(attrs))
+			for key, value := range attrs {
+				if value != "" {
+					out[key] = value
+				}
+			}
+			return out
+		}
+	}
+	return attrs
 }
 
 func (b *Embedded) syncLogs() error {
