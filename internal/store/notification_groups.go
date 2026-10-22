@@ -150,6 +150,14 @@ func resolveNotificationGroupsTx(ctx context.Context, tx *sql.Tx, rule model.Ale
 		interval, _ := model.NotificationDuration(opts.GroupInterval)
 		// Recovery is not delayed by a pending firing member's CD deadline.
 		next := max(event.Timestamp, g.LastSentAt+interval.Milliseconds())
+		if rule.NotificationCooldownSeconds > 0 {
+			// Resource evaluations run independently. Coalesce a quiet window so
+			// one host's almost-simultaneous recoveries do not become several
+			// cards. Explicit zero wait preserves immediate delivery; long first-
+			// firing waits never delay a recovery by more than thirty seconds.
+			wait, _ := model.NotificationDuration(opts.GroupWait)
+			next = max(next, event.Timestamp+min(wait, 30*time.Second).Milliseconds())
+		}
 		if _, err := tx.ExecContext(ctx, `UPDATE alert_notification_groups SET dirty=1,generation=generation+1,next_at=?,resume_needed=CASE WHEN ? THEN 0 ELSE resume_needed END WHERE group_key=?`, next, muted, g.Key); err != nil {
 			return err
 		}

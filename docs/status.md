@@ -2,6 +2,20 @@
 
 Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
+### 2026-10-22 — Staggered recovery grouping (regression reproduced and fixed; rollout pending)
+
+- The fixed-source host/UI release passed its private worker gates and was deployed; the updated dedicated Darwin
+  collector reported actual CPU, memory and writable data-volume observations. Six sustained/recovery/CD rules and
+  native host/MySQL dashboards were configured through the authenticated API. Exact private-host evidence remains
+  in the private deployment ledger, separate from visual fixtures.
+- Real-clock notification acceptance completed two full cycles for all three resources (24 transitions). It found
+  one firing plus two recovery cards, caused by resource evaluations resolving two seconds apart. This was a split
+  first-period recovery, not a second-period firing bypassing CD. The owned temporary rules were removed.
+- Added a deterministic failing regression for staggered group recovery, then a quiet-window fix for CD-enabled
+  groups. Existing zero-wait behavior is preserved and recovery waits are capped at 30 seconds. Targeted grouping,
+  cooldown and Feishu tests passed. Fixed-source rollout and a new real-clock/provider acceptance are pending;
+  the failed acceptance is not counted as success. Storage work remains independent and in progress.
+
 ### 2026-10-22 — Host resources and operations UI (source/browser accepted; production pending)
 
 - Goal: add local CPU, reclaimable-memory and writable-disk observations to the existing bounded outbound agent;

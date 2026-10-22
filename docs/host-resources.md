@@ -29,6 +29,9 @@ CPU/disk warning >85%, memory >90%, critical >95%; warning needs 10 minutes (dis
 5 continuous minutes below the lower threshold (CPU/disk warning 80%, memory warning 85%, critical 90%). All use
 3600-second notification cooldown and KeepLast for unavailable observations. Missing readings do not resolve an
 incident. Caller-selected routes/inhibition and outbox delivery remain separate configuration/acceptance gates.
+For CD-enabled groups, recovery coalesces the configured group wait, capped at 30 seconds. This combines resource
+evaluations that finish a few seconds apart; explicit zero wait retains immediate recovery. The previous firing's
+cooldown deadline never postpones a valid recovery.
 Persist through the normal alert API and preserve custom rules; the preview factory does not mutate settings.
 
 Native gauge rails honor the panel's configured threshold steps, including percentage steps and reversed risk
