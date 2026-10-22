@@ -202,7 +202,9 @@ func Deploy(ctx context.Context, h model.ManagedHost, secrets map[string]string,
 }
 
 func sudoShellCommand() string {
-	return "IFS= read -r metrics233_sudo_password; printf '%s\\n' \"$metrics233_sudo_password\" | /usr/bin/sudo -S -p '' -v >/dev/null 2>&1 && unset metrics233_sudo_password && /usr/bin/sudo -n /bin/sh -s"
+	// Keep the login shell alive for both sudo calls. zsh otherwise tail-execs
+	// the second sudo, changing its parent and invalidating a no-TTY PPID ticket.
+	return "IFS= read -r metrics233_sudo_password; printf '%s\\n' \"$metrics233_sudo_password\" | /usr/bin/sudo -S -p '' -v >/dev/null 2>&1 && unset metrics233_sudo_password && /usr/bin/sudo -n /bin/sh -s; metrics233_status=$?; unset metrics233_sudo_password; exit \"$metrics233_status\""
 }
 
 func installerScript(id, platform, checksum, stage string) string {

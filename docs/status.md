@@ -22,6 +22,11 @@ Updated: 2026-10-22. This file is the durable progress ledger. Update it wheneve
 - Immutable production release, target service installation and independent Darwin heartbeat/sample acceptance
   remain separate gates in the private ledger. Overall weighting stays 94%; no general shell orchestrator, automatic LAN relay,
   whole-cluster completion or universal production certification is claimed. See [managed hosts](managed-hosts.md).
+- Production 0.2.12 and a real Darwin arm64 LaunchDaemon were accepted separately: protected per-host bootstrap,
+  dedicated non-login identity, matching artifact digest and 467 actual MySQL samples per batch. Initial zsh installation
+  revealed tail-exec changing sudo's no-TTY parent ticket. The corrected installer keeps the shell alive, passes the
+  parent-identity/cached-credential regressions and the real Mac installation. Server-side rollout of that correction
+  is a distinct follow-up release; the successful agent installation does not imply that the old remote installer changed.
 
 ### 2026-10-21 — Template center and instance dashboards
 

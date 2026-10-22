@@ -41,7 +41,8 @@ a general service orchestrator, an automatic LAN relay, or an unverified claim o
   Reporting-source allow/block policy still applies to accepted metric batches.
 - Only fixed installers and server-owned artifacts with matching SHA256 manifests are accepted. SSH values and
   secrets never become shell command text. Sudo credentials are explicitly consumed before the shell reads its
-  installer, including cached/NOPASSWD cases. Linux systemd/macOS LaunchDaemon services run as locked dedicated collector users; the protected
+  installer, including cached/NOPASSWD cases. Both sudo calls keep the same parent shell so macOS no-TTY tickets
+  remain valid with zsh. Linux systemd/macOS LaunchDaemon services run as locked dedicated collector users; the protected
   bootstrap contains only server origin, host identity and that host's credential. Database secrets arrive in memory.
 - The installer preserves the previous service/configuration and restores them when activation fails. Old release
   binaries remain for recovery. A service-manager activation receipt is not an external heartbeat or database proof.

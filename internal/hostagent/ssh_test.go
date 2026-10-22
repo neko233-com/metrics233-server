@@ -131,19 +131,27 @@ func TestSudoCredentialIsNeverExecutedWithCachedOrUncachedAuthentication(t *test
 	fake := filepath.Join(root, "sudo-fixture.sh")
 	fixture := `#!/bin/sh
 case "$*" in
-  *-v) if test "$METRICS233_FAKE_SUDO_CACHED" = 1; then exit 0; fi
+  *-v) printf '%s' "$PPID" > "$METRICS233_FAKE_SUDO_PARENT"
+       if test "$METRICS233_FAKE_SUDO_CACHED" = 1; then exit 0; fi
        IFS= read -r value; test "$value" = 'printf PASSWORD_EXECUTED' ;;
-  *) exec ` + "'" + filepath.ToSlash(sh) + "'" + ` -s ;;
+  *) test "$(cat "$METRICS233_FAKE_SUDO_PARENT")" = "$PPID" || exit 1
+     exec ` + "'" + filepath.ToSlash(sh) + "'" + ` -s ;;
 esac
 `
 	require.NoError(t, os.WriteFile(fake, []byte(fixture), 0755))
 	command := strings.ReplaceAll(sudoShellCommand(), "/usr/bin/sudo", "'"+filepath.ToSlash(fake)+"'")
-	for _, cached := range []string{"0", "1"} {
-		cmd := exec.Command(sh, "-c", command)
-		cmd.Env = append(os.Environ(), "METRICS233_FAKE_SUDO_CACHED="+cached)
-		cmd.Stdin = strings.NewReader("printf PASSWORD_EXECUTED\nprintf INSTALLER_RAN\n")
-		output, err := cmd.CombinedOutput()
-		require.NoError(t, err, string(output))
-		require.Equal(t, "INSTALLER_RAN", string(output), "sudo cache must not turn stdin credentials into shell code")
+	shells := []string{sh}
+	if zsh, err := exec.LookPath("zsh"); err == nil {
+		shells = append(shells, zsh)
+	}
+	for _, shell := range shells {
+		for _, cached := range []string{"0", "1"} {
+			cmd := exec.Command(shell, "-c", command)
+			cmd.Env = append(os.Environ(), "METRICS233_FAKE_SUDO_CACHED="+cached, "METRICS233_FAKE_SUDO_PARENT="+filepath.ToSlash(filepath.Join(root, "parent")))
+			cmd.Stdin = strings.NewReader("printf PASSWORD_EXECUTED\nprintf INSTALLER_RAN\n")
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "%s cached=%s: %s", shell, cached, string(output))
+			require.Equal(t, "INSTALLER_RAN", string(output), "sudo cache must preserve its PPID ticket without turning credentials into code")
+		}
 	}
 }
