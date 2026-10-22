@@ -2,6 +2,24 @@
 
 Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
+### 2026-10-22 — Reporting-server resource and sorting production acceptance
+
+- Fixed-source private 0.2.19 completed full worker tests/vet, frontend units/build, native account/token readiness,
+  cross-platform collector builds, archive/provenance checks and the exact authorized deployment. All six existing
+  identities now have explicit physical-host associations. Three process queries (CPU, RSS and uptime) per instance,
+  the LAN host snapshot and the production node-exporter CPU/memory/disk queries returned real data.
+- Edge displayed the actual LAN host gauges/capacities, last-hour curves, configured sustained/recovery/1h-CD
+  rules and the game process resources. Existing five inherited templates remain. A formal game server's SQL view
+  sorted the complete 84-row eligible set by calls descending and latency descending before returning ten rows.
+  Header-click, Shift-click and the priority editor were verified on the real production page.
+- The new signed Feishu card test received one successful provider HTTP 200 ACK; it was explicitly marked as a
+  notification test rather than a fabricated resource fault. Prior native-engine firing/recovery/CD acceptance
+  remains a separate completed gate. No new player-account Login/Ready/Ping acceptance is claimed.
+- Follow-up discovery metadata describes resource reads, Admin-only host association schemas and multi-sort cursor
+  semantics. The UI marks stale reporting and hides current node-exporter gauges while preserving historical
+  trends when collection is paused/stale. Targeted discovery/business tests/vet and 163 frontend units/build
+  passed; this small follow-up still needs its own immutable rollout. Overall roadmap weighting remains 94%.
+
 ### 2026-10-22 — Reporting-server dashboards and multi-column ranking
 
 - Business instance pages now distinguish physical host resources, the actual service process and business panels.

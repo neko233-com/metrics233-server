@@ -31,6 +31,7 @@ function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; k
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [scrollTop, setScrollTop] = useState(0);
+  const viewport = useRef<HTMLDivElement | null>(null);
   const request = useRef<AbortController | null>(null);
   const alive = useRef(true);
   async function load(cursor: string) {
@@ -42,11 +43,11 @@ function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; k
     } catch (cause) { if (alive.current && !controller.signal.aborted) setError(message(cause)); }
     finally { if (request.current === controller) request.current = null; if (alive.current && !controller.signal.aborted) setLoading(false); }
   }
-  useEffect(() => { alive.current = true; setScrollTop(0); void load(""); return () => { alive.current = false; request.current?.abort(); request.current = null; }; }, [id, kind, window, refresh, sortSpec]);
+  useEffect(() => { alive.current = true; setScrollTop(0); if (viewport.current) viewport.current.scrollTop = 0; void load(""); return () => { alive.current = false; request.current?.abort(); request.current = null; }; }, [id, kind, window, refresh, sortSpec]);
   // A refresh tick must not repeatedly cancel a valid slow query. Scope changes
   // and an explicit refresh still abort; background ticks skip an in-flight read.
   useEffect(() => { if (kind === "sql") void load(""); }, [tick]);
-  const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 4), end = Math.min(rows.length, start + 20);
+  const start = Math.min(Math.max(0, rows.length - 1), Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 4)), end = Math.min(rows.length, start + 20);
   const label = kind === "regions" ? text("Player regions", "玩家地区") : text("Slow SQL Top10", "慢 SQL Top10");
   const isSQL = kind === "sql";
   const visibleRows = isSQL ? rows : rows.slice(start, end);
@@ -64,7 +65,7 @@ function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; k
     <BusinessSortControls rules={sort} columns={columns} onChange={setSort} defaults={defaults} />
     {error && <Alert severity="error" title={text("Metric query failed", "指标查询失败")}>{error}</Alert>}
     {!isSQL && <><PopulationNotice population={page?.population} />{page?.regions_complete === false && page.population?.available && <Alert severity="warning" title={text("Region snapshot is incomplete", "地区快照尚不完整")}>{text(`Regional total: ${page.region_total} of ${page.population.players} players. Waiting for the complete batch.`, `同轮地区合计 ${page.region_total} / ${page.population.players} 人，等待完整批次。`)}</Alert>}</>}
-    <div className={isSQL ? "table-scroll" : "business-virtual-table"} tabIndex={0} aria-label={text("Scrollable results", "可滚动结果")} onScroll={event => {
+    <div ref={viewport} className={isSQL ? "table-scroll" : "business-virtual-table"} tabIndex={0} aria-label={text("Scrollable results", "可滚动结果")} onScroll={event => {
       if (isSQL) return;
       const element = event.currentTarget;
       setScrollTop(element.scrollTop);

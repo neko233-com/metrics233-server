@@ -50,6 +50,15 @@ func TestAgentDiscoveryUsesActualRegistrationsAndProtectsManagement(t *testing.T
 		require.True(t, registered[op.Method+" "+op.Path], "unregistered operation %s", op.ID)
 		require.NotEmpty(t, op.Concurrency)
 	}
+	operations := map[string]agentOperation{}
+	for _, op := range data.Operations {
+		operations[op.ID] = op
+	}
+	require.Equal(t, "Admin", operations["business.host-binding"].MinimumRole)
+	require.Equal(t, "Admin", operations["business.host-options"].MinimumRole)
+	require.Equal(t, "Viewer", operations["business.resources"].MinimumRole)
+	require.Equal(t, []any{"version", "kind", "id"}, operations["business.host-binding"].Schema["required"])
+	require.Contains(t, operations["business.ranking"].Concurrency, "sort")
 	require.NotContains(t, w.Body.String(), srv.Token)
 	require.NotContains(t, w.Body.String(), srv.ingestToken)
 }
