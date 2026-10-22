@@ -12,6 +12,13 @@ Updated: 2026-10-22. This file is the durable progress ledger. Update it wheneve
   token/local auth, restart and fresh-volume backup recovery passed in 68.69s under 1 CPU/256 MiB. See embedded-storage.md.
 - Next: fixed-source private worker release, stopped-data migration, live reporting/query continuity and final Edge UI
   acceptance. This entry does not claim that a source implementation alone changed the online storage backend.
+- Linux race validation completed all other packages, including store (833.27s) and vectors. The sole server failure
+  assumed a container always has a writable local disk; that fixture now accepts explicit collection_error rather
+  than fabricating a healthy resource. The corrected server package race run passed in 110.89s. These are separate
+  runs, not a claim that the first full Docker validation target was green. Existing overall roadmap weighting is 94%.
+- The online baseline remained 0.2.15 / SQLite with about 15.5M samples. Edge could read and capture the host UI,
+  but navigation/submit commands stalled after reconnects. Read-only build records still showed the prior successful
+  release; operator submission has not yet produced a verified new build receipt. Production migration remains pending.
 
 ### 2026-10-22 — Staggered recovery grouping (fixed-source rollout and provider retest accepted)
 

@@ -2,12 +2,15 @@
 
 This contract covers native metric queries and the raw-sample boundary used by the upstream PromQL engine.
 It does not change the sample schema, ingestion format, dashboard query language or retention configuration.
-SQLite remains the zero-configuration backend; no background rollup worker or extra database is required.
+Embedded compressed storage is the default; SQLite remains an explicit legacy backend. Neither needs a
+separate database process. See [embedded storage](embedded-storage.md) for direct indexed PromQL and migration.
 
 ## Two query paths with different semantics
 
 | Path | Temporal reduction | Limits |
 | --- | --- | --- |
+| Native `Embedded.Query` | Streaming compressed iterators, bucket-last and reset-aware rate semantics below | Same 200-series / 5M non-rate / 250000 rate budgets; no raw intermediate copy |
+| Embedded PromQL | Direct indexed TSDB querier with full raw observations | Upstream engine sample/time budgets; 100000 active head-series ceiling |
 | Native `Store.Query`, SQLite | SQL selects the last observation in each series/bucket; Go applies the requested cross-series aggregation | At most 31 days, step at least 1 second, duration/step at most 2,000; 200 selected series; 5,000,000 source observations for non-rate queries |
 | Native `rate`, SQLite | Raw consecutive observations, reset-aware delta divided by elapsed seconds; last calculated rate per bucket | Same range/step/series limits; 250,000 observations including one step of lookback |
 | Native `ClickHouse.Query` | Existing server-side `argMax(value,timestamp)` buckets over `FINAL` reads, followed by cross-series aggregation | Same range/step and at most 200 returned series; server execution/memory limits remain authoritative |
