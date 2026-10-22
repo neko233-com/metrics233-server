@@ -26,6 +26,28 @@ block or release canonical source IPs without granting senders management access
 The product replaces the usual Grafana + separate scraping + separate vector-search stack. Grafana import/export is
 optional migration support, not the product foundation. See the [project goals](docs/project-goals.md).
 
+## Architecture
+
+```mermaid
+flowchart LR
+  Sources["Host / database collectors<br/>Go / Rust / HTTP business senders"] --> Ingest["Write-only authentication<br/>source policy · bounded batches"]
+  Ingest --> TSDB["Embedded TSDB<br/>XOR chunks · Zstd WAL · indexes"]
+  TSDB --> Query["PromQL / metric queries"]
+  Query --> UI["Native UI<br/>host gauges · instance dashboards · templates"]
+  Query --> Alerts["Sustained trigger · confirmed recovery<br/>grouping · notification cooldown"]
+  Alerts --> Feishu["Feishu cards / other receivers"]
+  Query -. "explicit metric windows" .-> Vectors["Embedded Badger + HNSW<br/>64-dimensional windows"]
+  UI --> Config["SQLite control + identity<br/>accounts · configuration · protected keys"]
+  Agent["Authenticated agent HTTP / CLI"] --> Config
+  Config --> Ingest
+  Config --> Alerts
+```
+
+All three embedded engines run in the same process; no separate Prometheus, vector service or OLTP metric table
+is required. Time-series retention defaults to 15 days. Vector windows are explicit and bounded, rather than
+automatically embedding every observation. See [storage contracts and measured profiles](docs/embedded-storage.md),
+[host resources](docs/host-resources.md) and the [acceptance ledger](docs/status.md).
+
 ## Run locally
 
 ### Fast development

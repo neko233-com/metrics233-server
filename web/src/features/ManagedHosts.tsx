@@ -11,7 +11,7 @@ import { getLocale } from "../i18n";
 import { Alert, AppModal, Button, Field, Input } from "../ui";
 import { useSession } from "../ui/session";
 import "./ManagedHosts.css";
-import { HostResources, type HostResourcesData } from "./HostResources";
+import { HostResources, type HostResourcesData, type HostAlertRule } from "./HostResources";
 
 const text = (en: string, zh: string) => (getLocale() === "zh" ? zh : en);
 type Host = {
@@ -116,6 +116,8 @@ export default function ManagedHosts({
     items: { at: number; actor: string; action: string; result: string }[];
   } | null>(null);
   const inFlight = useRef(false);
+  const [rules, setRules] = useState<HostAlertRule[]>([]);
+  const [rulesState, setRulesState] = useState<"loading" | "ready" | "error">("loading");
   const [pendingRevoke, setPendingRevoke] = useState<Host | null>(null);
   const reload = useCallback(async () => {
     if (inFlight.current) return;
@@ -137,6 +139,24 @@ export default function ManagedHosts({
     const timer = window.setInterval(() => void reload(), 5000);
     return () => clearInterval(timer);
   }, [canAdmin, reload]);
+  useEffect(() => {
+    if (!canAdmin) return;
+    const abort = new AbortController();
+    let busy = false;
+    const load = async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const items = await api<HostAlertRule[]>("/api/v1/alerts/rules", { signal: abort.signal });
+        if (!Array.isArray(items)) throw new Error("invalid rules");
+        if (!abort.signal.aborted) { setRules(items); setRulesState("ready"); }
+      } catch { if (!abort.signal.aborted) setRulesState("error"); }
+      finally { busy = false; }
+    };
+    void load();
+    const timer = window.setInterval(() => void load(), 30000);
+    return () => { abort.abort(); clearInterval(timer); };
+  }, [canAdmin]);
   if (!canAdmin)
     return (
       <Alert
@@ -279,7 +299,7 @@ export default function ManagedHosts({
     <div className="managed-hosts">
       <div className="page-heading">
         <div>
-          <h1>{text("Host management", "主机管理")}</h1>
+          <h1>{text("Host monitoring", "主机监控")}</h1>
           <p className="subtle">
             {text(
               "Host resources, databases and collection status.",
@@ -346,7 +366,7 @@ export default function ManagedHosts({
                 {host.target.kind === "mysql" ? <button disabled={!!busy} onClick={() => void action(host,"dashboard")}>MySQL <ArrowUpRight size={13} /></button> : null}
                 <small>{text("Last heartbeat", "最近心跳")} {host.last_seen ? timeAgo(host.last_seen) : "—"}</small>
               </div>
-              <HostResources id={host.id} resources={host.resources} enabled={host.enabled && !host.revoked && fresh && host.collect_host !== false} interval={host.target.interval_seconds} />
+              <HostResources id={host.id} resources={host.resources} enabled={host.enabled && !host.revoked && fresh && host.collect_host !== false} interval={host.target.interval_seconds} rules={rules} rulesState={rulesState} />
               <details className="host-more"><summary><MoreHorizontal size={17} />{text("Configuration and operations", "配置与操作")}</summary>
               <dl>
                 <dt>SSH</dt>

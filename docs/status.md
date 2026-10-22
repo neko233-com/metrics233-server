@@ -2,7 +2,24 @@
 
 Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
-### 2026-10-22 — Embedded storage (local acceptance; production cutover pending)
+### 2026-10-22 — Embedded storage production accepted; host-card clarity follow-up
+
+- Fixed-source private version 0.2.17 completed the same full worker gates through the authorized SSH operator
+  path and existing release control plane. The stopped 16661384-sample source passed reopened exact-float/count
+  checks, normalized 40 empty-label series, reclaimed old metric rows and started with embedded TSDB/vector storage.
+  Control and identity/key permissions remained protected. This was not a new BuildWorld job.
+- Online readback confirmed new samples, indexed last-hour host history, all six existing business identities,
+  two active collectors and editable 15-day retention. Initial native statistics were about 42.0 MB; the stopped
+  SQLite control file was 588.1 MB. Retained safety backups are separate from active storage figures.
+- Signed Feishu acceptance on the native engine passed 24 state transitions, one firing and one recovery ACK,
+  second-cycle 1h-CD suppression and owned-rule cleanup. Ingest-only credentials passed 401/403 read/admin isolation.
+- Follow-up host cards explain idle CPU, available memory/free disk, human disk names and the actual configured
+  threshold graph/durations instead of relying on reference text. Custom/paused/unknown conditions do not invent a
+  policy. Rules load once per page every 30s; same-scope refreshes retain panels. Technical details are collapsed.
+  160 frontend units/build, owning alerting tests/vet and Edge fixture rendering passed. Online clarity rollout is
+  still pending. Overall product roadmap weighting remains 94%; this does not certify every optional workstream.
+
+### 2026-10-22 — Embedded storage (earlier local phase and failed-first-cutover investigation)
 
 - Separate lossless XOR/Zstd TSDB, durable Badger/HNSW vectors and SQLite control metadata. Native indexed PromQL,
   versioned retention, per-organization engines and bounded memory/query work are implemented. Offline migration

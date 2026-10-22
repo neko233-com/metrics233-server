@@ -19,6 +19,20 @@
 .host-instruments, .host-trends { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .host-instrument, .host-trend, .host-disk-section, .host-resource-legend { border: 1px solid var(--border); border-radius: 6px; min-width: 0; background: #141d25; }
 .host-resources h3 { margin: 15px 16px 0; font-size: 13px; font-weight: 600; }
+.host-instrument-description { margin: 7px 16px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.host-instrument .risk-gauge { max-width: 265px; margin: 8px auto 0; }
+.host-capacity strong, .host-capacity span { display: block; }
+.host-capacity strong { color: var(--text); font-size: 16px; font-weight: 600; }
+.host-capacity span { margin-top: 6px; line-height: 1.5; }
+.host-sample-warning, .host-trend-key { color: var(--muted); font-size: 11px; line-height: 1.5; margin: 0 16px 12px; }
+.host-sample-warning { color: #edb84b; text-align: center; }
+.host-alert-rule { display: flex; gap: 16px; padding: 11px 16px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.65; }
+.host-alert-rule > strong { min-width: 32px; }
+.host-alert-rule span, .host-alert-rule small { display: block; }
+.host-alert-rule small { color: var(--muted); font-size: 11px; margin-top: 3px; }
+.host-alert-link { display: inline-block; margin: 10px 16px 16px; font-size: 12px; }
+.host-reading-details { margin-top: 12px; padding: 12px 4px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; line-height: 1.65; }
+.host-reading-details summary { cursor: pointer; width: fit-content; }
 .host-capacity { padding: 0 12px 14px; margin: -4px 0 0; text-align: center; color: #b0c0cf; font-size: 12px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .host-trends { margin-top: 10px; }
 .host-trend h3 { display: flex; justify-content: space-between; gap: 12px; }
@@ -28,6 +42,10 @@
 .host-trend-empty { min-height: 150px; display: grid; place-items: center; color: var(--muted); font-size: 12px; }
 .host-trend small { display: block; padding: 0 16px 10px; color: #edb84b; }
 .host-resource-footer { display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; margin-top: 10px; }
+.host-resource-footer { align-items: start; }
+.host-sampling-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 16px 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; }
+.host-sampling-summary span { display: block; color: var(--muted); margin-bottom: 7px; }
+.host-sampling-summary strong { color: var(--text); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .host-disk-table { overflow-x: auto; padding: 12px 16px 16px; }
 .host-disk-table table { width: 100%; font-size: 12px; }
 .host-disk-table th, .host-disk-table td { padding: 10px 8px; white-space: nowrap; text-align: left; font-variant-numeric: tabular-nums; }

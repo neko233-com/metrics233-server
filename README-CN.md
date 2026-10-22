@@ -1,5 +1,26 @@
 # metrics233-server
 
+## 架构
+
+```mermaid
+flowchart LR
+  Sources["主机 / 数据库采集器<br/>业务 SDK / HTTP 上报"] --> Ingest["仅写入认证<br/>来源策略 · 有界批次"]
+  Ingest --> TSDB["内置时序引擎<br/>XOR 压缩块 · Zstd WAL · 索引"]
+  TSDB --> Query["PromQL / 指标查询"]
+  Query --> UI["原生界面<br/>主机仪表 · 实例仪表盘 · 模板中心"]
+  Query --> Alerts["持续超线 · 恢复确认<br/>分组 · 冷却去重"]
+  Alerts --> Feishu["飞书卡片 / 其他通知渠道"]
+  Query -. "显式构建指标窗口" .-> Vectors["内置 Badger + HNSW<br/>64 维窗口向量"]
+  UI --> Config["SQLite 配置与身份<br/>账号 · 规则 · 受保护密钥"]
+  Agent["已认证 Agent HTTP / CLI"] --> Config
+  Config --> Ingest
+  Config --> Alerts
+```
+
+三个存储引擎都在同一进程内，不需要额外部署 Prometheus 或向量服务。海量指标不再写入 OLTP 行表；
+默认保留 15 天，向量窗口按需构建并受容量限制。运行时边界、压缩实测与迁移验收见
+[内置存储](docs/embedded-storage.md)、[主机资源](docs/host-resources.md) 和 [状态记录](docs/status.md)。
+
 [English (primary)](README.md) · **简体中文**
 
 开箱即用的单机监控后台：**采集、存储、面板三合一**。不再需要 Grafana 服务、插件生态或独立的向量数据库。

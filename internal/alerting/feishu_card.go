@@ -40,17 +40,27 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 			createdAt = parsed
 		}
 	}
-	status, color := "持续超限", "orange"
+	status, color := "资源持续偏高，需要关注", "orange"
 	if data.Status == "resolved" {
-		status, color = "已恢复", "green"
+		status, color = "资源已恢复正常", "green"
 	}
 	acceptance := len(data.Alerts) > 0
+	resourceOnly := len(data.Alerts) > 0
 	for _, alert := range data.Alerts {
+		if resource := alert.Labels["resource"]; resource != "cpu" && resource != "memory" && resource != "disk" {
+			resourceOnly = false
+		}
 		if alert.Labels["scope"] != "acceptance" {
 			acceptance = false
 		}
 		if data.Status != "resolved" && alert.Status == "firing" && strings.EqualFold(alert.Labels["severity"], "critical") {
 			color = "red"
+		}
+	}
+	if !resourceOnly {
+		status = "有监控告警需要关注"
+		if data.Status == "resolved" {
+			status = "告警已恢复"
 		}
 	}
 	if acceptance || isTest {
@@ -93,12 +103,12 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 					}
 				}
 			}
-			if !shown {
+			if !shown && !acceptance && !isTest {
 				elements = append(elements, feishuDiv(message, budget))
 			}
 		}
 		if acceptance || isTest {
-			elements = append(elements, feishuDiv("这是一条通知测试，非资源故障，无需处理。\n正式告警仅在满足持续触发条件后发送。", budget))
+			elements = append(elements, feishuDiv("这是一条通知测试，非资源故障，无需处理。\n它只检查飞书通知是否能送达，不表示 CPU、内存或磁盘异常。", budget))
 		}
 		for i, alert := range data.Alerts {
 			if acceptance || isTest {
@@ -117,7 +127,7 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 				elements = append(elements, map[string]any{"tag": "hr"})
 			}
 			elements = append(elements, feishuDiv(name+" · "+feishuSeverity(alert.Labels["severity"]), min(budget, 240)),
-				feishuFields([][2]string{{"主机", peer}, {"当前观测", feishuActualValue(alert)}}, budget))
+				feishuFields([][2]string{{"哪台主机", peer}, {"现在用了多少", feishuActualValue(alert)}}, budget))
 			threshold := firstFeishu(alert.Annotations["threshold"], alert.Annotations["condition"], "见规则详情")
 			if alert.Status == "resolved" {
 				threshold = firstFeishu(alert.Annotations["recovery_threshold"], "已满足恢复条件；原告警线 "+threshold)
@@ -138,21 +148,24 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 			if alert.Rule.NotificationCooldownSeconds > 0 {
 				cooldown = feishuDuration(alert.Rule.NotificationCooldownSeconds)
 			}
-			elements = append(elements, feishuFields([][2]string{{"恢复条件", threshold}, {"本轮持续", duration}, {timeLabel, timeValue}, {"通知冷却", cooldown}}, min(budget, 240)))
+			elements = append(elements, feishuFields([][2]string{{"恢复标准", threshold}, {"本次异常持续", duration}, {timeLabel, timeValue}}, min(budget, 240)))
 			if alert.Status != "resolved" {
 				// The label is different for firing, but the field layout stays stable.
 				fields := elements[len(elements)-1].(map[string]any)["fields"].([]any)
-				fields[0] = map[string]any{"is_short": true, "text": feishuPlain("告警条件\n"+threshold, min(budget, 240))}
+				fields[0] = map[string]any{"is_short": true, "text": feishuPlain("为什么提醒\n"+threshold, min(budget, 240))}
 			}
 			timing := ""
 			if alert.Rule.UID != "" {
-				timing = "持续 " + feishuDuration(alert.Rule.ForSeconds) + " 后通知 · 恢复需连续 " + feishuDuration(alert.Rule.KeepFiringForSeconds)
+				timing = "必须连续超线 " + feishuDuration(alert.Rule.ForSeconds) + " 才提醒；恢复正常需连续 " + feishuDuration(alert.Rule.KeepFiringForSeconds) + " 确认。"
 			}
 			if timing != "" {
 				elements = append(elements, feishuDiv(timing, min(budget, 160)))
 			}
+			if alert.Rule.NotificationCooldownSeconds > 0 {
+				elements = append(elements, feishuDiv("相同问题进入 "+cooldown+" 冷却，避免重复打扰。", min(budget, 160)))
+			}
 			if action := firstFeishu(alert.Annotations["action"], alert.Annotations["description"]); action != "" {
-				elements = append(elements, feishuDiv(action, min(budget, 240)))
+				elements = append(elements, feishuDiv("处理建议："+action, min(budget, 240)))
 			}
 
 		}
@@ -164,7 +177,10 @@ func RenderFeishuNotification(payload map[string]any, format, secret string, tru
 			}
 			elements = append(elements, map[string]any{"tag": "action", "actions": []any{map[string]any{"tag": "button", "text": feishuPlain(label, 100), "type": "primary", "url": link}}})
 		}
-		note := "Metrics233 · " + feishuTime(createdAt) + " 北京时间 · 最近 60 分钟"
+		note := "Metrics233 · " + feishuTime(createdAt) + " 北京时间"
+		if !acceptance && !isTest {
+			note += " · 最近 60 分钟"
+		}
 		if id := payload["notificationId"]; id != nil && fmt.Sprint(id) != "" {
 			note += " · 通知 " + fmt.Sprint(id)
 		}

@@ -37,7 +37,11 @@ Persist through the normal alert API and preserve custom rules; the preview fact
 Native gauge rails honor the panel's configured threshold steps, including percentage steps and reversed risk
 colors. Needles are bounded without modifying the displayed measurement. Missing/paused readings have no needle;
 reduced-motion preferences disable needle transitions. Host-page reference rails are explicitly identified as
-references; actual alert conditions belong to the configured rules.
+references when a supported rule is unavailable. For standard per-host rules, the host page reads the actual
+threshold/unload graph and persisted pending/recovery/cooldown durations; it does not trust a stale descriptive
+annotation. Paused, acceptance, foreign-host and unsupported custom conditions do not become a fabricated policy.
+Cards state idle processing capacity, available memory and remaining disk space. Missing/stale samples never
+become zero capacity. Friendly disk names keep raw mount/device/filesystem details in an optional disclosure.
 
 Feishu resource cards use compact plain-text field pairs for host/current observation, condition, duration,
 start/recovery time and cooldown. A `value_ref` annotation selects a raw graph ref without exposing boolean helper
