@@ -30,8 +30,33 @@ Dashboards has a **Business virtual dashboards** tab, also available from the
 Business page. The built-in view is virtual; discovering an instance does not
 insert an ordinary saved dashboard. Logic/game views initially show actual
 `game_players_online` (Gauge), `game_player_sessions_started_total` (Counter),
-and an online-player trend. A gateway view starts without fabricated panels;
-bind a native template or save a copy and select its actual metrics.
+and an online-player trend. All built-in views also show actual process CPU,
+resident memory, uptime, traffic and applicable Go runtime metrics. Gateway
+views include real connection, queue and message counters. Missing data remains
+missing. Process CPU uses one-core percent (100% = one busy core); it may exceed
+100% on a multicore host. Uptime is a number rather than a line chart.
+
+Physical-host resources are separate from process resources and from the
+monitoring server's own Overview. Admins explicitly associate an instance with
+a managed host or a Prometheus node-exporter collector using versioned
+`PUT /api/v1/business/instances/{id}/host` (`version`, `kind`, `id`). An empty
+kind/id clears the association. IP labels or shared NAT addresses never bind
+hosts automatically. The safe `host` projection in the resolved dashboard
+contains monitoring resources only; SSH credentials and connection settings
+remain Admin-only. Multiple processes can share one physical-host collection.
+Inherited and independently customized business panels are preserved; a separate
+`process_dashboard` supplies the standard process view for these instances.
+
+SQL and player-region tables support up to five ordered sort keys through
+`sort=column:asc,column:desc`. SQL columns are `table`, `operation`,
+`avg_ms_window`, `calls_window`, `failures_window`; regions support `country`,
+`province`, `city`, `value`. Sorting covers the complete bounded result before
+pagination; missing numbers always sort last, and the row key resolves ties.
+Cursors freeze the sort, instance, window, eligibility and evaluation time.
+`ranked=1` selects only SQL rows with computable latency and positive calls
+before limiting to the requested Top10. The default window is 60 minutes.
+Click headers for primary sorting; Shift-click adds another key. The rule
+editor adjusts priority and direction and remembers preferences locally.
 
 - `default`: built-in instance view, no saved dashboard reference.
 - `inherit`: resolve the referenced native dashboard on each refresh. Template

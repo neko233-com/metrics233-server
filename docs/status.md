@@ -2,6 +2,24 @@
 
 Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
+### 2026-10-22 — Reporting-server dashboards and multi-column ranking
+
+- Business instance pages now distinguish physical host resources, the actual service process and business panels.
+  Administrator-confirmed, versioned associations support managed hosts and existing node-exporter collectors;
+  neither reported IP nor shared NAT peers create associations. Infrastructure credentials stay outside the
+  readable resource projection. Existing inherited/custom panels remain intact and receive a separate process view.
+- CPU (one-core process percentage), RSS, numeric uptime, Go heap/goroutines and real gateway/traffic metrics
+  are available in built-in instance views. The self Overview explicitly directs reporting-server inspection to
+  Dashboards. Template controls are collapsed and the time controls no longer stretch across several rows.
+- SQL and region tables support five ordered sort keys, numeric missing-last handling, deterministic ties and
+  global ordering before pagination/Top10. Cursors reject changed sorting and eligibility; SQL defaults to 60 minutes.
+- Targeted business/store/auth tests and vet passed, including host-binding CAS, Viewer/Editor restrictions,
+  safe projections, environment/restart separation, complete-set SQL sorting and cursor boundaries. Frontend
+  units passed 163/163 and the production build passed. Edge fixture rendering displayed all resource sections.
+- Production 0.2.18 stopped at an SSH handshake reset before any target mutation; 0.2.17 remained active and
+  healthy with all six actual reporting processes. A new immutable release and live resource associations are
+  the next acceptance gates. Overall product roadmap weighting remains 94%; SDK work is separate.
+
 ### 2026-10-22 — Embedded storage production accepted; host-card clarity follow-up
 
 - Fixed-source private version 0.2.17 completed the same full worker gates through the authorized SSH operator

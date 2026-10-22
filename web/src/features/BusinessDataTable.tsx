@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, message } from "../api";
 import { getLocale } from "../i18n";
 import { Alert, Button, Field } from "../ui";
+import { BusinessSortControls, toggleBusinessSort, useBusinessSort, type SortColumn, type SortRule } from "./BusinessSort";
 const text = (en: string, zh: string) => getLocale() === "zh" ? zh : en;
 export type Population = { available: boolean; players: number | null; snapshot_at: number; stale: boolean; status: "ready" | "missing" | "ambiguous" | "invalid" | "query_error" };
 type DataRow = { key: string; labels: Record<string, string>; values: Record<string, number | null> };
@@ -21,6 +22,10 @@ export default function BusinessDataTable({ id, kind, tick = 0, refresh = 0 }: {
 }
 
 function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; kind: "regions" | "sql"; window: string; tick: number; refresh: number }) {
+  const columns: SortColumn[] = kind === "regions" ? [{ key: "country", label: text("Country", "国家") }, { key: "province", label: text("Province", "省份") }, { key: "city", label: text("City", "城市") }, { key: "value", label: text("Online players", "在线玩家"), numeric: true }] : [{ key: "table", label: "Entity" }, { key: "operation", label: text("Operation", "操作") }, { key: "avg_ms_window", label: text("Average ms", "平均耗时 ms"), numeric: true }, { key: "calls_window", label: text("Executions ≈", "执行次数 ≈"), numeric: true }, { key: "failures_window", label: text("Failures ≈", "失败次数 ≈"), numeric: true }];
+  const defaults: SortRule[] = kind === "sql" ? [{ column: "avg_ms_window", direction: "desc" }] : [{ column: "country", direction: "asc" }, { column: "province", direction: "asc" }, { column: "city", direction: "asc" }];
+  const [sort, setSort] = useBusinessSort(kind, columns, defaults);
+  const sortSpec = sort.map(rule => `${rule.column}:${rule.direction}`).join(",");
   const [page, setPage] = useState<DataPage | null>(null);
   const [rows, setRows] = useState<DataRow[]>([]);
   const [error, setError] = useState("");
@@ -32,16 +37,15 @@ function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; k
     if (request.current) return;
     const controller = new AbortController(); request.current = controller; setLoading(true); setError("");
     try {
-      const value = await api<DataPage>(`/business/instances/${id}/data?kind=${kind}&window=${window}&limit=${kind === "sql" ? 10 : 100}&cursor=${encodeURIComponent(cursor)}`, { signal: controller.signal });
+      const value = await api<DataPage>(`/business/instances/${id}/data?kind=${kind}&window=${window}&limit=${kind === "sql" ? 10 : 100}&ranked=${kind === "sql" ? 1 : 0}&sort=${encodeURIComponent(sortSpec)}&cursor=${encodeURIComponent(cursor)}`, { signal: controller.signal });
       if (alive.current && !controller.signal.aborted) { setPage(value); setRows(previous => { const items = kind === "sql" ? value.items.filter(row => Number.isFinite(row.values.avg_ms_window) && (row.values.calls_window ?? 0) > 0).slice(0, 10) : value.items; if (!cursor) return items; const keys = new Set(previous.map(row => row.key)); return [...previous, ...items.filter(item => !keys.has(item.key))]; }); }
     } catch (cause) { if (alive.current && !controller.signal.aborted) setError(message(cause)); }
     finally { if (request.current === controller) request.current = null; if (alive.current && !controller.signal.aborted) setLoading(false); }
   }
-  useEffect(() => { alive.current = true; void load(""); return () => { alive.current = false; request.current?.abort(); request.current = null; }; }, [id, kind, window, refresh]);
+  useEffect(() => { alive.current = true; setScrollTop(0); void load(""); return () => { alive.current = false; request.current?.abort(); request.current = null; }; }, [id, kind, window, refresh, sortSpec]);
   // A refresh tick must not repeatedly cancel a valid slow query. Scope changes
   // and an explicit refresh still abort; background ticks skip an in-flight read.
   useEffect(() => { if (kind === "sql") void load(""); }, [tick]);
-  const columns = kind === "regions" ? [ ["country", text("Country", "国家")], ["province", text("Province", "省份")], ["city", text("City", "城市")], ["value", text("Online players", "在线玩家")]] : [ ["table", "Entity"], ["operation", text("Operation", "操作")], ["avg_ms_window", text("Average ms ↓", "平均耗时 ms ↓")], ["calls_window", text("Executions ≈", "执行次数 ≈")], ["failures_window", text("Failures ≈", "失败次数 ≈")]];
   const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - 4), end = Math.min(rows.length, start + 20);
   const label = kind === "regions" ? text("Player regions", "玩家地区") : text("Slow SQL Top10", "慢 SQL Top10");
   const isSQL = kind === "sql";
@@ -57,6 +61,7 @@ function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; k
     return value.toLocaleString(getLocale(), { useGrouping: false, maximumFractionDigits: key === "avg_ms_window" ? 3 : 2 });
   };
   return <>
+    <BusinessSortControls rules={sort} columns={columns} onChange={setSort} defaults={defaults} />
     {error && <Alert severity="error" title={text("Metric query failed", "指标查询失败")}>{error}</Alert>}
     {!isSQL && <><PopulationNotice population={page?.population} />{page?.regions_complete === false && page.population?.available && <Alert severity="warning" title={text("Region snapshot is incomplete", "地区快照尚不完整")}>{text(`Regional total: ${page.region_total} of ${page.population.players} players. Waiting for the complete batch.`, `同轮地区合计 ${page.region_total} / ${page.population.players} 人，等待完整批次。`)}</Alert>}</>}
     <div className={isSQL ? "table-scroll" : "business-virtual-table"} tabIndex={0} aria-label={text("Scrollable results", "可滚动结果")} onScroll={event => {
@@ -66,10 +71,10 @@ function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; k
       if (element.scrollHeight - element.scrollTop - element.clientHeight < 180 && page?.next_cursor && !error) void load(page.next_cursor);
     }}>
       <table aria-label={label} aria-rowcount={page ? (isSQL ? rows.length : page.total) + 1 : undefined}>
-        <thead><tr>{columns.map(([key, name]) => <th key={key} scope="col">{name}</th>)}</tr></thead>
+        <thead><tr>{columns.map(column => { const index = sort.findIndex(rule => rule.column === column.key), rule = sort[index]; return <th key={column.key} scope="col" aria-sort={index === 0 ? rule.direction === "asc" ? "ascending" : "descending" : index > 0 ? "other" : "none"}><button className="business-sort-header" onClick={event => setSort(toggleBusinessSort(sort, column, event.shiftKey))}>{column.label}{rule ? <span>{rule.direction === "asc" ? "↑" : "↓"}{sort.length > 1 ? index + 1 : ""}</span> : <span aria-hidden="true">↕</span>}</button></th>; })}</tr></thead>
         <tbody>
           {!isSQL && start > 0 && <tr aria-hidden="true"><td colSpan={columns.length} style={{ height: start * ROW_HEIGHT, padding: 0 }} /></tr>}
-          {visibleRows.map((row, index) => <tr key={row.key} aria-rowindex={(isSQL ? 0 : start) + index + 2}>{columns.map(([key]) => <td key={key} title={row.labels[key]}>{cell(row, key)}</td>)}</tr>)}
+          {visibleRows.map((row, index) => <tr key={row.key} aria-rowindex={(isSQL ? 0 : start) + index + 2}>{columns.map(({ key }) => <td key={key} title={row.labels[key]}>{cell(row, key)}</td>)}</tr>)}
           {!isSQL && end < rows.length && <tr aria-hidden="true"><td colSpan={columns.length} style={{ height: (rows.length - end) * ROW_HEIGHT, padding: 0 }} /></tr>}
         </tbody>
       </table>

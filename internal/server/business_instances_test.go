@@ -48,7 +48,7 @@ func TestBusinessInstanceCanonicalObservationTemplateAndAllRegionPages(t *testin
 		Dashboard model.Dashboard `json:"dashboard"`
 	}
 	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &resolved))
-	require.Len(t, resolved.Dashboard.Panels, 3)
+	require.Greater(t, len(resolved.Dashboard.Panels), 3)
 	var scope string
 	for _, v := range resolved.Dashboard.Variables {
 		if v.Name == "business_scope" {

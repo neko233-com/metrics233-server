@@ -83,6 +83,22 @@ func (s *Server) businessPopulation(ctx context.Context, item model.BusinessInst
 
 func (s *Server) writeBusinessDashboard(w http.ResponseWriter, r *http.Request, item model.BusinessInstance, d model.Dashboard) {
 	payload := map[string]any{"instance": item, "dashboard": d}
+	// Infrastructure/process visibility is independent of a business template.
+	// Never modify or replace a user's inherited/customized panels to add it.
+	if item.Binding.Mode != "default" {
+		runtime := model.Dashboard{ID: "business-process-" + item.ID, Name: "Server process", Panels: []model.Panel{}}
+		for _, p := range businessProcessPanels(item) {
+			if strings.HasPrefix(p.ID, "process-") {
+				runtime.Panels = append(runtime.Panels, p)
+			}
+		}
+		payload["process_dashboard"] = businessFixedVariables(runtime, item)
+	}
+	if host, err := s.businessHost(r.Context(), item.ID, r.URL.Query().Get("language")); err == nil {
+		payload["host"] = host
+	} else {
+		payload["host_error"] = true
+	}
 	if item.Identity.Role != "gateway" {
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		defer cancel()
@@ -110,6 +126,7 @@ func businessDefaultDashboard(item model.BusinessInstance) model.Dashboard {
 	if item.Identity.Role == "gateway" {
 		d.Panels = []model.Panel{}
 	}
+	d.Panels = append(d.Panels, businessProcessPanels(item)...)
 	return businessFixedVariables(d, item)
 }
 
@@ -139,6 +156,7 @@ func businessFixedVariables(d model.Dashboard, item model.BusinessInstance) mode
 }
 
 func (s *Server) businessRoutes(api routeRegistrar) {
+	s.businessHostRoutes(api)
 	api.HandleFunc("GET /api/v1/business/instances", func(w http.ResponseWriter, r *http.Request) {
 		limit := 50
 		var err error
@@ -301,6 +319,8 @@ type businessDataCursor struct {
 	Window string `json:"window"`
 	At     int64  `json:"at"`
 	Offset int    `json:"offset"`
+	Sort   string `json:"sort"`
+	Ranked bool   `json:"ranked"`
 }
 
 func (s *Server) businessVector(ctx context.Context, expr string, at time.Time) ([]businessDataRow, error) {
@@ -349,9 +369,15 @@ func (s *Server) businessData(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, errors.New("kind must be regions or sql"))
 		return
 	}
+	rules, sortSpec, sortErr := parseBusinessSort(kind, r.URL.Query().Get("sort"))
+	if sortErr != nil {
+		fail(w, 400, sortErr)
+		return
+	}
+	ranked := r.URL.Query().Get("ranked") == "1" && kind == "sql"
 	window := r.URL.Query().Get("window")
 	if window == "" {
-		window = "5m"
+		window = "1h"
 	}
 	if window != "5m" && window != "15m" && window != "1h" {
 		fail(w, 400, errors.New("window must be 5m, 15m or 1h"))
@@ -365,14 +391,14 @@ func (s *Server) businessData(w http.ResponseWriter, r *http.Request) {
 		fail(w, 400, errors.New("limit must be 1–100"))
 		return
 	}
-	cursor := businessDataCursor{ID: item.ID, Kind: kind, Window: window, At: time.Now().UnixMilli()}
+	cursor := businessDataCursor{ID: item.ID, Kind: kind, Window: window, At: time.Now().UnixMilli(), Sort: sortSpec, Ranked: ranked}
 	if raw := r.URL.Query().Get("cursor"); raw != "" {
 		if len(raw) > 1024 {
 			fail(w, 400, errors.New("invalid business cursor"))
 			return
 		}
 		data, decodeErr := base64.RawURLEncoding.DecodeString(raw)
-		if decodeErr != nil || json.Unmarshal(data, &cursor) != nil || cursor.ID != item.ID || cursor.Kind != kind || cursor.Window != window || cursor.Offset < 0 || cursor.Offset > 10000 || cursor.At < time.Now().Add(-15*time.Minute).UnixMilli() || cursor.At > time.Now().Add(time.Second).UnixMilli() {
+		if decodeErr != nil || json.Unmarshal(data, &cursor) != nil || cursor.ID != item.ID || cursor.Kind != kind || cursor.Window != window || cursor.Sort != sortSpec || cursor.Ranked != ranked || cursor.Offset < 0 || cursor.Offset > 10000 || cursor.At < time.Now().Add(-15*time.Minute).UnixMilli() || cursor.At > time.Now().Add(time.Second).UnixMilli() {
 			fail(w, 400, errors.New("invalid or expired business cursor; refresh the table"))
 			return
 		}
@@ -468,6 +494,16 @@ func (s *Server) businessData(w http.ResponseWriter, r *http.Request) {
 		fail(w, 422, errors.New("business metric query failed; check query budget and metric availability"))
 		return
 	}
+	if ranked {
+		filtered := rows[:0]
+		for _, row := range rows {
+			if row.Values["avg_ms_window"] != nil && row.Values["calls_window"] != nil && *row.Values["calls_window"] > 0 {
+				filtered = append(filtered, row)
+			}
+		}
+		rows = filtered
+	}
+	sortBusinessRows(rows, rules)
 	total := len(rows)
 	start := min(cursor.Offset, total)
 	end := min(start+limit, total)
@@ -477,7 +513,7 @@ func (s *Server) businessData(w http.ResponseWriter, r *http.Request) {
 		data, _ := json.Marshal(cursor)
 		next = base64.RawURLEncoding.EncodeToString(data)
 	}
-	payload := map[string]any{"items": rows[start:end], "total": total, "next_cursor": next, "evaluated_at": cursor.At, "window": window}
+	payload := map[string]any{"items": rows[start:end], "total": total, "next_cursor": next, "evaluated_at": cursor.At, "window": window, "sort": sortSpec}
 	payload["population"] = population
 	if kind == "regions" {
 		payload["regions_complete"] = regionsComplete

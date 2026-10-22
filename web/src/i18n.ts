@@ -518,6 +518,7 @@ const zh: Record<string, string> = {
   Goroutines: "Go 协程",
   "HTTP requests": "HTTP 请求",
   "Live metrics from your local collector.": "本地采集器的实时指标。",
+  "Monitoring service itself. Open Dashboards to inspect reporting servers.": "这里只展示监控服务自身。其他上报服务器请到“仪表盘”查看。",
   "Your saved metrics, in one view.": "在一个视图中查看已保存的指标。",
   Workspace: "工作空间",
   "Self-hosted": "自托管",

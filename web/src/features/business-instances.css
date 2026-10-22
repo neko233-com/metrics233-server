@@ -9,17 +9,38 @@
 .business-instance-scope dt { color: #aebbd1; font-size: 12px; }
 .business-instance-scope dd { margin: 5px 0 0; overflow-wrap: anywhere; }
 .business-instance-detail > details > summary { cursor: pointer; padding: 8px 0; color: #aebbd1; }
-.business-instance-binding { border: 1px solid #303744; padding: 16px; border-radius: 6px; }
+.business-instance-binding { border: 1px solid #28343f; padding: 10px 14px; border-radius: 6px; margin: 12px 0; }
+.business-instance-binding > summary { cursor: pointer; color: #aebbd1; }
+.business-instance-binding[open] > summary { margin-bottom: 14px; }
+.business-host-association { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.business-host-association p { flex-basis: 100%; margin: 0; }
+.business-host-association select { max-width: min(540px, 100%); }
 .business-instance-actions { justify-content: flex-start; }
 .business-instance-actions details { flex-basis: 100%; }
 .business-instance-actions summary { cursor: pointer; padding: 8px 0; }
 .business-instance-actions select { max-width: 100%; min-width: 180px; }
 .business-instance-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 20px 0; }
 .business-instance-tabs [aria-pressed=true] { border-color: #ff9457; color: #ffb184; }
-.business-instance-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 540px), 1fr)); gap: 16px; }
+.business-range-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+.business-range-controls > select { width: auto; min-width: 170px; max-width: 100%; }
+.business-panel-controls { display: flex; justify-content: flex-end; align-items: end; flex-wrap: wrap; gap: 10px; }
+.business-panel-controls > .field { width: auto; }
+.business-panel-controls select { width: auto; }
+.business-resource-section { margin-top: 18px; min-width: 0; }
+.business-resource-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 12px; }
+.business-resource-heading h3 { margin: 0; font-size: 16px; }
+.business-resource-heading span { font-size: 12px; }
+.business-host-empty { padding: 18px; border: 1px dashed #303d48; color: #aebbd1; border-radius: 6px; }
+.business-instance-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; margin-bottom: 12px; }
+.business-instance-stats:empty { display: none; }
+.business-instance-stats > .chart-panel { min-height: 168px; }
+.business-instance-stats .stat-value { font-size: clamp(26px, 2.8vw, 42px); }
+.business-instance-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); gap: 16px; }
 .business-instance-panels > .chart-panel { min-height: 330px; }
+.business-instance-panels > .grafana-gauge { min-height: 280px; }
 .business-instance-panels-large { grid-template-columns: minmax(0, 1fr); }
 .business-instance-panels-large > .chart-panel { min-height: 420px; }
+.business-instance-stats.business-instance-panels-large > .chart-panel { min-height: 230px; }
 .business-template-preview select { max-width: min(100%, 820px); }
 .business-instance-panels > section { min-width: 0; }
 .business-virtual-table { height: 440px; overflow: auto; border: 1px solid #303744; border-radius: 5px; }
@@ -29,4 +50,12 @@
 .business-virtual-table tbody tr:not([aria-hidden]) { height: 44px; }
 .business-virtual-table tbody tr:not([aria-hidden]) td { height: 44px; box-sizing: border-box; padding: 8px 12px; line-height: 20px; }
 .business-virtual-table td { max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.business-sort-controls { margin: 10px 0 16px; color: #aebbd1; }
+.business-sort-controls summary { cursor: pointer; font-size: 13px; }
+.business-sort-rule, .business-sort-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 8px; }
+.business-sort-rule select { width: auto; min-width: 140px; }
+.business-sort-header { border: 0; background: transparent; color: inherit; cursor: pointer; padding: 5px 0; display: inline-flex; align-items: center; gap: 8px; font: inherit; text-align: left; }
+.business-sort-header:hover { color: #dceff2; }
+.business-sort-header:focus-visible { outline: 2px solid #59c5b9; outline-offset: 4px; }
+.business-sort-header span { color: #59c5b9; font-size: 11px; }
 @media(max-width: 600px) { .business-instance-scope { grid-template-columns: repeat(2, minmax(0, 1fr)); } .business-instance-list { min-width: 760px; } }

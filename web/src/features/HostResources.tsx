@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { api, formatValue, timeAgo } from "../api";
 import { getLocale } from "../i18n";
 import { RiskGauge, type GaugeStep } from "../ui/RiskGauge";
+import "./ManagedHosts.css";
 
 export type HostResourcesData = {
   observed_at: number; cpu_percent: number | null; cores: number; memory_percent: number | null;

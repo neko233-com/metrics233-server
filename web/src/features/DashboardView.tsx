@@ -194,7 +194,7 @@ function DashboardContent({
           <p>
             {tr(
               dashboard.id === "system"
-                ? "Live metrics from your local collector."
+                ? "Monitoring service itself. Open Dashboards to inspect reporting servers."
                 : "Panels",
             )}
             {dashboard.id !== "system" ? `: ${dashboard.panels.length}` : ""}

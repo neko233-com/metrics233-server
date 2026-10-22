@@ -19,7 +19,8 @@ const BusinessInstanceLimit = 4096
 var ErrBusinessBindingConflict = errors.New("business dashboard binding changed; reload before saving")
 
 func (s *Store) initializeBusinessInstances() error {
-	_, err := s.DB.Exec(`CREATE TABLE IF NOT EXISTS business_instances(id TEXT PRIMARY KEY,identity TEXT NOT NULL,reported_ip TEXT NOT NULL DEFAULT '',observed_ip TEXT NOT NULL DEFAULT '',first_seen INTEGER NOT NULL,last_seen INTEGER NOT NULL,binding_version INTEGER NOT NULL DEFAULT 0,binding_mode TEXT NOT NULL DEFAULT 'default',dashboard_id TEXT NOT NULL DEFAULT '');`)
+	_, err := s.DB.Exec(`CREATE TABLE IF NOT EXISTS business_instances(id TEXT PRIMARY KEY,identity TEXT NOT NULL,reported_ip TEXT NOT NULL DEFAULT '',observed_ip TEXT NOT NULL DEFAULT '',first_seen INTEGER NOT NULL,last_seen INTEGER NOT NULL,binding_version INTEGER NOT NULL DEFAULT 0,binding_mode TEXT NOT NULL DEFAULT 'default',dashboard_id TEXT NOT NULL DEFAULT '');
+CREATE TABLE IF NOT EXISTS business_host_bindings(instance_id TEXT PRIMARY KEY REFERENCES business_instances(id) ON DELETE CASCADE,version INTEGER NOT NULL,kind TEXT NOT NULL,resource_id TEXT NOT NULL);`)
 	return err
 }
 
