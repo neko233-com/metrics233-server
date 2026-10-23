@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS business_host_bindings(instance_id TEXT PRIMARY KEY R
 
 func businessIdentity(labels map[string]string) (model.BusinessIdentity, bool) {
 	i := model.BusinessIdentity{Service: labels["service"], Role: labels["role"], ServerID: labels["serverId"], Environment: labels["environment"], Channel: labels["channel"], Instance: labels["instance"], Implementation: labels["implementation"]}
-	if i.Service == "" || i.Instance == "" || i.ServerID == "" || (i.Role != "gateway" && i.Role != "logic" && i.Role != "game") {
+	if i.Service == "" || i.Instance == "" || i.ServerID == "" || (i.Role != "gateway" && i.Role != "logic" && i.Role != "game" && i.Role != "sdk") {
 		return i, false
 	}
 	for _, value := range i.Labels() {

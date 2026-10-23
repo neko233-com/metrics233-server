@@ -1,6 +1,10 @@
 import type { Panel } from "../api";
 
 const titles: Record<string, string> = {
+	"process-tokio-tasks":"Tokio 活跃任务", "process-tokio-workers":"Tokio 工作线程",
+	"process-http-connections":"HTTP 连接", "process-websocket-connections":"WebSocket 连接",
+	"process-http-inflight":"处理中 HTTP 请求", "process-http-rps":"HTTP 请求 / 秒", "process-http-errors":"HTTP 服务错误 / 秒",
+	"process-sdk-links":"SDK 出站网关连接", "process-sdk-rpc-pending":"SDK 等待回执的 RPC",
   online: "在线玩家", sessions: "累计成功玩家会话", "players-trend": "在线玩家趋势",
   "process-cpu": "进程 CPU · 单核占比", "process-memory": "进程内存", "process-uptime": "进程已运行",
   "process-cpu-trend": "进程 CPU 趋势", "process-memory-trend": "进程内存趋势",
@@ -10,6 +14,11 @@ const titles: Record<string, string> = {
   "traffic-in": "接收流量 / 秒", "traffic-out": "发送流量 / 秒",
 };
 const descriptions: Record<string, string> = {
+	"process-tokio-tasks":"当前 Tokio 运行时的实际活跃任务数。", "process-tokio-workers":"Tokio 工作线程数量，与任务数分别统计。",
+	"process-http-connections":"HTTP 服务持有的入站连接，升级后的 WebSocket 单独计数；HTTP/2 stream 计为请求而非新连接。",
+	"process-websocket-connections":"实际入站 WebSocket，包括客户端和服务 Link；SDK 出站连接单列。",
+	"process-http-inflight":"当前执行中的请求处理器，不包括空闲连接。", "process-http-rps":"每秒完成的 HTTP 处理器调用，含升级握手。",
+	"process-http-errors":"HTTP 500–599 响应每秒速率。", "process-sdk-links":"SDK 到网关的实际持续连接。", "process-sdk-rpc-pending":"当前等待权威回执的有界 RPC 请求数量。",
   "process-cpu": "100% 表示用满一个 CPU 核心，多核并行时可以超过 100%。这里只计算当前游戏服或网关进程。",
   "process-memory": "当前服务进程实际占用的物理内存，区别于上方整机内存。",
   "process-uptime": "自本次进程启动起的运行时长，重启后重新计算。",

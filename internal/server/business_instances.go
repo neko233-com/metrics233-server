@@ -99,7 +99,7 @@ func (s *Server) writeBusinessDashboard(w http.ResponseWriter, r *http.Request, 
 	} else {
 		payload["host_error"] = true
 	}
-	if item.Identity.Role != "gateway" {
+	if item.Identity.Role == "logic" || item.Identity.Role == "game" {
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		defer cancel()
 		population, err := s.businessPopulation(ctx, item, time.Now())
@@ -123,7 +123,7 @@ func businessDefaultDashboard(item model.BusinessInstance) model.Dashboard {
 	population := "game_players_online{${business_scope:raw}}"
 	sessions := businessAtSnapshot("game_player_sessions_started_total", "${business_scope:raw}", "scalar(max(timestamp("+population+")))")
 	d.Panels[1].Expr = "sum(" + sessions + ") and (count(" + current + ") == 1)"
-	if item.Identity.Role == "gateway" {
+	if item.Identity.Role == "gateway" || item.Identity.Role == "sdk" {
 		d.Panels = []model.Panel{}
 	}
 	d.Panels = append(d.Panels, businessProcessPanels(item)...)
@@ -346,7 +346,7 @@ func (s *Server) businessVector(ctx context.Context, expr string, at time.Time) 
 			continue
 		}
 		labels := map[string]string{}
-		for _, key := range []string{"country", "province", "city", "table", "operation"} {
+		for _, key := range []string{"country", "province", "city", "table", "operation", "sql_template", "target_app_id", "target_channel", "target_environment"} {
 			if value := sample.Metric.Get(key); value != "" {
 				labels[key] = value
 			}

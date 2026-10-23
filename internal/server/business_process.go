@@ -10,7 +10,7 @@ func businessProcessPanels(item model.BusinessInstance) []model.Panel {
 	selector := "{${business_scope:raw}}"
 	latest := func(metric string) string {
 		m := metric + selector
-		return "(" + m + " and (timestamp(" + m + ") == scalar(max(timestamp(" + m + ")))))"
+		return "(" + m + " and (timestamp(" + m + ") == scalar(max(timestamp(" + m + ")))) and (timestamp(" + m + ") >= time() - 90))"
 	}
 	current := func(metric string) string { l := latest(metric); return "sum(" + l + ") and (count(" + l + ") == 1)" }
 	rate := func(metric string) string {
@@ -32,12 +32,26 @@ func businessProcessPanels(item model.BusinessInstance) []model.Panel {
 		add("process-go-heap", "Go heap memory", "stat", "bytes", current("go_memstats_heap_alloc_bytes"), "Allocated Go heap; excludes stacks and other resident process memory.")
 		add("process-goroutines", "Go goroutines", "stat", "short", current("go_goroutines"), "Current goroutines in this server process.")
 	}
+	if item.Identity.Implementation == "rust" {
+		add("process-tokio-tasks", "Tokio active tasks", "stat", "short", current("tokio_tasks_alive"), "Actual live Tokio tasks; not Go goroutines.")
+		add("process-tokio-workers", "Tokio worker threads", "stat", "short", current("tokio_workers"), "Runtime worker threads, independent of task count.")
+	}
+	add("process-http-connections", "HTTP connections", "stat", "short", current("http_connections_active"), "Accepted HTTP connections currently owned by the HTTP server; upgraded WebSockets are counted separately. HTTP/2 streams are requests, not connections.")
+	add("process-websocket-connections", "WebSocket connections", "stat", "short", current("websocket_connections_active"), "All established inbound WebSockets, including client and service links. SDK outbound gateway links use sdk_gateway_links_connected.")
+	add("process-http-inflight", "HTTP requests in flight", "stat", "short", current("http_requests_inflight"), "Handlers currently executing. Connection idle time is not an in-flight request.")
+	add("process-http-rps", "HTTP requests / second", "timeseries", "ops", rate("http_requests_total"), "Completed handler calls per second, including upgrade handshakes.")
+	add("process-http-errors", "HTTP server errors / second", "timeseries", "ops", rate("http_requests_failed_total"), "Responses with status 500–599, independently of successful requests.")
 	if item.Identity.Role == "gateway" {
 		add("gateway-connections", "Active gateway connections", "stat", "short", current("gateway_connections_active"), "Currently established client connections.")
 		add("gateway-queue", "Pending gateway writes", "stat", "short", current("gateway_client_write_queue_depth"), "Messages currently waiting in client write queues.")
 		add("gateway-receive", "Gateway received messages / second", "timeseries", "ops", rate("gateway_messages_received_total"), "Actual received message counter rate over five minutes.")
 		add("gateway-send", "Gateway sent messages / second", "timeseries", "ops", rate("gateway_messages_sent_total"), "Actual sent message counter rate over five minutes.")
 		add("gateway-dropped", "Dropped gateway writes / second", "timeseries", "ops", rate("gateway_client_write_queue_dropped_total"), "Client write queue drops per second over five minutes.")
+	}
+	if item.Identity.Role == "sdk" {
+		add("process-sdk-links", "SDK outbound gateway links", "stat", "short", current("sdk_gateway_links_connected"), "Established SDK-to-gateway service WebSockets; separate from inbound sockets.")
+		add("process-sdk-rpc-pending", "SDK pending RPC", "stat", "short", current("sdk_rpc_pending"), "Bounded requests currently awaiting authoritative replies.")
+		return panels
 	}
 	prefix := "game_"
 	if item.Identity.Role == "gateway" {

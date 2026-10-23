@@ -1,5 +1,10 @@
 # metrics233-server 执行计划
 
+### 2026-10-23 — Bounded slow SQL diagnostics and transport metrics
+
+Native slow SQL counters now feed an exact-instance read API with redacted template variants, bounded Levenshtein groups and table summaries. SDK identities have process/HTTP/WebSocket/RPC panels and do not claim player populations. Targeted real HTTP/auth/instance-isolation/SQL grouping tests and TypeScript compilation passed. Producer lifecycle and TLS ACK tests passed separately. Edge validation, clean fixed-source worker checks and production rollout remain separate acceptance gates; see docs/slow-sql.md.
+
+
 更新时间：2026-10-22。
 
 - [x] **上报服务器仪表盘与多重排序**：同页展示明确关联的整机 CPU/内存/磁盘、实例进程资源和业务指标；继承模板与独立面板保留。SQL/地区支持完整结果集多列排序、优先级编辑和冻结排序的分页游标。环境/重启隔离、绑定CAS及权限、完整 SQL 集合取前10测试与163项前端单测/build、Edge示例渲染通过；私有0.2.19完整worker与部署成功；六实例真实主机与进程查询、Edge内网页和正式服完整84项取前10多重排序已验收。
