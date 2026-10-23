@@ -5,10 +5,12 @@ import (
 	"errors"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/mem"
+	"github.com/shirou/gopsutil/v4/net"
 	"github.com/stretchr/testify/require"
 )
 
@@ -57,6 +59,9 @@ func TestSamplerNeverFakesZeroAndReportsIndependentFailures(t *testing.T) {
 			return &disk.UsageStat{Total: 1000, Free: 250, Used: 100}, nil
 		},
 		uptime: func(context.Context) (uint64, error) { return 123, nil },
+		network: func(context.Context, bool) ([]net.IOCountersStat, error) {
+			return []net.IOCountersStat{{Name: "eth0", BytesRecv: 100, BytesSent: 200}}, nil
+		},
 	}}
 	samples, healthy := s.collect(context.Background())
 	require.True(t, healthy)
@@ -78,4 +83,53 @@ func TestSamplerNeverFakesZeroAndReportsIndependentFailures(t *testing.T) {
 	for _, sample := range samples {
 		require.NotEqual(t, "host_memory_used_percent", sample.Name, "missing memory must not become zero or an old value")
 	}
+}
+
+func TestNetworkCounterBaselinesZeroResetDisappearanceAndFailures(t *testing.T) {
+	now := time.Unix(100, 0)
+	broken := false
+	input := []net.IOCountersStat{{Name: "eth0", BytesRecv: 100, BytesSent: 200}, {Name: "lo", BytesRecv: 999}, {Name: "docker0", BytesRecv: 50, BytesSent: 70}}
+	s := &resourceSampler{now: func() time.Time { return now }, reader: resourceReader{network: func(context.Context, bool) ([]net.IOCountersStat, error) {
+		if broken {
+			return nil, errors.New("unavailable")
+		}
+		return input, nil
+	}}}
+	values := func() map[string]float64 {
+		samples, ok := s.collectNetwork(context.Background())
+		require.True(t, ok)
+		out := map[string]float64{}
+		for _, sample := range samples {
+			out[sample.Labels["device"]+":"+sample.Name] = sample.Value
+		}
+		return out
+	}
+	v := values()
+	require.NotContains(t, v, "eth0:host_network_receive_bytes_per_second")
+	require.NotContains(t, v, "lo:host_network_receive_bytes_total")
+	now = now.Add(10 * time.Second)
+	input[0].BytesRecv = 300
+	input[0].BytesSent = 200
+	v = values()
+	require.Equal(t, 20.0, v["eth0:host_network_receive_bytes_per_second"])
+	require.Equal(t, 0.0, v["eth0:host_network_transmit_bytes_per_second"])
+	require.Equal(t, 50.0, v["docker0:host_network_receive_bytes_total"], "interfaces remain independent")
+	now = now.Add(10 * time.Second)
+	input[0].BytesRecv = 2
+	v = values()
+	require.NotContains(t, v, "eth0:host_network_receive_bytes_per_second", "counter reset is not idle")
+	now = now.Add(10 * time.Second)
+	input = input[1:]
+	values()
+	input = append(input, net.IOCountersStat{Name: "eth0", BytesRecv: 99, BytesSent: 99})
+	now = now.Add(10 * time.Second)
+	v = values()
+	require.NotContains(t, v, "eth0:host_network_receive_bytes_per_second", "reappearing NIC establishes baseline")
+	broken = true
+	_, ok := s.collectNetwork(context.Background())
+	require.False(t, ok)
+	broken = false
+	now = now.Add(10 * time.Second)
+	v = values()
+	require.NotContains(t, v, "eth0:host_network_receive_bytes_per_second", "failure cannot reuse a stale baseline")
 }

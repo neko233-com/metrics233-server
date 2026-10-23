@@ -1,0 +1,89 @@
+/* Console chrome owns this palette; chart series and risk gauges keep their
+   independent visualization/threshold palettes. */
+.business-instance-directory .business-directory-heading { margin-bottom: 22px; }
+.business-instance-directory .business-refresh { background: var(--elevated); border-color: var(--border); }
+.business-instance-directory .business-directory-tools { gap: 12px; margin-bottom: 8px; }
+.business-instance-directory .business-search-input input { background: var(--canvas); }
+.business-directory-sort, .business-directory-environment { display: inline-flex; align-items: center; gap: 10px; color: var(--text-secondary); font-size: 13px; }
+.business-directory-sort select, .business-directory-environment select { width: auto; min-width: 150px; height: 42px; font-size: 13px; }
+.business-directory-environment { margin-left: auto; }
+.business-instance-directory .business-role-tabs { margin-bottom: 18px; gap: 20px; }
+.business-instance-directory .business-role-tabs > button { min-height: 48px; padding-inline: 12px; }
+.business-instance-directory .business-role-tabs > button[aria-pressed=true] { color: var(--accent); border-bottom-color: var(--accent); }
+.business-instance-directory .business-role-tabs > button:hover { color: #e6edf3; background: var(--surface); }
+.business-role-tabs > button > span { border-radius: 10px; background: var(--elevated); padding: 1px 6px; color: var(--text-secondary); min-width: 18px; text-align: center; }
+.business-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.business-instance-card { padding: 16px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; min-width: 0; }
+.business-instance-card:focus-within { border-color: var(--link); }
+.business-card-open { display: flex; justify-content: flex-start; align-items: flex-start; gap: 14px; width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; text-align: left; min-height: 45px; }
+.business-card-open:hover { background: transparent; color: var(--link); }
+.business-card-open:active { transform: none; }
+.business-card-icon { flex-shrink: 0; color: var(--link); margin-top: 2px; }
+.business-card-identity { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.business-card-identity > strong { font-size: 18px; line-height: 24px; font-weight: 600; overflow-wrap: anywhere; }
+.business-card-identity > span { font-size: 12px; font-family: var(--mono); line-height: 17px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.business-card-identity .business-card-address { color: var(--muted); }
+.business-card-arrow { flex-shrink: 0; margin-top: 4px; color: var(--muted); }
+.business-card-tags { display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 10px 42px; }
+.business-card-tags > span { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; font-size: 11px; line-height: 17px; border-radius: 4px; background: var(--elevated); color: var(--text-secondary); }
+.business-card-tags .business-env { color: #9da7b1; background: #8b949e15; }
+.business-env i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.business-card-tags .env-release { color: #7ee787; background: #23863622; }
+.business-card-tags .env-test { color: #79c0ff; background: #1f6feb20; }
+.business-card-tags .env-intranet { color: #d2a8ff; background: #8957e51c; }
+.business-card-note { display: flex; justify-content: flex-start; align-items: flex-start; gap: 8px; min-width: 0; width: 100%; min-height: 39px; margin: 0 0 8px; padding: 0; border: 0; background: transparent; font-size: 12px; font-weight: 400; line-height: 19px; color: var(--text-secondary); text-align: left; }
+.business-card-note:hover { background: transparent; color: var(--link); }
+.business-card-note > svg { flex-shrink: 0; margin-top: 2px; }
+.business-card-note > span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; white-space: pre-wrap; }
+.business-card-resource-title { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 10px; font-size: 11px; color: var(--text-secondary); }
+.business-card-resource-title > span + span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 55%; color: var(--muted); }
+.business-card-meters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.business-card-meter { min-width: 0; }
+.business-card-meter > div { display: flex; justify-content: space-between; gap: 4px; font-size: 11px; line-height: 16px; margin-bottom: 6px; }
+.business-card-meter strong { font-family: var(--mono); font-weight: 400; }
+.business-card-meter progress { appearance: none; display: block; width: 100%; height: 5px; border: 0; border-radius: 3px; background: #30363d; }
+.business-card-meter progress::-webkit-progress-bar { background: #30363d; border-radius: 3px; }
+.business-card-meter progress::-webkit-progress-value { background: #3fb950; border-radius: 3px; }
+.business-card-meter progress::-moz-progress-bar { background: #3fb950; border-radius: 3px; }
+.business-card-meter.risk-warning progress::-webkit-progress-value { background: #d29922; }
+.business-card-meter.risk-critical progress::-webkit-progress-value { background: #f85149; }
+.business-card-meter.risk-warning progress::-moz-progress-bar { background: #d29922; }
+.business-card-meter.risk-critical progress::-moz-progress-bar { background: #f85149; }
+.business-card-meter > small { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
+.business-card-meter.risk-unknown strong { color: var(--muted); }
+.business-card-traffic { border-top: 1px solid var(--border); padding-top: 11px; }
+.business-card-traffic > span { color: var(--text-secondary); font-size: 11px; }
+.business-card-traffic > div { display: flex; justify-content: space-between; gap: 12px; margin: 8px 0 14px; }
+.business-card-traffic > div > span { display: inline-flex; gap: 6px; align-items: center; min-width: 0; }
+.business-card-traffic svg { color: var(--link); flex-shrink: 0; }
+.business-card-traffic > div > span + span svg { color: var(--green); }
+.business-card-traffic small { font-size: 11px; color: var(--text-secondary); white-space: nowrap; }
+.business-card-traffic strong { font-family: var(--mono); font-size: 12px; font-weight: 500; white-space: nowrap; }
+.business-instance-card > footer { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px; color: var(--muted); font-size: 10px; line-height: 16px; }
+.business-instance-card > footer > i { width: 5px; height: 5px; border-radius: 50%; background: #d29922; }
+.business-instance-card > footer.report-fresh > i { background: var(--green); }
+.business-instance-card > footer > time { font-family: var(--mono); }
+.business-note-dialog { width: min(600px, calc(100vw - 32px)); }
+.business-note-dialog form { display: grid; gap: 14px; }
+.business-note-dialog textarea { width: 100%; resize: vertical; line-height: 1.6; padding: 12px; min-height: 130px; font: inherit; }
+.business-note-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.business-note-conflict { padding: 12px; border: 1px solid #d29922; border-radius: 6px; }
+.business-note-conflict p, .business-instance-description p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.business-note-conflict button { margin: 6px 6px 0 0; }
+.business-instance-description { display: flex; align-items: flex-start; gap: 14px; margin: 0 0 16px; font-size: 13px; color: var(--text-secondary); }
+.business-instance-description p { margin: 5px 0; max-width: 80ch; }
+.business-instance-description button { flex-shrink: 0; font-size: 12px; min-height: 30px; }
+.business-network-section { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 18px; margin: 16px 0; }
+.business-network-section > header { display: flex; align-items: baseline; gap: 14px; justify-content: space-between; flex-wrap: wrap; margin-bottom: 16px; }
+.business-network-section h2 { font-size: 18px; margin: 0; }
+.business-network-section > header p { color: var(--text-secondary); font-size: 12px; margin: 8px 0 0; }
+.business-network-section .business-instance-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.business-network-section .business-instance-stats .chart-panel { min-height: 145px; background: var(--canvas); }
+.business-network-section .network-volume .chart-panel { min-height: 100px; }
+.business-network-section .network-volume .stat-value { font-size: 25px; }
+.business-network-history > .chart-panel { min-height: 300px; }
+.business-network-section .business-network-device { display: flex; align-items: center; gap: 10px; color: var(--text-secondary); font-size: 12px; }
+.business-network-device select { width: auto; min-width: 130px; }
+@container (max-width: 1080px) { .business-card-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .business-directory-environment { margin-left: 0; } }
+@container (max-width: 670px) { .business-card-grid { grid-template-columns: minmax(0,1fr); } .business-instance-directory .business-directory-search { flex-basis: 100%; } .business-directory-sort, .business-directory-environment { flex: 1; } .business-directory-sort select, .business-directory-environment select { flex: 1; min-width: 100px; } .business-instance-directory .business-role-tabs { gap: 4px; } .business-instance-directory .business-role-tabs > button { padding-inline: 10px; font-size: 13px; } }
+@media (max-width: 600px) { .business-network-section { padding: 12px; } .business-network-section .business-instance-stats { grid-template-columns: minmax(0,1fr); } .business-instance-description { flex-wrap: wrap; } .business-card-traffic strong { font-size: 13px; } }

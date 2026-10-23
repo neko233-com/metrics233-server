@@ -9,6 +9,24 @@ import (
 	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
+func (s *Store) BusinessHostBindings(ctx context.Context) (map[string]model.BusinessHostBinding, error) {
+	rows, err := s.DB.QueryContext(ctx, `SELECT instance_id,version,kind,resource_id FROM business_host_bindings LIMIT ?`, BusinessInstanceLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]model.BusinessHostBinding{}
+	for rows.Next() {
+		var id string
+		var b model.BusinessHostBinding
+		if err := rows.Scan(&id, &b.Version, &b.Kind, &b.ID); err != nil {
+			return nil, err
+		}
+		out[id] = b
+	}
+	return out, rows.Err()
+}
+
 func (s *Store) BusinessHostBinding(ctx context.Context, instanceID string) (model.BusinessHostBinding, error) {
 	var b model.BusinessHostBinding
 	err := s.DB.QueryRowContext(ctx, `SELECT version,kind,resource_id FROM business_host_bindings WHERE instance_id=?`, instanceID).Scan(&b.Version, &b.Kind, &b.ID)

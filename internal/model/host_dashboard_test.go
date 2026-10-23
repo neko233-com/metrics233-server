@@ -14,7 +14,7 @@ func TestHostDashboardIsScopedNativeAndHasNoFakeZeroFallback(t *testing.T) {
 		d := HostDashboard(h, language)
 		require.NoError(t, d.Validate())
 		require.LessOrEqual(t, len(d.ID), 40)
-		require.Len(t, d.Panels, 8)
+		require.Len(t, d.Panels, 10)
 		gauges := 0
 		for _, p := range d.Panels {
 			require.Contains(t, p.Expr, `managed_host="`+h.ID+`"`)

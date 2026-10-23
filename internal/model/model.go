@@ -94,7 +94,7 @@ func (d Dashboard) Validate() error {
 		if len(p.Config) > 512*1024 || (len(p.Config) > 0 && !json.Valid(p.Config)) {
 			return errors.New("panel config must be valid JSON under 512 KiB")
 		}
-		if p.Unit != "" && p.Unit != "bytes" && p.Unit != "seconds" && p.Unit != "percent" && p.Unit != "count" && p.Unit != "ops" && p.Unit != "uptime" {
+		if p.Unit != "" && p.Unit != "bytes" && p.Unit != "Bps" && p.Unit != "seconds" && p.Unit != "percent" && p.Unit != "count" && p.Unit != "ops" && p.Unit != "uptime" {
 			return errors.New("unsupported panel unit")
 		}
 		if err := ValidateLabels(p.Labels); err != nil {

@@ -333,6 +333,7 @@ export function formatValue(value: number, unit = ""): string {
   if (unit === "percent") return `${value.toFixed(1)}%`;
   if (unit === "percentunit") return `${(value * 100).toFixed(1)}%`;
   if (unit === "binBps") return `${formatValue(value, "bytes")} /s`;
+  if (unit === "Bps" || unit === "decBps") return `${formatBytes(value)}/s`;
   const text = Math.abs(value) > 0 && Math.abs(value) < 0.01 ? value.toLocaleString("en", { useGrouping: false, maximumSignificantDigits: 3 }) : value.toLocaleString("en", {
     useGrouping: false,
     maximumFractionDigits: Math.abs(value) < 10 ? 2 : 1,

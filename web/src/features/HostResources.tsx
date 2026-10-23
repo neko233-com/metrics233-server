@@ -3,11 +3,13 @@ import { api, formatValue, timeAgo } from "../api";
 import { getLocale } from "../i18n";
 import { RiskGauge, type GaugeStep } from "../ui/RiskGauge";
 import "./ManagedHosts.css";
+import HostNetworkResources from "./HostNetworkResources";
 
 export type HostResourcesData = {
   observed_at: number; cpu_percent: number | null; cores: number; memory_percent: number | null;
   memory_total: number; memory_available: number; uptime: number;
   disks: { device: string; mountpoint: string; fstype: string; total: number; available: number; used_percent: number }[];
+  network?: { device: string; receive_bytes: number; transmit_bytes: number; receive_per_second: number | null; transmit_per_second: number | null }[];
 };
 const text = (en: string, zh: string) => getLocale() === "zh" ? zh : en;
 const specs = [
@@ -103,6 +105,7 @@ export function HostResources({ id, resources, enabled, interval, rules = [], ru
       </section>;
     })}</div>
     <details className="host-history" open={historyOpen} onToggle={event => setHistoryOpen(event.currentTarget.open)}><summary>{text("Resource trends · last 60 minutes", "资源趋势 · 最近60分钟")}</summary>{historyOpen && <HostTrends id={id} observedAt={resources?.observed_at || 0} enabled={enabled} rules={hostRules} />}</details>
+    <HostNetworkResources id={id} resources={resources} active={active} />
     <div className="host-resource-footer">
       <details className="host-disk-section"><summary>{text("All writable disks", "全部可写磁盘")} · {resources?.disks.length || 0}</summary>
         {resources?.disks.length ? <div className="host-disk-table"><table><thead><tr><th>{text("Disk", "磁盘")}</th><th>{text("Capacity", "总容量")}</th><th>{text("Available", "还剩")}</th><th>{text("Used", "已用比例")}</th></tr></thead>

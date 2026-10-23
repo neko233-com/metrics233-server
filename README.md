@@ -11,6 +11,10 @@ Collect Prometheus/OpenMetrics, OTLP/HTTP, MySQL, Redis and other common sources
 metric-window vectors; build dashboards, Explore views and alerts without a Grafana server or plugin ecosystem.
 The product UI supports English and Chinese. Production UI assets are embedded in the Go executable.
 
+The [instance directory](docs/instance-directory.md) provides searchable service cards, environment/category filters,
+versioned freeform notes and separate business/host-interface traffic views. GitHub Dark console chrome is independent
+of Grafana-style time-series colors, threshold gauges and visualization behavior.
+
 Use the standalone [metrics233-lib-go SDK](https://github.com/neko233-com/metrics233-lib-go) for fluent business
 Counter/Gauge instrumentation and explicit push/shutdown. The [metrics233-all aggregate](https://github.com/neko233-com/metrics233-all)
 pins matching server and SDK commits as Git submodules. The repository and Go module are now `metrics233-server`;

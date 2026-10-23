@@ -23,3 +23,18 @@ func TestBusinessInstanceRoleMatrix(t *testing.T) {
 	}
 	require.ErrorIs(t, authorize(principal(identity.RoleEditor), "DELETE", "/api/v1/business/instances/id/dashboard"), identity.ErrForbidden)
 }
+
+func TestBusinessNoteRoleMatrix(t *testing.T) {
+	for _, role := range []identity.Role{identity.RoleViewer, identity.RoleEditor, identity.RoleAdmin} {
+		p := principal(role)
+		require.NoError(t, authorize(p, "GET", "/api/v1/business/directory"))
+		require.NoError(t, authorize(p, "GET", "/api/v1/business/instances/id/network"))
+		err := authorize(p, "PUT", "/api/v1/business/instances/id/note")
+		if role == identity.RoleViewer {
+			require.ErrorIs(t, err, identity.ErrForbidden)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+	require.ErrorIs(t, authorize(principal(identity.RoleEditor), "PUT", "/api/v1/business/instances/id/nested/note"), identity.ErrForbidden)
+}

@@ -7,12 +7,14 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"time"
 
 	model "github.com/neko233-com/metrics233-server/internal/telemetry"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/shirou/gopsutil/v4/mem"
+	"github.com/shirou/gopsutil/v4/net"
 )
 
 type resourceReader struct {
@@ -21,15 +23,19 @@ type resourceReader struct {
 	partitions func(context.Context, bool) ([]disk.PartitionStat, error)
 	usage      func(context.Context, string) (*disk.UsageStat, error)
 	uptime     func(context.Context) (uint64, error)
+	network    func(context.Context, bool) ([]net.IOCountersStat, error)
 }
 
 type resourceSampler struct {
-	reader   resourceReader
-	previous *cpu.TimesStat
+	reader          resourceReader
+	previous        *cpu.TimesStat
+	networkPrevious map[string]net.IOCountersStat
+	networkAt       time.Time
+	now             func() time.Time
 }
 
 func newResourceSampler() *resourceSampler {
-	return &resourceSampler{reader: resourceReader{cpu.TimesWithContext, mem.VirtualMemoryWithContext, localPartitions, disk.UsageWithContext, host.UptimeWithContext}}
+	return &resourceSampler{reader: resourceReader{cpu: cpu.TimesWithContext, memory: mem.VirtualMemoryWithContext, partitions: localPartitions, usage: disk.UsageWithContext, uptime: host.UptimeWithContext, network: net.IOCountersWithContext}, now: time.Now}
 }
 
 // CPU counters include guest time in user/nice on Linux. I/O wait is idle.
@@ -152,5 +158,62 @@ func (s *resourceSampler) collect(ctx context.Context) ([]model.Sample, bool) {
 	} else {
 		status("uptime", false)
 	}
+	network, ok := s.collectNetwork(ctx)
+	out = append(out, network...)
+	status("network", ok)
 	return out, healthy
+}
+
+// Each interface is reported independently. Physical NICs and bridges must not
+// be added together: the same packet can traverse more than one interface.
+func (s *resourceSampler) collectNetwork(ctx context.Context) ([]model.Sample, bool) {
+	if s.reader.network == nil {
+		return nil, false
+	}
+	input, err := s.reader.network(ctx, true)
+	if err != nil {
+		s.networkPrevious = nil
+		s.networkAt = time.Time{}
+		return nil, false
+	}
+	input = append([]net.IOCountersStat(nil), input...)
+	now := time.Now()
+	if s.now != nil {
+		now = s.now()
+	}
+	elapsed := now.Sub(s.networkAt).Seconds()
+	sort.Slice(input, func(i, j int) bool { return input[i].Name < input[j].Name })
+	previous := make(map[string]net.IOCountersStat)
+	out := []model.Sample{}
+	for _, n := range input {
+		lower := strings.ToLower(n.Name)
+		if n.Name == "" || len(n.Name) > 128 || strings.ContainsAny(n.Name, "\x00\r\n") || lower == "lo" || lower == "lo0" || strings.Contains(lower, "loopback") {
+			continue
+		}
+		if _, exists := previous[n.Name]; exists {
+			continue
+		}
+		if len(previous) == 64 {
+			break
+		}
+		previous[n.Name] = n
+		add := func(name string, value float64) {
+			out = append(out, model.Sample{Name: "host_network_" + name, Value: value, Labels: map[string]string{"device": n.Name}})
+		}
+		add("receive_bytes_total", float64(n.BytesRecv))
+		add("transmit_bytes_total", float64(n.BytesSent))
+		add("receive_packets_total", float64(n.PacketsRecv))
+		add("transmit_packets_total", float64(n.PacketsSent))
+		add("receive_errors_total", float64(n.Errin))
+		add("transmit_errors_total", float64(n.Errout))
+		add("receive_dropped_total", float64(n.Dropin))
+		add("transmit_dropped_total", float64(n.Dropout))
+		if before, exists := s.networkPrevious[n.Name]; exists && !s.networkAt.IsZero() && elapsed > 0 && n.BytesRecv >= before.BytesRecv && n.BytesSent >= before.BytesSent {
+			add("receive_bytes_per_second", float64(n.BytesRecv-before.BytesRecv)/elapsed)
+			add("transmit_bytes_per_second", float64(n.BytesSent-before.BytesSent)/elapsed)
+		}
+	}
+	s.networkPrevious = previous
+	s.networkAt = now
+	return out, len(previous) > 0
 }

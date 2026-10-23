@@ -20,7 +20,8 @@ var ErrBusinessBindingConflict = errors.New("business dashboard binding changed;
 
 func (s *Store) initializeBusinessInstances() error {
 	_, err := s.DB.Exec(`CREATE TABLE IF NOT EXISTS business_instances(id TEXT PRIMARY KEY,identity TEXT NOT NULL,reported_ip TEXT NOT NULL DEFAULT '',observed_ip TEXT NOT NULL DEFAULT '',first_seen INTEGER NOT NULL,last_seen INTEGER NOT NULL,binding_version INTEGER NOT NULL DEFAULT 0,binding_mode TEXT NOT NULL DEFAULT 'default',dashboard_id TEXT NOT NULL DEFAULT '');
-CREATE TABLE IF NOT EXISTS business_host_bindings(instance_id TEXT PRIMARY KEY REFERENCES business_instances(id) ON DELETE CASCADE,version INTEGER NOT NULL,kind TEXT NOT NULL,resource_id TEXT NOT NULL);`)
+CREATE TABLE IF NOT EXISTS business_host_bindings(instance_id TEXT PRIMARY KEY REFERENCES business_instances(id) ON DELETE CASCADE,version INTEGER NOT NULL,kind TEXT NOT NULL,resource_id TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS business_instance_notes(instance_id TEXT PRIMARY KEY REFERENCES business_instances(id) ON DELETE CASCADE,version INTEGER NOT NULL,description TEXT NOT NULL,updated_at INTEGER NOT NULL);`)
 	return err
 }
 
@@ -88,12 +89,15 @@ func (s *Store) RecordBusinessInstances(ctx context.Context, samples []model.Sam
 	return tx.Commit()
 }
 
-const businessColumns = `id,identity,reported_ip,observed_ip,first_seen,last_seen,binding_version,binding_mode,dashboard_id`
+const businessColumns = `id,identity,reported_ip,observed_ip,first_seen,last_seen,binding_version,binding_mode,dashboard_id,
+COALESCE((SELECT version FROM business_instance_notes n WHERE n.instance_id=business_instances.id),0),
+COALESCE((SELECT description FROM business_instance_notes n WHERE n.instance_id=business_instances.id),''),
+COALESCE((SELECT updated_at FROM business_instance_notes n WHERE n.instance_id=business_instances.id),0)`
 
 func scanBusiness(row interface{ Scan(...any) error }) (model.BusinessInstance, error) {
 	var item model.BusinessInstance
 	var raw string
-	err := row.Scan(&item.ID, &raw, &item.ReportedIP, &item.ObservedIP, &item.FirstSeen, &item.LastSeen, &item.Binding.Version, &item.Binding.Mode, &item.Binding.DashboardID)
+	err := row.Scan(&item.ID, &raw, &item.ReportedIP, &item.ObservedIP, &item.FirstSeen, &item.LastSeen, &item.Binding.Version, &item.Binding.Mode, &item.Binding.DashboardID, &item.Note.Version, &item.Note.Description, &item.Note.UpdatedAt)
 	if err == nil {
 		err = json.Unmarshal([]byte(raw), &item.Identity)
 	}

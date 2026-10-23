@@ -1,5 +1,18 @@
 # Project status and progress protocol
 
+### 2026-10-23 — Instance cards and independent console/visualization themes
+
+Global directory filters and counts precede pagination; freeform notes use a separate Editor CAS revision.
+Business payload/HTTP body rates and per-NIC host measurements are distinct. The GitHub Dark console palette
+does not replace classic time-series, gauge or risk palettes. Plot metadata now gives separate query frames a
+global series index while preserving authored fixed colors and source frames.
+
+Targeted Go/store/auth/PromQL/host tests, frontend units/build and Rust actual HTTPS passed. Edge locally verified
+seven populated cards, category and note search, multiline saved notes, separate business/NIC views, and a 390px
+viewport without horizontal overflow. The initial full Windows Go run found the new Bps unit missing from native
+validation; that contract and its host-dashboard regression were fixed and passed. Fixed-source worker, actual
+collector rollout and final production Edge acceptance remain separate pending gates.
+
 ### 2026-10-23 — Fixed-source 0.2.22 production acceptance
 
 - Immutable runtime source `28b6c727c298887659f1ee08d08d3ab53e2d7ac4` passed the complete fixed-source

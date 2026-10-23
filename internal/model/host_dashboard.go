@@ -45,5 +45,7 @@ func HostDashboard(host ManagedHost, language string) Dashboard {
 	}
 	add(tr("Writable disks", "可写磁盘"), "bargauge", "percent", "host_disk_used_percent"+selector, "{{mountpoint}}", desc[2], 0, 20, 16, 8, 85, 95)
 	add(tr("Host uptime", "主机运行时长"), "stat", "uptime", "host_uptime_seconds"+selector, tr("Host uptime", "主机运行时长"), tr("Operating system uptime, not the collector process age.", "操作系统运行时长，区别于采集器进程时长。"), 16, 20, 8, 8, 0, 0)
+	add(tr("Interface receive", "网卡接收速率"), "timeseries", "Bps", "host_network_receive_bytes_per_second"+selector, "{{device}}", tr("Each interface is independent. Never add physical, bridge and tunnel counters.", "逐网卡显示，不把物理网卡、网桥和隧道重复相加。"), 0, 28, 12, 10, 0, 0)
+	add(tr("Interface send", "网卡发送速率"), "timeseries", "Bps", "host_network_transmit_bytes_per_second"+selector, "{{device}}", tr("Each interface is independent. Never add physical, bridge and tunnel counters.", "逐网卡显示，不把物理网卡、网桥和隧道重复相加。"), 12, 28, 12, 10, 0, 0)
 	return d
 }

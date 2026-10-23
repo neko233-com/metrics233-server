@@ -30,4 +30,12 @@ type BusinessInstance struct {
 	FirstSeen  int64            `json:"first_seen"`
 	LastSeen   int64            `json:"last_seen"`
 	Binding    BusinessBinding  `json:"binding"`
+	Note       BusinessNote     `json:"note"`
+}
+
+// BusinessNote belongs to the operator, never to a reporting identity.
+type BusinessNote struct {
+	Version     int64  `json:"version"`
+	Description string `json:"description"`
+	UpdatedAt   int64  `json:"updated_at"`
 }

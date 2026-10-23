@@ -158,6 +158,7 @@ func businessFixedVariables(d model.Dashboard, item model.BusinessInstance) mode
 
 func (s *Server) businessRoutes(api routeRegistrar) {
 	s.businessHostRoutes(api)
+	s.businessDirectoryRoutes(api)
 	api.HandleFunc("GET /api/v1/business/instances", func(w http.ResponseWriter, r *http.Request) {
 		limit := 50
 		var err error
@@ -300,7 +301,7 @@ func businessError(w http.ResponseWriter, err error) {
 	if errors.Is(err, sql.ErrNoRows) {
 		status = 404
 	}
-	if errors.Is(err, store.ErrBusinessBindingConflict) {
+	if errors.Is(err, store.ErrBusinessBindingConflict) || errors.Is(err, store.ErrBusinessNoteConflict) {
 		status = 409
 	}
 	if errors.Is(err, identity.ErrForbidden) {

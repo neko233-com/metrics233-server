@@ -1,7 +1,7 @@
 import type { Panel } from "../api";
 
 export const preserveCustomUnit = "__preserve_custom_unit__";
-const basicUnits = ["", "bytes", "seconds", "uptime", "percent", "count", "ops"];
+const basicUnits = ["", "bytes", "Bps", "seconds", "uptime", "percent", "count", "ops"];
 function sdkUnit(unit: string) {
   return unit === "seconds" ? "s" : unit === "count" ? "short" : unit;
 }

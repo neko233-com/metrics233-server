@@ -77,6 +77,10 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 
 ## Renderers
 
+- Console chrome uses GitHub Dark tokens independently of visualization palettes. Business cards support global
+  search/category/environment filters, separate CAS operator notes and per-service/per-NIC traffic views.
+  See [instance directory](../instance-directory.md) for freshness, scope, units and counter boundaries.
+
 - First-party metric panels use readable names with explicit aliases preserved; original labels and query/reducer
   metadata are available through the keyboard-accessible Metric details dialog. Friendly names never become
   query or authorization identities. Unknown metrics and aggregate expression meanings are not guessed. See

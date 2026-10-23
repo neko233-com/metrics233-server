@@ -143,7 +143,8 @@ func authorize(p identity.Principal, method, requestPath string) error {
 		return identity.ErrForbidden
 	}
 	businessBinding := method == "PUT" && businessPath != requestPath && strings.HasSuffix(businessPath, "/dashboard") && !strings.Contains(strings.TrimSuffix(businessPath, "/dashboard"), "/") && strings.TrimSuffix(businessPath, "/dashboard") != ""
-	if businessBinding || hasAnyPrefix(requestPath, editorPrefixes) {
+	businessNote := method == "PUT" && businessPath != requestPath && strings.HasSuffix(businessPath, "/note") && !strings.Contains(strings.TrimSuffix(businessPath, "/note"), "/") && strings.TrimSuffix(businessPath, "/note") != ""
+	if businessBinding || businessNote || hasAnyPrefix(requestPath, editorPrefixes) {
 		if p.Role.AtLeast(identity.RoleEditor) {
 			return nil
 		}

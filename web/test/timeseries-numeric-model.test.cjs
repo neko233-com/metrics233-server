@@ -29,10 +29,19 @@ const model = load("src/render/timeseries/plot-model.ts", (name) => {
     // frames too; returning the alias alone misses real SQL-frame behavior.
     return alias ? alias + (frame.meta?.timeCompare?.isTimeShiftQuery ? " (comparison)" : "") : field.name;
   },
-    getFieldSeriesColor: () => ({ color: "#f00" }) };
+    getFieldSeriesColor: field => ({ color: field.config.color?.mode === "fixed" ? field.config.color.fixedColor : ["#5794f2", "#73bf69"][field.state?.seriesIndex % 2 || 0] }) };
   throw new Error("Unexpected import: " + name);
 });
 const source = (times, ...columns) => ({ times: Float64Array.from(times), columns: columns.map((values) => Float64Array.from(values)) });
+
+test("separate query frames receive distinct classic colors while authored fixed colors and source state survive", () => {
+  const frames = ["A", "B"].map(refId => ({ refId, fields: [{ name: "Time", type: "time", values: [1000, 2000], config: {} }, { name: "Value", type: "number", values: [1, 2], config: { color: { mode: "palette-classic" } }, state: { seriesIndex: 0 } }] }));
+  const plot = model.describePlot(frames);
+  assert.notEqual(plot.series[0].color, plot.series[1].color);
+  assert.equal(frames[1].fields[1].state.seriesIndex, 0);
+  for (const frame of frames) frame.fields[1].config.color = { mode: "fixed", fixedColor: "#f00" };
+  assert.deepEqual(Array.from(model.describePlot(frames).series, item => item.color), ["#f00", "#f00"]);
+});
 test("risk thresholds preserve exact boundary colors and require a known percentage range", () => {
   const field={config:{color:{mode:"thresholds"},thresholds:{mode:"absolute",steps:[{value:null,color:"green"},{value:85,color:"yellow"},{value:95,color:"red"}]}}};
   assert.equal(risk.riskColor(field,84.99),"#39d99c");

@@ -688,6 +688,7 @@ function PanelEditor({
             <select aria-label={tr("Unit")} value={unit} onChange={(e) => setUnit(e.target.value)}>
               <option value="">{tr("Auto / number")}</option>
               <option value="binBps">{getLocale() === "zh" ? "字节/秒" : "Bytes/second"}</option>
+              <option value="Bps">{getLocale() === "zh" ? "网络速率（KB/MB 每秒）" : "Network rate (KB/MB per second)"}</option>
               {nativePanelUnitSelection(panel) === preserveCustomUnit && <option value={preserveCustomUnit}>{getLocale() === "zh" ? "保留自定义单位" : "Keep custom unit"} ({panel?.config?.fieldConfig?.defaults?.unit})</option>}
               {["bytes", "seconds", "uptime", "percent", "count", "ops"].map((u) => (
                 <option key={u} value={u}>

@@ -1,5 +1,7 @@
 # metrics233-server
 
+实例入口提供可搜索的服务卡片、环境与分类筛选、自由备注和上下行流量。控制台使用 GitHub Dark 背景与控件配色；Grafana 风格折线图、跑车仪表盘及预警线保持独立。指标口径、权限与版本冲突见[实例目录与网络观测](docs/instance-directory.md)。
+
 ## 架构
 
 ```mermaid

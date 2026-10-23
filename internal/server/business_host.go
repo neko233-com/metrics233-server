@@ -84,10 +84,12 @@ func businessCollectorDashboard(t model.Target, language string) model.Dashboard
 		p := &d.Panels[i]
 		expr := p.Expr
 		for old, replacement := range map[string]string{
-			"host_cpu_usage_percent{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}":   "100 * (1 - avg(rate(node_cpu_seconds_total" + cpuSelector + "[5m])))",
-			"host_memory_used_percent{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}": "100 * (1 - node_memory_MemAvailable_bytes" + selector + " / node_memory_MemTotal_bytes" + selector + ")",
-			"host_disk_used_percent{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}":   "(100 * (1 - node_filesystem_avail_bytes" + diskSelector + " / node_filesystem_size_bytes" + diskSelector + "))",
-			"host_uptime_seconds{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}":      "(time() - node_boot_time_seconds" + selector + ")",
+			"host_cpu_usage_percent{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}":                 "100 * (1 - avg(rate(node_cpu_seconds_total" + cpuSelector + "[5m])))",
+			"host_memory_used_percent{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}":               "100 * (1 - node_memory_MemAvailable_bytes" + selector + " / node_memory_MemTotal_bytes" + selector + ")",
+			"host_disk_used_percent{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}":                 "(100 * (1 - node_filesystem_avail_bytes" + diskSelector + " / node_filesystem_size_bytes" + diskSelector + "))",
+			"host_uptime_seconds{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}":                    "(time() - node_boot_time_seconds" + selector + ")",
+			"host_network_receive_bytes_per_second{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}":  "rate(node_network_receive_bytes_total" + selector + "[2m])",
+			"host_network_transmit_bytes_per_second{managed_host=\"collector-" + strconv.FormatInt(t.ID, 10) + "\"}": "rate(node_network_transmit_bytes_total" + selector + "[2m])",
 		} {
 			expr = strings.ReplaceAll(expr, old, replacement)
 		}

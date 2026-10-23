@@ -1,5 +1,7 @@
 # metrics233-server 执行计划
 
+- [~] 2026-10-23 实例卡片与网络：GitHub Dark 控制台、全局搜索/分类/环境筛选、独立版本自由备注、Go/Rust 统一业务字节与逐网卡采集；可视化配色独立，修复跨查询曲线同色。Windows 相关 Go/权限/真实 PromQL、前端单测/build、Rust 实际 HTTPS 已通过；Edge 本地卡片、分类、备注搜索/保存和 390px 布局已验。固定源码完整 worker、线上采集器升级与最终 Edge 生产验收待执行。
+
 - [x] 发布资源恢复与 ANN 搜索正确性：页面异常保留导航与手动刷新入口；修复仍有候选时提前退出及错误剪枝。桥接反例先失败后通过，保留原召回断言，30 次连续召回与向量包回归、前端恢复用例/类型检查通过；源码28b6c72的0.2.22完整 worker、正式部署及 Edge 导航验收通过，详见 docs/status.md。
 
 ### 2026-10-23 — Bounded slow SQL diagnostics and transport metrics

@@ -66,6 +66,10 @@ export function describePlot(frames: DataFrame[], locale: PresentationLocale = g
       const occurrence = occurrences.get(identity) || 0;
       occurrences.set(identity, occurrence + 1);
       let color = COLORS[series.length % COLORS.length];
+      // SDK frames can each arrive with seriesIndex=0. Index the cloned fields
+      // across this plot so separate queries do not all take the first color.
+      // Fixed colors, thresholds and named palettes still use the SDK resolver.
+      field.state = { ...field.state, calcs: field.state?.calcs, seriesIndex: series.length };
       try { color = getFieldSeriesColor(field, theme).color || color; } catch { /* Plugin metadata is optional. */ }
       const custom = (field.config.custom || {}) as {
         axisPlacement?: string; axisLabel?: string; scaleDistribution?: { type?: string };

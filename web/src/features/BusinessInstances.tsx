@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Copy, RefreshCw, Settings2, Server } from "lucide-react";
+import { ArrowLeft, Copy, Pencil, RefreshCw, Settings2, Server } from "lucide-react";
 import { api, ApiError, jsonBody, message, timeAgo, type Dashboard, type Panel } from "../api";
 import { getLocale } from "../i18n";
 import { Alert, Button, Field } from "../ui";
@@ -14,12 +14,14 @@ import { instanceTitle, type BusinessInstance as Instance } from "./business-ins
 import BusinessDataTable, { PopulationNotice, type Population } from "./BusinessDataTable";
 import SlowSQL from "./SlowSQL";
 
+import BusinessNoteEditor from "./BusinessNoteEditor";
 import { useBusinessPanelSize } from "./use-business-panel-size";
 import { localizeInstancePanel, instancePanelGroups } from "./business-instance-panels";
 import { HostResources, type HostResourcesData, type HostAlertRule } from "./HostResources";
 import "./business-instances.css";
 
 const NativePanel = lazy(() => import("../grafana/GrafanaPanel"));
+const BusinessNetwork = lazy(() => import("./BusinessNetwork"));
 const text = (en: string, zh: string) => getLocale() === "zh" ? zh : en;
 function localizedBuiltin(panel: Panel): Panel {
   return localizeInstancePanel(panel, getLocale());
@@ -64,7 +66,8 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
   const [large, setLarge] = useBusinessPanelSize();
   const [range, setRange] = useState<TimeSelection>(() => { try { return rangeFromURL() || "1h"; } catch { return "1h"; } });
   const changeRange = (value: TimeSelection) => { setRange(value); writeRangeURL(value); };
-  const [tab, setTab] = useState<"overview" | "regions" | "sql">("overview");
+  const [tab, setTab] = useState<"overview" | "network" | "regions" | "sql">("overview");
+  const [noteOpen, setNoteOpen] = useState(false);
   const mutation = useRef<AbortController | null>(null);
   const templateVersion = useRef("");
   useEffect(() => () => mutation.current?.abort(), []);
@@ -125,7 +128,9 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
       {settingsOpen && <section className="business-instance-binding" id="business-instance-settings" aria-label={text("Dashboard settings", "仪表盘设置")}><h2>{text("Dashboard settings", "仪表盘设置")}<span>{mode === "inherit" ? text("Live template", "继承模板") : mode === "independent" ? text("Custom panels", "自定义面板") : text("Built-in panels", "内置面板")}</span></h2>
       {canAdmin && resolved.host && <div className="business-host-association"><Field label={text("Physical host", "所属物理主机")}><select aria-label={text("Physical host", "所属物理主机")} value={hostChoice} onChange={event => setHostChoice(event.target.value)}><option value="">{text("Not associated", "暂不关联")}</option>{hostOptions.map(option => <option key={`${option.kind}:${option.id}`} value={`${option.kind}:${option.id}`}>{option.name} · {option.kind === "managed_host" ? text("Host agent", "主机采集器") : text("Node exporter", "主机指标采集")}</option>)}</select></Field><Button disabled={busy || !hostOptions.length} onClick={() => void bindHost()}>{text("Save host association", "保存主机关联")}</Button><p className="subtle">{text("Choose the actual machine running this instance. Shared egress IPs do not identify a host.", "请选择实际运行此实例的机器，共用公网出口不代表同一台主机。")}</p></div>}
       {canEdit && <div className="business-instance-actions"><Button disabled={busy} onClick={() => void copy()}><Copy size={15} />{text("Save independent copy", "另存独立副本")}</Button>{mode === "independent" && <Button disabled={busy} onClick={() => open(dashboard)}>{text("Edit independent dashboard", "编辑独立仪表盘")}</Button>}{mode === "inherit" && <Button disabled={busy} onClick={() => { const source = dashboards.find(value => value.id === item.binding.dashboard_id); if (source) open(source); }}>{text("Edit shared template", "编辑共享模板")}</Button>}<details><summary>{text("Template binding", "模板绑定")}</summary><p className="subtle">{text("Inheritance follows the latest template. Save a copy for independent panel edits.", "继承会跟随模板最新版，另存副本后可独立编辑图表。")}</p><Field label={text("Native dashboard template", "原生仪表盘模板")}><select value={template} aria-label={text("Native dashboard template", "原生仪表盘模板")} onChange={event => setTemplate(event.target.value)}><option value="">{text("Choose a dashboard", "选择仪表盘")}</option>{dashboards.filter(value => !value.grafana).map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></Field><Button disabled={busy || !template} onClick={() => void bind("inherit", template)}>{text("Use live template", "使用实时模板")}</Button><Button disabled={busy || mode === "default"} onClick={() => void bind("default", "")}>{text("Reset built-in view", "恢复内置视图")}</Button></details></div>}</section>}
-      <div className="business-detail-navigation"><div className="business-instance-tabs" role="group" aria-label={text("Instance sections", "实例区块")}>{([ ["overview", text("Overview", "总览")], ["regions", text("Player regions · all", "玩家地区 · 全部")], ["sql", text("SQL diagnostics", "SQL 诊断")]] as const).filter(([key]) => (item.identity.role !== "gateway" || key === "overview") && (item.identity.role !== "sdk" || key !== "regions")).map(([key, label]) => <Button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</Button>)}</div>{tab === "overview" && <div className="business-range-controls"><TimeRangePicker value={range} onChange={changeRange} /><label className="business-panel-size"><span>{text("Panels", "面板大小")}</span><select aria-label={text("Panel size", "面板大小")} value={large ? "large" : "normal"} onChange={event => setLarge(event.target.value === "large")}><option value="normal">{text("Comfortable", "舒适")}</option><option value="large">{text("Large", "大面板")}</option></select></label></div>}</div>
+      <div className="business-instance-description"><p>{item.note?.description || text("No note", "暂无备注")}</p>{canEdit && <Button fill="text" onClick={() => setNoteOpen(true)}><Pencil size={14} />{text("Edit note", "编辑备注")}</Button>}</div>
+      {noteOpen && <BusinessNoteEditor item={item} close={() => setNoteOpen(false)} saved={note => { setRecord(value => value ? { ...value, note } : value); setResolved(value => value ? { ...value, instance: { ...value.instance, note } } : value); setRevision(value => value + 1); }} />}
+      <div className="business-detail-navigation"><div className="business-instance-tabs" role="group" aria-label={text("Instance sections", "实例区块")}>{([ ["overview", text("Overview", "总览")], ["network", text("Network traffic", "网络流量")], ["regions", text("Player regions · all", "玩家地区 · 全部")], ["sql", text("SQL diagnostics", "SQL 诊断")]] as const).filter(([key]) => (item.identity.role !== "gateway" || key === "overview" || key === "network") && (item.identity.role !== "sdk" || key !== "regions")).map(([key, label]) => <Button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</Button>)}</div>{tab === "overview" && <div className="business-range-controls"><TimeRangePicker value={range} onChange={changeRange} /><label className="business-panel-size"><span>{text("Panels", "面板大小")}</span><select aria-label={text("Panel size", "面板大小")} value={large ? "large" : "normal"} onChange={event => setLarge(event.target.value === "large")}><option value="normal">{text("Comfortable", "舒适")}</option><option value="large">{text("Large", "大面板")}</option></select></label></div>}</div>
       {Date.now() - item.last_seen > 90000 && <Alert severity="warning" title={text("Instance reporting is stale", "实例上报已超过90秒")}>
         {text("The last samples may belong to an earlier process. Historical curves do not establish current server availability.", `最近上报：${timeAgo(item.last_seen)}。当前值等待新采样，历史曲线不代表服务仍在线，请检查上报链路。`)}
       </Alert>}
@@ -135,7 +140,8 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
         {resolved.host_error ? <p role="status">{text("Host data is temporarily unavailable. Process metrics remain below.", "主机资源暂时读取失败，下方保留进程指标。")}</p> : resolved.host?.available ? resolved.host.binding.kind === "managed_host" ? <HostResources compact large={large} id={resolved.host.binding.id} resources={resolved.host.resources} enabled={resolved.host.enabled} interval={resolved.host.interval_seconds} rules={resolved.host.rules || []} rulesState="ready" /> : resolved.host.dashboard ? <InstanceNativePanels dashboard={!resolved.host.enabled || Date.now() - resolved.host.last_seen > Math.max(90000, resolved.host.interval_seconds * 3000) ? { ...resolved.host.dashboard, panels: resolved.host.dashboard.panels.filter(panel => panel.visualization === "timeseries") } : resolved.host.dashboard} builtin={false} hostView large={large} range={range} setRange={changeRange} tick={revision + tick} /> : null : <p className="business-host-empty">{text("Associate the machine in Dashboard settings to see its CPU, memory and disk. Process resource usage is shown below.", "在“仪表盘设置”关联实际主机后，这里显示整机 CPU、内存和磁盘。下方是当前服务进程的资源占用。")}</p>}</section>
         {resolved.process_dashboard && <InstanceNativePanels dashboard={resolved.process_dashboard} builtin={true} large={large} range={range} setRange={changeRange} tick={revision + tick} />}
         <InstanceNativePanels key={dashboard.id} dashboard={dashboard} builtin={mode === "default"} large={large} range={range} setRange={changeRange} tick={revision + tick} /></>}
-      {tab !== "overview" && <BusinessDataTable key={`${id}:${tab}`} id={id} kind={tab} tick={tick} refresh={revision} />}
+      {tab === "network" && <Suspense fallback={<p role="status">{text("Loading network traffic…", "正在加载网络流量…")}</p>}><BusinessNetwork id={id} tick={tick + revision} /></Suspense>}
+      {(tab === "regions" || tab === "sql") && <BusinessDataTable key={`${id}:${tab}`} id={id} kind={tab} tick={tick} refresh={revision} />}
       {tab === "sql" && <SlowSQL id={id} tick={tick + revision} />}
 
     </>}

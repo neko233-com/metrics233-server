@@ -6,19 +6,23 @@
     "Segoe UI",
     "Microsoft YaHei UI",
     sans-serif;
-  color: #edf2f7;
-  background: #0d141b;
+  color: #e6edf3;
+  background: #0d1117;
   font-synthesis: none;
   font-weight: 400;
-  --canvas: #0d141b;
-  --sidebar: #101922;
-  --surface: #141e28;
-  --border: #293747;
-  --muted: #99aabb;
-  --text-secondary: #99aabd;
-  --accent: #38bfc4;
-  --orange: #38bfc4;
-  --green: #39c98a;
+  --canvas: #0d1117;
+  --sidebar: #0d1117;
+  --surface: #161b22;
+  --elevated: #21262d;
+  --border: #30363d;
+  --muted: #8b949e;
+  --text-secondary: #9da7b1;
+  --accent: #3fb950;
+  --primary: #238636;
+  --link: #58a6ff;
+  --orange: #3fb950;
+  --green: #3fb950;
+  --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
   color-scheme: dark;
 }
 .annotation-dialog {
@@ -95,10 +99,10 @@ button {
   gap: 9px;
   min-height: 42px;
   padding: 9px 15px;
-  border: 1px solid #344351;
+  border: 1px solid var(--border);
   border-radius: 6px;
-  background: #1c2732;
-  color: #edf2f7;
+  background: var(--elevated);
+  color: #e6edf3;
   font-size: 14px;
   font-weight: 500;
   cursor: pointer;
@@ -108,8 +112,8 @@ button {
     transform 0.16s;
 }
 button:hover {
-  background: #2c3442;
-  border-color: #596578;
+  background: #30363d;
+  border-color: #8b949e;
 }
 button:active {
   transform: translateY(1px);
@@ -119,13 +123,13 @@ button:disabled {
   cursor: wait;
 }
 button.primary {
-  background: var(--orange);
-  border-color: var(--orange);
-  color: #16181e;
+  background: var(--primary);
+  border-color: #2ea043;
+  color: #ffffff;
   font-weight: 650;
 }
 button.primary:hover {
-  background: #70d1d4;
+  background: #2ea043;
 }
 button.danger {
   background: #a83943;
@@ -153,7 +157,7 @@ button.icon-button.outlined {
   height: 44px;
   width: 47px;
   border-color: #3a4353;
-  background: #202630;
+  background: var(--elevated);
 }
 .danger-hover:hover {
   color: #ff9b9b !important;
@@ -290,7 +294,7 @@ pre {
   inset: 0 auto 0 0;
   width: 262px;
   background: var(--sidebar);
-  border-right: 1px solid #2b313e;
+  border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   z-index: 20;
@@ -339,7 +343,7 @@ pre {
 }
 .sidebar nav button.active,
 .sidebar nav .app-nav-link[aria-current="page"] {
-  background: #ff945715;
+  background: #23863618;
   color: var(--orange);
 }
 .sidebar nav button.active:before {
@@ -353,7 +357,7 @@ pre {
 }
 .workspace {
   margin-top: auto;
-  border-top: 1px solid #2b313e;
+  border-top: 1px solid var(--border);
   padding: 28px 26px;
   display: flex;
   align-items: flex-start;
@@ -466,7 +470,7 @@ pre {
   padding: 16px 8px;
   margin-bottom: 16px;
   min-height: 111px;
-  background: #191e26;
+  background: var(--surface);
 }
 .stats-band > div {
   padding: 8px 19px;
@@ -719,7 +723,7 @@ pre {
   z-index: 1;
   padding: 7px 10px;
   color: #9eacc1;
-  background: #191e26;
+  background: var(--surface);
   border-bottom: 1px solid var(--border);
   text-align: left;
   white-space: nowrap;
@@ -750,7 +754,7 @@ pre {
   bottom: 0;
   padding: 7px 10px;
   border-top: 1px solid #3a4353;
-  background: #191e26;
+  background: var(--surface);
   color: #dbe4f1;
   font-weight: 600;
 }
@@ -769,7 +773,7 @@ pre {
 .native-data-table-pagination button {
   padding: 4px 8px;
   color: #dbe4f1;
-  background: #222a35;
+  background: var(--elevated);
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
@@ -815,7 +819,7 @@ pre {
 .status-panel {
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #191e26;
+  background: var(--surface);
   overflow: hidden;
   min-width: 0;
 }
@@ -889,7 +893,7 @@ pre {
   text-align: center;
   font-size: 13px;
   color: #b0bdd3;
-  background: #191e26de;
+  background: #161b22de;
   padding: 10px;
 }
 .chart-tooltip {
@@ -971,7 +975,7 @@ pre {
   border-radius: 6px;
   padding: 14px 18px;
   min-height: 76px;
-  background: #191e26;
+  background: var(--surface);
 }
 .agent-strip > svg {
   flex-shrink: 0;
@@ -983,7 +987,7 @@ pre {
 }
 .agent-strip code {
   padding: 14px;
-  background: #121720;
+  background: var(--canvas);
   border: 1px solid #303b4e;
   border-radius: 5px;
   font-size: 12px;
@@ -1049,7 +1053,7 @@ tbody tr:hover {
   border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
-  background: #191e26;
+  background: var(--surface);
 }
 .row-actions {
   display: flex;
@@ -1140,7 +1144,7 @@ tbody tr:hover {
   padding: 22px;
   border: 1px solid var(--border);
   border-radius: 6px;
-  background: #191e26;
+  background: var(--surface);
   margin-bottom: 20px;
 }
 .query-fields {
@@ -1167,7 +1171,7 @@ tbody tr:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #121720;
+  background: var(--canvas);
   border: 1px solid #364155;
   border-radius: 5px;
   padding: 0 12px;
@@ -1221,7 +1225,7 @@ tbody tr:hover {
   font-size: 13px;
   line-height: 1.8;
   border: 1px solid #2f3a4d;
-  background: #121720;
+  background: var(--canvas);
   padding: 18px 20px;
   border-radius: 6px;
   margin: 0;
@@ -1248,7 +1252,7 @@ textarea {
   width: 100%;
   padding: 10px 12px;
   min-height: 42px;
-  background: #121720;
+  background: var(--canvas);
   border: 1px solid #3a4456;
   border-radius: 5px;
   color: #ecf0fa;
@@ -1290,7 +1294,7 @@ textarea {
   accent-color: var(--orange);
 }
 dialog {
-  background: #1b2029;
+  background: var(--surface);
   border: 1px solid #3b4659;
   box-shadow: 0 24px 90px #0008;
   border-radius: 10px;
@@ -2560,7 +2564,7 @@ dialog::backdrop {
   padding: 10px 12px;
   border: 1px solid #3a4353;
   border-radius: 5px;
-  background: #1b2029;
+  background: var(--surface);
 }
 .mp-alert strong {
   display: block;
@@ -2641,7 +2645,7 @@ dialog::backdrop {
   overflow: hidden;
   border: 1px solid #3a4353;
   border-radius: 8px;
-  background: #1b2029;
+  background: var(--surface);
   box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
 }
 .mp-modal-header {
@@ -2649,7 +2653,7 @@ dialog::backdrop {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid #303744;
+  border-bottom: 1px solid var(--border);
 }
 .mp-modal-header h2 {
   margin: 0;
@@ -2663,7 +2667,7 @@ dialog::backdrop {
 /* Shared operations chrome: one hierarchy across monitoring, metadata and settings. */
 .topbar { background: var(--canvas); border-color: var(--border); }
 .sidebar nav .app-nav-link[aria-current="page"], .sidebar nav button.active {
-  background: #18323d; color: #e5f8fa; border-radius: 6px; box-shadow: inset 2px 0 var(--accent);
+  background: #23863618; color: #e6edf3; border-radius: 6px; box-shadow: inset 2px 0 var(--accent);
 }
 .sidebar nav .app-nav-link, .sidebar nav button { width: calc(100% - 20px); margin-inline: 10px; padding-inline: 14px; }
 .nav-group-title { color: #7e92a5; font-size: 10px; letter-spacing: .08em; }
@@ -2673,7 +2677,7 @@ dialog::backdrop {
 .panel-heading h2 { font-size: 15px; letter-spacing: -.15px; }
 .status.warning { color: #edb84b; }
 .status.critical, .form-error { color: #f58c94; }
-input, select, textarea { border-color: #344351; background-color: #101820; color: #edf2f7; border-radius: 5px; }
+input, select, textarea { border-color: var(--border); background-color: var(--canvas); color: #e6edf3; border-radius: 6px; }
 input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, a:focus-visible, summary:focus-visible {
   outline: 2px solid var(--accent); outline-offset: 3px;
 }
