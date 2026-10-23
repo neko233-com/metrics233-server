@@ -1,5 +1,19 @@
 # Project status and progress protocol
 
+### 2026-10-23 — Card release and sanitizer patch
+
+The immutable 0.2.23 worker for `6d0eae8fd08350e5cbba9a3cb77fa13be4291b97` passed all Go tests,
+frontend 169 units/build, readiness and artifact checks, and deployment 438 succeeded. The existing LAN
+collector upgrade was installed; installation acknowledgement and first network heartbeat are separate checks.
+Final production Edge interaction and network acceptance are still being verified.
+
+The publication audit reported DOMPurify 3.4.16 advisories. Our text-panel call sanitizes strings with the HTML
+profile; it does not enable `SAFE_FOR_TEMPLATES`, DOM-return modes, hooks or XHTML parsing. No exploitation of
+this call was established. The dependency is nevertheless upgraded narrowly to 3.4.17, the
+[maintainer's patched release](https://github.com/cure53/DOMPurify/releases/tag/3.4.17). npm audit then reports
+zero known vulnerabilities; this is a dependency advisory check, not a general security certification.
+The patched immutable production release remains a separate gate.
+
 ### 2026-10-23 — Instance cards and independent console/visualization themes
 
 Global directory filters and counts precede pagination; freeform notes use a separate Editor CAS revision.
