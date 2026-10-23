@@ -1,5 +1,10 @@
 # Project status and progress protocol
 
+### 2026-10-23 — Bounded slow SQL diagnostics and transport metrics
+
+Native slow SQL counters now feed an exact-instance read API with redacted template variants, bounded Levenshtein groups and table summaries. SDK identities have process/HTTP/WebSocket/RPC panels and do not claim player populations. Targeted real HTTP/auth/instance-isolation/SQL grouping tests and TypeScript compilation passed. Producer lifecycle and TLS ACK tests passed separately. Edge validation, clean fixed-source worker checks and production rollout remain separate acceptance gates; see docs/slow-sql.md.
+
+
 Updated: 2026-10-23. This file is the durable progress ledger. Update it whenever a progress unit completes.
 
 ### 2026-10-23 — Console layout and current-value display

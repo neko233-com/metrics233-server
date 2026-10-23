@@ -228,6 +228,7 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 	api.HandleFunc("GET /api/v1/query", s.query)
 	s.reportingRoutes(api)
 	s.businessRoutes(api)
+	s.slowSQLRoutes(api)
 	api.HandleFunc("POST /api/v1/ingest", s.reportingIngest("json", func(w http.ResponseWriter, r *http.Request) {
 		var v struct {
 			Samples []model.Sample `json:"samples"`
