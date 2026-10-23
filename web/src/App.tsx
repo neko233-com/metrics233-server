@@ -1,4 +1,5 @@
 import { BrowserClock } from "./ui/BrowserClock";
+import { PageRecoveryBoundary } from "./ui/PageRecoveryBoundary";
 import { t as tr } from "./i18n";
 import { getLocale, setLocale, type Locale } from "./i18n";
 import {
@@ -895,6 +896,7 @@ export default function App() {
           </div>
         </header>
         <main>
+          <PageRecoveryBoundary key={view}>
           <Suspense fallback={<p role="status">{tr("Loading…")}</p>}>
           {rangeError && (
             <p className="form-error" role="alert">
@@ -997,6 +999,7 @@ export default function App() {
             <Users notify={notify} currentUser={user} />
           )}
           </Suspense>
+          </PageRecoveryBoundary>
         </main>
       </div>
       {notice && (

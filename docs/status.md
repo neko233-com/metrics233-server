@@ -1,5 +1,15 @@
 # Project status and progress protocol
 
+### 2026-10-23 — Publication resilience regressions
+
+Edge reproduced a blank page when a stale client requested a removed lazy asset. A page recovery boundary now
+keeps the application navigation/session controls visible and offers explicit refresh, without automatically
+discarding edits or exposing the exception. Its fallback/recovery unit and TypeScript checks passed.
+A full worker run also exposed an existing ANN recall failure. A failing queued-bridge regression identified
+premature termination; min-heap maximum pruning was independently incorrect. Both are fixed without reducing
+the recall assertion. Vector-store/HNSW suites and 30 consecutive original recall checks passed. The exact
+fixed-source production worker and final browser acceptance remain separate gates.
+
 ### 2026-10-23 — Bounded slow SQL diagnostics and transport metrics
 
 Native slow SQL counters now feed an exact-instance read API with redacted template variants, bounded Levenshtein groups and table summaries. SDK identities have process/HTTP/WebSocket/RPC panels and do not claim player populations. Targeted real HTTP/auth/instance-isolation/SQL grouping tests and TypeScript compilation passed. Producer lifecycle and TLS ACK tests passed separately. Edge validation, clean fixed-source worker checks and production rollout remain separate acceptance gates; see docs/slow-sql.md.

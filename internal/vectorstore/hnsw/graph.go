@@ -88,8 +88,9 @@ func (n *layerNode[K]) search(
 	target Vector,
 	distance DistanceFunc,
 ) []searchCandidate[K] {
-	// This is a basic greedy algorithm to find the entry point at the given level
-	// that is closest to the target node.
+	// Keep the configured search beam, rather than stopping at the first node
+	// whose immediate neighbors do not improve the single best result.
+	efSearch = max(k, efSearch)
 	candidates := heap.Heap[searchCandidate[K]]{}
 	candidates.Init(make([]searchCandidate[K], 0, efSearch))
 	candidates.Push(
@@ -102,17 +103,18 @@ func (n *layerNode[K]) search(
 		result  = heap.Heap[searchCandidate[K]]{}
 		visited = make(map[K]bool)
 	)
-	result.Init(make([]searchCandidate[K], 0, k))
+	result.Init(make([]searchCandidate[K], 0, efSearch))
 
 	// Begin with the entry node in the result set.
 	result.Push(candidates.Min())
 	visited[n.Key] = true
 
 	for candidates.Len() > 0 {
-		var (
-			current  = candidates.Pop().node
-			improved = false
-		)
+		candidate := candidates.Pop()
+		if result.Len() >= efSearch && candidate.dist > result.Max().dist {
+			break
+		}
+		current := candidate.node
 
 		// We iterate the map in a sorted, deterministic fashion for
 		// tests.
@@ -126,29 +128,27 @@ func (n *layerNode[K]) search(
 			visited[neighborID] = true
 
 			dist := distance(neighbor.Value, target)
-			improved = improved || dist < result.Min().dist
-			if result.Len() < k {
-				result.Push(searchCandidate[K]{node: neighbor, dist: dist})
-			} else if dist < result.Max().dist {
-				result.PopLast()
-				result.Push(searchCandidate[K]{node: neighbor, dist: dist})
+			if result.Len() < efSearch || dist < result.Max().dist {
+				next := searchCandidate[K]{node: neighbor, dist: dist}
+				result.Push(next)
+				if result.Len() > efSearch {
+					result.PopLast()
+				}
+				candidates.Push(next)
+				if candidates.Len() > efSearch {
+					candidates.PopLast()
+				}
 			}
-
-			candidates.Push(searchCandidate[K]{node: neighbor, dist: dist})
-			// Always store candidates if we haven't reached the limit.
-			if candidates.Len() > efSearch {
-				candidates.PopLast()
-			}
-		}
-
-		// Termination condition: no improvement in distance and at least
-		// kMin candidates in the result set.
-		if !improved && result.Len() >= k {
-			break
 		}
 	}
-
-	return result.Slice()
+	out := result.Slice()
+	slices.SortFunc(out, func(a, b searchCandidate[K]) int {
+		if order := cmp.Compare(a.dist, b.dist); order != 0 {
+			return order
+		}
+		return cmp.Compare(a.node.Key, b.node.Key)
+	})
+	return out[:min(k, len(out))]
 }
 
 func (n *layerNode[K]) replenish(m int, dist DistanceFunc) {

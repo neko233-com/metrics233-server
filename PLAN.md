@@ -1,5 +1,7 @@
 # metrics233-server 执行计划
 
+- [x] 发布资源恢复与 ANN 搜索正确性：页面异常保留导航与手动刷新入口；修复仍有候选时提前退出及错误剪枝。桥接反例先失败后通过，保留原召回断言，30 次连续召回与向量包回归、前端恢复用例/类型检查通过；固定源码生产验证另列。
+
 ### 2026-10-23 — Bounded slow SQL diagnostics and transport metrics
 
 Native slow SQL counters now feed an exact-instance read API with redacted template variants, bounded Levenshtein groups and table summaries. SDK identities have process/HTTP/WebSocket/RPC panels and do not claim player populations. Targeted real HTTP/auth/instance-isolation/SQL grouping tests and TypeScript compilation passed. Producer lifecycle and TLS ACK tests passed separately. Edge validation, clean fixed-source worker checks and production rollout remain separate acceptance gates; see docs/slow-sql.md.

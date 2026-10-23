@@ -9,3 +9,8 @@ The adaptation uses standard-library maps, scalar Float64-accumulated distances 
 behavior, and the configured metric during deletion/replenishment instead of a hard-coded cosine metric.
 Numeric graph keys keep neighbor identity storage bounded. No platform-specific persistence or SIMD dependency
 is included. Persistence, nearest-neighbor recall, filters and deletion require tests at the owning-store layer.
+
+Layer search retains the configured `EfSearch` beam until the best remaining candidate is worse than its
+worst retained neighbor. A local plateau cannot discard queued bridges. The min-heap's last leaf is not
+assumed to be its maximum: bounded pruning scans the beam for the true maximum, and returned candidates
+are sorted by distance and key. Bridge/pruning regressions and repeated store-level recall checks cover this.
