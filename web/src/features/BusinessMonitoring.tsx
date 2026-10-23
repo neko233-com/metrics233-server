@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState, type FormEvent } from "react";
-import { Activity, ArrowRight, Copy, RefreshCw } from "lucide-react";
+import { Activity, ArrowRight, Copy } from "lucide-react";
 import { api, jsonBody, message, parseLabels, type Dashboard, type Metric, type Panel } from "../api";
 import { getLocale } from "../i18n";
 import { Alert, Button, Field, Input } from "../ui";
@@ -66,10 +66,6 @@ export default function BusinessMonitoring({ metrics, dashboards, reload, open, 
   }
 
   return <>
-    <div className="page-heading">
-      <div><h1>{text("Dashboards", "仪表盘")}</h1></div>
-      <Button disabled={busy} onClick={async () => { setError(""); try { await reload(); } catch (cause) { setError(message(cause)); } }}><RefreshCw size={16} />{text("Refresh metrics", "刷新指标")}</Button>
-    </div>
     {error && <Alert severity="error" title={text("Request failed", "操作失败")}>{error}</Alert>}
     <Suspense fallback={<p role="status">{text("Loading instances…", "正在加载实例…")}</p>}><BusinessInstances dashboards={dashboards} open={open} reload={reload} tick={tick} /></Suspense>
     <details className="business-setup"><summary>{text("Connect metrics or create a template", "接入指标或创建模板")}</summary><div className="business-grid">

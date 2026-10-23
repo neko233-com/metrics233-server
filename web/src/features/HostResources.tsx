@@ -80,13 +80,14 @@ function HostTrends({ id, observedAt, enabled, rules }: { id: string; observedAt
   })}</div>;
 }
 
-export function HostResources({ id, resources, enabled, interval, rules = [], rulesState = "loading" }: { id: string; resources?: HostResourcesData; enabled: boolean; interval: number; rules?: HostAlertRule[]; rulesState?: "loading" | "ready" | "error" }) {
+export function HostResources({ id, resources, enabled, interval, rules = [], rulesState = "loading", compact = false, large = false }: { id: string; resources?: HostResourcesData; enabled: boolean; interval: number; rules?: HostAlertRule[]; rulesState?: "loading" | "ready" | "error"; compact?: boolean; large?: boolean }) {
+  const [historyOpen, setHistoryOpen] = useState(!compact);
   const hostRules = useMemo(() => rules.filter(rule => rule?.labels?.managed_host === id), [rules, id]);
   const fresh = !!resources && Date.now() - resources.observed_at <= Math.max(90000, interval * 3000);
   const active = enabled && fresh;
   const worst = resources?.disks.reduce<HostResourcesData["disks"][number] | null>((a, b) => !a || b.used_percent > a.used_percent ? b : a, null);
   const values = [resources?.cpu_percent ?? null, resources?.memory_percent ?? null, worst?.used_percent ?? null];
-  return <div className="host-resources">
+  return <div className={`host-resources${large ? " host-resources-large" : ""}`}>
     {!resources ? <p className="host-resource-note">{text("Host resources appear after updating the collector. Database collection continues independently.", "更新采集器后显示主机资源，数据库采集独立运行。")}</p> : null}
     <div className="host-instruments">{specs.map((spec, i) => {
       const value = values[i];
@@ -94,21 +95,21 @@ export function HostResources({ id, resources, enabled, interval, rules = [], ru
       const warning = policy?.threshold ?? spec.warning, serious = critical?.threshold ?? 95;
       const state = value == null ? undefined : value >= serious ? text("Very high now", "当前占用很高") : value >= warning ? text("Elevated now", "当前占用偏高") : i === 2 ? text("Plenty of space", "空间充足") : text("Normal now", "当前占用正常");
       return <section className="host-instrument" key={spec.name}>
-        <h3>{i === 0 ? text("CPU · processor load", "CPU · 处理器忙碌程度") : i === 1 ? text("Memory · used capacity", "内存 · 程序占用") : text("Disk · used space", "磁盘 · 空间占用")}</h3>
-        <p className="host-instrument-description">{i === 0 ? text("Lower means more processing capacity is available", "数值越低，处理任务的余力越多") : i === 1 ? text("How much memory programs are using", "看程序占用了多少，还能用多少") : text("Shows the local disk closest to being full", "看最满的一块本地盘，是否需要腾空间")}</p>
+        <h3>{i === 0 ? text("CPU · processor load", "CPU 使用率") : i === 1 ? text("Memory · used capacity", "内存使用率") : text("Disk · used space", "磁盘容量占用 · 最满分区")}</h3>
+        <p className="host-instrument-description">{i === 0 ? text("Lower means more processing capacity is available", "整台主机的 CPU 占用") : i === 1 ? text("How much memory programs are using", "已用 = 总内存 − 当前可用内存") : text("Shows the local disk closest to being full", "总容量减可用空间，包含保留空间")}</p>
         <RiskGauge value={value} label={`${resourceName(spec.name)} ${text("usage", "使用率")}`} stale={!!resources && !active} steps={[...bands(warning).slice(0, 2), { value: serious, color: "red" }]} caption={state} />
         <div className="host-capacity">{value == null ? <span>{text("No valid capacity observation", "暂无有效容量采样")}</span> : i === 0 ? <><strong>{resources?.cores || "—"} {text("logical cores", "逻辑核")}</strong><span>{active && value != null ? text(`${(100 - value).toFixed(1)}% processing capacity idle`, `当前还有 ${(100 - value).toFixed(1)}% 算力空闲`) : text("Waiting for a fresh observation", "等待新采样后判断")}</span></> : i === 1 && resources ? <><strong>{text("Available", "还可用")} {formatValue(resources.memory_available, "bytes")}</strong><span>{text("Used", "已用")} {formatValue(resources.memory_total - resources.memory_available, "bytes")} / {text("Total", "总共")} {formatValue(resources.memory_total, "bytes")}</span></> : worst ? <><strong>{text("Free", "还剩")} {formatValue(worst.available, "bytes")}</strong><span>{hostDiskName(worst.mountpoint)} · {text("Total", "总共")} {formatValue(worst.total, "bytes")}</span></> : "—"}</div>
         {!active && resources ? <p className="host-sample-warning">{text("Previous capacity observation; refresh before making changes", "容量为上次采样，请恢复采集后再判断")}</p> : null}
       </section>;
     })}</div>
-    <HostTrends id={id} observedAt={resources?.observed_at || 0} enabled={enabled} rules={hostRules} />
+    <details className="host-history" open={historyOpen} onToggle={event => setHistoryOpen(event.currentTarget.open)}><summary>{text("Resource trends · last 60 minutes", "资源趋势 · 最近60分钟")}</summary>{historyOpen && <HostTrends id={id} observedAt={resources?.observed_at || 0} enabled={enabled} rules={hostRules} />}</details>
     <div className="host-resource-footer">
-      <section className="host-disk-section"><h3>{text("Writable disks", "可写磁盘")}</h3>
+      <details className="host-disk-section"><summary>{text("All writable disks", "全部可写磁盘")} · {resources?.disks.length || 0}</summary>
         {resources?.disks.length ? <div className="host-disk-table"><table><thead><tr><th>{text("Disk", "磁盘")}</th><th>{text("Capacity", "总容量")}</th><th>{text("Available", "还剩")}</th><th>{text("Used", "已用比例")}</th></tr></thead>
-          <tbody>{resources.disks.map(disk => <tr key={disk.mountpoint + disk.device}><td title={`${disk.mountpoint} · ${disk.device} · ${disk.fstype}`}>{hostDiskName(disk.mountpoint)}</td><td>{formatValue(disk.total, "bytes")}</td><td>{formatValue(disk.available, "bytes")}</td><td><span className={disk.used_percent >= 95 ? "host-risk-critical" : disk.used_percent >= 85 ? "host-risk-warning" : "host-risk-normal"}>{disk.used_percent.toFixed(1)}%</span><progress max="100" value={disk.used_percent} aria-label={hostDiskName(disk.mountpoint)} /></td></tr>)}</tbody></table></div> : <p className="subtle">{text("No valid disk sample", "暂无有效磁盘采样")}</p>}
+          <tbody>{resources.disks.map(disk => <tr key={disk.mountpoint + disk.device}><td title={`${disk.mountpoint} · ${disk.device} · ${disk.fstype}`}>{hostDiskName(disk.mountpoint)}<small className="host-disk-mount">{disk.mountpoint}</small></td><td>{formatValue(disk.total, "bytes")}</td><td>{formatValue(disk.available, "bytes")}</td><td><span className={disk.used_percent >= 95 ? "host-risk-critical" : disk.used_percent >= 85 ? "host-risk-warning" : "host-risk-normal"}>{disk.used_percent.toFixed(1)}%</span><progress max="100" value={disk.used_percent} aria-label={hostDiskName(disk.mountpoint)} /></td></tr>)}</tbody></table></div> : <p className="subtle">{text("No valid disk sample", "暂无有效磁盘采样")}</p>}
         {resources ? <div className="host-sampling-summary"><div><span>{text("Host uptime", "主机已运行")}</span><strong>{formatValue(resources.uptime, "uptime")}</strong></div><div><span>{text("Latest observation", "最近采样")}</span><strong>{timeAgo(resources.observed_at)}</strong></div></div> : null}
-      </section>
-      <section className="host-resource-legend host-alert-explanation"><h3>{text("When will I be notified?", "什么时候会提醒我？")}</h3>
+      </details>
+      <details className="host-resource-legend host-alert-explanation"><summary>{text("Resource alerts", "资源告警")}</summary>
         <p>{text("Crossing a line alone does not send an alert; the configured duration must also be met.", "超过提醒线不等于马上报警，还要满足下面的持续时间。")}</p>
         {rulesState !== "ready" ? <p role="status">{rulesState === "error" ? text("Rules unavailable. Open Alerts to verify the current policy.", "暂时无法读取规则，请到告警页核对。") : text("Reading configured alert rules…", "正在读取已配置的告警规则…")}</p> : specs.map(spec => {
           const policy = hostAlertPolicy(hostRules, id, spec.name.toLowerCase());
@@ -116,8 +117,8 @@ export function HostResources({ id, resources, enabled, interval, rules = [], ru
           return <div key={spec.name} className="host-alert-rule"><strong>{resourceName(spec.name)}</strong>{policy ? <div><span>{text(`Above ${policy.threshold}% for ${duration(policy.pending)} before notifying`, `超过 ${policy.threshold}%，连续 ${duration(policy.pending)} 才提醒`)}</span><small>{text(`Recovery: below ${policy.recovery}% for ${duration(policy.recovering)}; cooldown ${duration(policy.cooldown)}`, `恢复：低于 ${policy.recovery}%，连续 ${duration(policy.recovering)}；同类提醒冷却 ${duration(policy.cooldown)}`)}</small>{critical ? <small>{text(`Critical: above ${critical.threshold}% for ${duration(critical.pending)}`, `严重：超过 ${critical.threshold}%，连续 ${duration(critical.pending)}`)}</small> : null}</div> : <span>{text("No standard sustained rule; check Alerts for custom or paused rules", "未启用标准持续规则，自定义或暂停规则请到告警页查看")}</span>}</div>;
         })}
         <a className="host-alert-link" href="#alerts">{text("View or change alert rules →", "查看或调整告警规则 →")}</a>
-      </section>
+      </details>
     </div>
-    <details className="host-reading-details"><summary>{text("Sampling details and technical information", "采样口径与技术信息")}</summary><p>{text("Memory excludes reclaimable pages. Shared APFS capacity is counted once. Green means low current usage, amber elevated, red critical; these colors alone do not mean an alert was sent.", "内存按不可立即回收的占用计算；APFS 共享空间不重复相加。绿色表示当前占用正常，黄色偏高，红色严重；变色不代表已经发送告警。")}</p><p>{resources ? `${text("Observed", "最近采样")} ${timeAgo(resources.observed_at)} · ${text("Host uptime", "主机已运行")} ${formatValue(resources.uptime, "uptime")}` : "—"}</p>{resources?.disks.map(disk => <p key={disk.mountpoint + disk.device}>{hostDiskName(disk.mountpoint)}：{disk.mountpoint} · {disk.device} · {disk.fstype}</p>)}</details>
+    <details className="host-reading-details"><summary>{text("Sampling details and technical information", "采样口径与技术信息")}</summary><p>{text("Memory excludes reclaimable pages. Shared APFS capacity is counted once. Green means low current usage, amber elevated, red critical; these colors alone do not mean an alert was sent.", "内存按总量减可用量计算，可回收缓存计入可用。磁盘按已挂载文件系统计算，仪表显示最满分区；云盘扩大后仍需扩展分区和文件系统才会增加这里的容量，另挂磁盘也不会降低原分区比例。APFS 共享空间不重复相加。颜色表示当前用量，不代表已经发送告警。")}</p><p>{resources ? `${text("Observed", "最近采样")} ${timeAgo(resources.observed_at)} · ${text("Host uptime", "主机已运行")} ${formatValue(resources.uptime, "uptime")}` : "—"}</p>{resources?.disks.map(disk => <p key={disk.mountpoint + disk.device}>{hostDiskName(disk.mountpoint)}：{disk.mountpoint} · {disk.device} · {disk.fstype}</p>)}</details>
   </div>;
 }

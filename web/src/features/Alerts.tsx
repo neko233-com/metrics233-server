@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { lazy, Suspense, useEffect, useState, type KeyboardEvent } from "react";
 import {
   Bell,
@@ -106,13 +107,7 @@ const labelText = (labels: Labels) =>
     .map(([key, value]) => `${key}=${value}`)
     .join(" · ") || t("No labels");
 const dateText = (ts: number) =>
-  new Date(ts).toLocaleString(getLocale() === "zh" ? "zh-CN" : "en", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-  });
+  formatTimestamp(ts);
 
 export function Alerts({
   tick,

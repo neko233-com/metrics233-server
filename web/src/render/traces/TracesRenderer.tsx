@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../../display-format";
 import { useEffect, useMemo, useState } from "react";
 import { ArrowDown, ArrowUp, Pencil, Search, Trash2 } from "lucide-react";
 import { t } from "../../i18n";
@@ -118,12 +119,7 @@ export default function TracesRenderer({
           : left.start - right.start,
     );
   }, [descending, query, rows, sort]);
-  const timeZone =
-    resolved.timezone === "browser"
-      ? undefined
-      : resolved.timezone === "utc"
-        ? "UTC"
-        : resolved.timezone;
+
   const traceLink = (id: string) => {
     try {
       const params = new URLSearchParams(location.search);
@@ -255,10 +251,7 @@ export default function TracesRenderer({
                   <td className="native-traces-name">{row.name || "—"}</td>
                   <td className="mono">
                     {row.start
-                      ? new Date(row.start).toLocaleString(undefined, {
-                          timeZone,
-                          hour12: false,
-                        })
+                      ? formatTimestamp(row.start)
                       : "—"}
                   </td>
                   <td className="mono native-traces-duration">

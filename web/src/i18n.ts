@@ -158,7 +158,7 @@ const zh: Record<string, string> = {
   "Library panel saved": "库面板已保存",
   "Library panel deleted": "库面板已删除",
   "Panel model must be a JSON object.": "面板模型必须为 JSON 对象。",
-  "Panel model must be under 512 KiB.": "面板模型大小必须小于 512 KiB。",
+  "Panel model must be under 524 KB.": "面板模型大小必须小于 524 KB。",
   "Changes to this model update linked panels in every dashboard.": "修改此模型会更新所有仪表盘中引用它的面板。",
   "Library panel changed while loading; reload the model.": "加载期间库面板已被修改，请重新加载模型。",
   "Unlink this panel from every dashboard before deleting it.": "删除前，请解除此面板与所有仪表盘的连接。",
@@ -333,7 +333,7 @@ const zh: Record<string, string> = {
     "使用此数据源的仪表盘将需要重新连接。",
   Removed: "已删除",
   "Plugin installed": "插件已安装",
-  "ZIP package must be under 64 MiB": "ZIP 安装包不能超过 64 MiB",
+  "ZIP package must be under 67.1 MB": "ZIP 安装包不能超过 67.1 MB",
   "Download a signed package from the Grafana catalog.":
     "从 Grafana 插件目录下载签名安装包。",
   "Plugin ID": "插件 ID",
@@ -736,8 +736,8 @@ const zh: Record<string, string> = {
   "Grafana template": "Grafana 模板",
   "Annotation queries": "注释查询",
   "Annotations & Alerts": "注释与告警",
-  "annotations must be a JSON array under 128 KiB with at most 32 queries":
-    "注释查询必须是小于 128 KiB 的 JSON 数组，最多 32 条",
+  "annotations must be a JSON array under 131 KB with at most 32 queries":
+    "注释查询必须是小于 131 KB 的 JSON 数组，最多 32 条",
   "annotation queries must be JSON objects": "注释查询必须是 JSON 对象",
   "Annotation query": "注释查询",
   "Saved annotation queries": "已保存的注释查询",
@@ -826,8 +826,8 @@ Object.assign(zh, {
   "Capturing…": "正在保存…",
   "Cancel capture": "取消保存",
   "Save the selected window and all panel data. The saved dashboard does not query its original data sources.": "保存当前时间窗口和所有面板数据，之后打开快照无需查询原数据源。",
-  "Snapshot panel exceeds 512 KiB. Choose a shorter time range.": "单个快照面板超过 512 KiB，请缩短时间范围。",
-  "Snapshot exceeds 4 MiB. Choose fewer panels or a shorter time range.": "快照超过 4 MiB，请减少面板或缩短时间范围。",
+  "Snapshot panel exceeds 524 KB. Choose a shorter time range.": "单个快照面板超过 524 KB，请缩短时间范围。",
+  "Snapshot exceeds 4.2 MB. Choose fewer panels or a shorter time range.": "快照超过 4.2 MB，请减少面板或缩短时间范围。",
   "Snapshot exceeds 500 panels. Select fewer repeat values.": "快照超过 500 个面板，请减少重复变量的选中项。",
   "Duplicate panel": "复制面板",
   Visualization: "显示类型",
@@ -986,7 +986,7 @@ Object.assign(zh, {
   "Import dashboard": "导入仪表盘", "Import source": "导入来源", "Grafana.com URL or ID": "Grafana.com 地址或 ID",
   "Dashboard JSON": "仪表盘 JSON", "Upload JSON file": "上传 JSON 文件", "Load dashboard": "加载仪表盘",
   "Community revision": "社区版本", "Dashboard UID (optional)": "仪表盘 UID（可选）", "Generate new UID": "生成新 UID",
-  "Choose datasource": "选择数据源", "Importing…": "正在导入…", "Import must be under 4 MiB": "导入文件不能超过 4 MiB",
+  "Choose datasource": "选择数据源", "Importing…": "正在导入…", "Import must be under 4.2 MB": "导入文件不能超过 4.2 MB",
   "Enter a Grafana.com dashboard ID or HTTPS URL": "请输入 Grafana.com 仪表盘 ID 或 HTTPS 地址",
   "Add a matching datasource in Plugins & datasources before importing.": "请先在“插件与数据源”中添加对应类型的数据源。",
 });

@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useEffect, useRef, useState } from "react";
 import { Clock, Pencil, Plus, RefreshCw, VolumeX, X } from "lucide-react";
 import { api, jsonBody, message } from "../api";
@@ -24,7 +25,7 @@ type Silence = {
 };
 const text = (en: string, zh: string) => (getLocale() === "zh" ? zh : en);
 const date = (value: string) =>
-  new Date(value).toLocaleString(getLocale() === "zh" ? "zh-CN" : "en");
+  formatTimestamp(value);
 const operator = (m: Matcher) =>
   `${m.isEqual === false ? "!" : "="}${m.isRegex ? "~" : m.isEqual === false ? "=" : ""}`;
 const stateLabel = (state: Silence["status"]["state"]) =>

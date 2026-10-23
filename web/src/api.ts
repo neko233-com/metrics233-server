@@ -1,4 +1,5 @@
-import { getLocale, t } from "./i18n";
+import { formatBytes, formatTimestamp } from "./display-format";
+import { getLocale } from "./i18n";
 import { resolveTimeRange, type TimeSelection } from "./grafana/time-range";
 export type Labels = Record<string, string>;
 export type Metric = { name: string; series_count: number };
@@ -320,14 +321,7 @@ export function formatValue(value: number, unit = ""): string {
 		const parts=getLocale()==="zh" ? [days?`${days}天`:"",hours||days?`${hours}小时`:"",minutes||hours||days?`${minutes}分钟`:`${seconds%60}秒`] : [days?`${days}d`:"",hours||days?`${hours}h`:"",minutes||hours||days?`${minutes}m`:`${seconds%60}s`];
 		return parts.filter(Boolean).join(" ");
 	}
-  if (unit === "bytes") {
-    const units = ["B", "KiB", "MiB", "GiB", "TiB"];
-    const index = Math.max(
-      0,
-      Math.min(4, Math.floor(Math.log(Math.max(value, 1)) / Math.log(1024))),
-    );
-    return `${(value / 1024 ** index).toLocaleString("en", { useGrouping: false, maximumFractionDigits: 1 })} ${units[index]}`;
-  }
+  if (unit === "bytes" || unit === "decbytes") return formatBytes(value);
   if (unit === "seconds") {
     const magnitude = Math.abs(value);
     if (magnitude === 0 || magnitude >= 1) return `${value.toFixed(1)} s`;
@@ -346,12 +340,8 @@ export function formatValue(value: number, unit = ""): string {
   });
   return unit === "ops" ? `${text} /s` : text;
 }
-export const timeAgo = (timestamp: number) =>
-  !timestamp
-    ? t("Pending")
-    : getLocale() === "zh"
-      ? `${Math.max(0, Math.round((Date.now() - timestamp) / 1000))}秒前`
-      : `${Math.max(0, Math.round((Date.now() - timestamp) / 1000))}s ago`;
+// Kept as an import-compatible alias; absolute local times are the console convention.
+export const timeAgo = (timestamp: number) => formatTimestamp(timestamp || undefined);
 export const duration = (ms: number) => {
   const s = Math.max(0, Math.floor(ms / 1000));
   return s > 3600

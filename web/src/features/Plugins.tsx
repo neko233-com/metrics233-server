@@ -442,7 +442,7 @@ function InstallDialog({
           try {
             if (file) {
               if (file.size > 64 * 1024 * 1024)
-                throw new Error(t("ZIP package must be under 64 MiB"));
+                throw new Error(t("ZIP package must be under 67.1 MB"));
               await api("/plugins/install", {
                 method: "POST",
                 headers: { "Content-Type": "application/zip" },

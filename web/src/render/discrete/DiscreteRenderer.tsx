@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../../display-format";
 import {
   useEffect,
   useLayoutEffect,
@@ -589,34 +590,10 @@ export function StateRenderer(props: RendererProps) {
           </div>
           <div className="native-state-axis">
             <span>
-              {new Date(from).toLocaleTimeString(
-                getLocale() === "zh" ? "zh-CN" : "en-GB",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone:
-                    range.timezone === "browser"
-                      ? undefined
-                      : range.timezone === "utc"
-                        ? "UTC"
-                        : range.timezone,
-                },
-              )}
+              {formatTimestamp(from)}
             </span>
             <span>
-              {new Date(to).toLocaleTimeString(
-                getLocale() === "zh" ? "zh-CN" : "en-GB",
-                {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  timeZone:
-                    range.timezone === "browser"
-                      ? undefined
-                      : range.timezone === "utc"
-                        ? "UTC"
-                        : range.timezone,
-                },
-              )}
+              {formatTimestamp(to)}
             </span>
           </div>
           <p className="subtle native-state-note">

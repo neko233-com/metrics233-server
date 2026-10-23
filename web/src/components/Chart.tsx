@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { getLocale, t as tr } from "../i18n";
 import {
   useEffect,
@@ -111,14 +112,7 @@ export function Chart({
   );
   const events = annotations || loadedAnnotations.events;
   const timeLabel = (timestamp: number) =>
-    new Date(timestamp).toLocaleString(locale === "zh" ? "zh-CN" : "en-GB", {
-      ...(data && data.end - data.start >= 86400000
-        ? ({ month: "short", day: "2-digit" } as const)
-        : {}),
-      hour: "2-digit",
-      minute: "2-digit",
-      timeZone: zone === "browser" ? undefined : zone === "utc" ? "UTC" : zone,
-    });
+    formatTimestamp(timestamp);
   useLayoutEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -131,7 +125,7 @@ export function Chart({
   }, [panel.visualization]);
   const plotWidth = svgWidth - 102,
     right = svgWidth - 20,
-    ticks = svgWidth < 420 ? 4 : 7;
+    ticks = Math.max(2, Math.min(7, Math.floor((svgWidth - 102) / 110) + 1));
   useEffect(() => {
     if (result) {
       setData(result);
@@ -441,10 +435,8 @@ export function Chart({
                   y2="185"
                   className="grid-line vertical"
                 />
-                <text x={x} y="209" textAnchor="middle">
-                  {timeLabel(
-                    chart.start + ((chart.end - chart.start) * i) / (ticks - 1),
-                  )}
+                <text x={x} y="202" textAnchor={i === 0 ? "start" : i === ticks - 1 ? "end" : "middle"}>
+                  {timeLabel(chart.start + ((chart.end - chart.start) * i) / (ticks - 1)).split(" ").map((part, line) => <tspan key={line} x={x} dy={line ? 13 : 0}>{part}</tspan>)}
                 </text>
               </g>
             );

@@ -10,7 +10,7 @@ func businessProcessPanels(item model.BusinessInstance) []model.Panel {
 	selector := "{${business_scope:raw}}"
 	latest := func(metric string) string {
 		m := metric + selector
-		return "(" + m + " and (timestamp(" + m + ") == scalar(max(timestamp(" + m + ")))))"
+		return "(" + m + " and (timestamp(" + m + ") == scalar(max(timestamp(" + m + ")))) and (timestamp(" + m + ") >= time() - 90))"
 	}
 	current := func(metric string) string { l := latest(metric); return "sum(" + l + ") and (count(" + l + ") == 1)" }
 	rate := func(metric string) string {

@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import {
   useCallback,
   useEffect,
@@ -767,7 +768,7 @@ export default function ManagedHosts({
               <tbody>
                 {events.items.map((item, index) => (
                   <tr key={index}>
-                    <td>{new Date(item.at).toLocaleString()}</td>
+                    <td>{formatTimestamp(item.at)}</td>
                     <td>{item.actor}</td>
                     <td>{item.action}</td>
                     <td>{item.result}</td>

@@ -4,16 +4,17 @@
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
+    "Microsoft YaHei UI",
     sans-serif;
   color: #edf2f7;
-  background: #101419;
+  background: #0d141b;
   font-synthesis: none;
   font-weight: 400;
-  --canvas: #101419;
-  --sidebar: #111820;
-  --surface: #171e27;
-  --border: #2a3542;
-  --muted: #99aabd;
+  --canvas: #0d141b;
+  --sidebar: #101922;
+  --surface: #141e28;
+  --border: #293747;
+  --muted: #99aabb;
   --text-secondary: #99aabd;
   --accent: #38bfc4;
   --orange: #38bfc4;
@@ -396,6 +397,9 @@ pre {
   padding-left: 16px;
   margin-left: 2px;
 }
+.browser-timezone { color: #b4c6d5; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.browser-clock { display: inline-flex; gap: 10px; align-items: center; font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+@media (max-width: 760px) { .browser-clock > time { display: none; } }
 .status {
   display: inline-flex;
   gap: 9px;
@@ -2675,3 +2679,25 @@ input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-
 }
 button:disabled { cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; } }
+
+/* Compact workstation chrome; navigation remains usable on narrow displays. */
+@media (min-width: 901px) {
+  .sidebar { width: 224px; }
+  .workspace-main { margin-left: 224px; width: calc(100% - 224px); }
+  .brand { padding: 24px 22px; gap: 12px; }
+  .sidebar nav button, .sidebar nav .app-nav-link { min-height: 46px; padding-block: 12px; gap: 14px; font-size: 14px; }
+  .workspace-main main { padding-inline: 32px; max-width: 1740px; }
+  .topbar { padding-inline: 32px; }
+}
+@media (max-width: 600px) {
+  .topbar-status { gap: 8px !important; }
+  .topbar-status .status, .topbar-product { display: none; }
+  .business-detail-topline { align-items: flex-start; gap: 8px; }
+  .business-detail-topline > div { justify-content: flex-end; }
+  .business-detail-topline button { font-size: 12px; padding: 8px; }
+  .business-detail-heading h1 { font-size: 25px; }
+  .business-detail-meta { flex-wrap: wrap; gap: 8px; }
+  .business-instance-detail .business-detail-navigation { align-items: stretch; }
+  .business-detail-navigation .business-instance-tabs { gap: 16px; }
+  .business-detail-navigation .business-instance-tabs button { font-size: 13px; }
+}

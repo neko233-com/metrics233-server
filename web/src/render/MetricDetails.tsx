@@ -1,7 +1,8 @@
+import { formatTimestamp } from "../display-format";
 import { useState } from "react";
 import { Info } from "lucide-react";
 import { Dialog } from "../components/Dialog";
-import { getLocale, t } from "../i18n";
+import { t } from "../i18n";
 import type { Panel } from "../api";
 import "./MetricDetails.css";
 
@@ -26,11 +27,8 @@ export function dataPointTime(values: ArrayLike<unknown>, times?: ArrayLike<unkn
   return undefined;
 }
 
-export function pointTimeText(timestamp: number | undefined, timezone = "browser") {
-  return timestamp === undefined ? "—" : new Date(timestamp).toLocaleString(getLocale() === "zh" ? "zh-CN" : "en-GB", {
-    timeZone: timezone === "browser" ? undefined : timezone === "utc" ? "UTC" : timezone,
-    hour12: false, timeZoneName: "short",
-  });
+export function pointTimeText(timestamp: number | undefined, _timezone = "browser") {
+  return formatTimestamp(timestamp);
 }
 
 const labelNames: Record<string, string> = {

@@ -49,7 +49,7 @@ export function FeishuNotificationPreview({format, title, message, disabled}: {
     <p className="notification-help">{text("Sample data only. Preview does not save settings, evaluate rules or send a group message.", "仅使用示例数据。预览不会保存配置、评估规则或向群发送消息。")}</p>
     {error ? <p className="form-error" role="alert">{error}</p> : null}
     {preview ? <section className="feishu-message-preview" aria-label={text("Feishu message preview", "飞书消息预览")}>
-      <div className="feishu-preview-caption">{text("PREVIEW · NOT SENT", "预览 · 未发送")} · {(preview.bytes / 1024).toFixed(1)} / 20 KiB</div>
+      <div className="feishu-preview-caption">{text("PREVIEW · NOT SENT", "预览 · 未发送")} · {(preview.bytes / 1000).toFixed(1)} / 20.5 KB</div>
       {preview.message.msg_type === "text" ? <pre>{preview.message.content?.text}</pre> : preview.message.card ? <article>
         <header data-color={preview.message.card.header.template}>{preview.message.card.header.title.content}</header>
         <div className="feishu-preview-body">{preview.message.card.elements.map((element, index) => {

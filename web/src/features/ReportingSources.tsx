@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Ban, Check, ChevronLeft, ChevronRight, RefreshCw, ShieldCheck, Trash2 } from "lucide-react";
 import { api, ApiError, jsonBody, message, timeAgo } from "../api";
@@ -144,7 +145,7 @@ export default function ReportingSources({ notify }: { notify: (text: string, er
       </tr></thead><tbody>{visible.map((source) => <tr key={source.address}>
         <td><strong className="mono">{source.address}</strong>{source.last_service && <div className="subtle reporting-service">{source.last_service}</div>}<div className="subtle">{source.protocols?.join(" · ") || "—"}</div></td>
         <td><span className={`status ${source.allowed ? "healthy" : "unhealthy"}`}><i />{source.disposition === "block" ? text("Blocked", "已拉黑") : source.disposition === "allow" ? text("Allowlisted", "白名单") : source.allowed ? text("Allowed by default", "默认允许") : text("Not allowlisted", "未列入白名单")}</span></td>
-        <td>{source.last_seen ? <time dateTime={new Date(source.last_seen).toISOString()} title={new Date(source.last_seen).toLocaleString(getLocale())}>{timeAgo(source.last_seen)}</time> : text("No reports yet", "尚未上报")}</td>
+        <td>{source.last_seen ? <time dateTime={new Date(source.last_seen).toISOString()} title={formatTimestamp(source.last_seen)}>{timeAgo(source.last_seen)}</time> : text("No reports yet", "尚未上报")}</td>
         <td className="mono">{source.accepted_batches} / {source.accepted_samples}</td>
         {canAdmin && <td><div className="row-actions reporting-row-actions">
           {source.disposition !== "allow" && <Button size="sm" disabled={disabled} onClick={() => { void update({ address: source.address, action: "allow" }); }}>{source.disposition === "block" ? text("Unblock and allow", "解除并加入白名单") : text("Allow", "加入白名单")}</Button>}

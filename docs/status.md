@@ -1,6 +1,20 @@
 # Project status and progress protocol
 
-Updated: 2026-10-22. This file is the durable progress ledger. Update it whenever a progress unit completes.
+Updated: 2026-10-23. This file is the durable progress ledger. Update it whenever a progress unit completes.
+
+### 2026-10-23 — Console layout and current-value display
+
+- One aligned, environment-grouped instance directory replaces repeated tables. Search, bounded paging, opt-in
+  recent-report ordering and stable default service-number ordering preserve identity and freshness semantics.
+  Instance navigation, a single panel-size control and expandable settings/history foreground physical-host,
+  process and business resources without losing inherited templates, SQL sorting or player-region lists.
+- Decimal MB/GB, complete browser-local timestamps and a separately rendered GMT clock apply across product
+  views. Current stat cards omit per-point timestamps; source freshness is checked independently of PromQL
+  evaluation time. Historical queries retain their meaning and valid zero samples are not treated as missing.
+- An isolated candidate excluding unrelated work passed 167 frontend units, the production frontend build and
+  targeted business/host Go tests. Edge exercised desktop and mobile directory/filter/detail flows and inspected
+  the rendered concept comparison. Production worker deployment and real collection remain separate gates.
+  Overall roadmap weighting remains 94%; this does not certify every optional subsystem.
 
 ### 2026-10-22 — Reporting-server resource and sorting production acceptance
 

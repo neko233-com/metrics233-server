@@ -1,16 +1,18 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
-import { ArrowLeft, ArrowRight, Copy, RefreshCw } from "lucide-react";
+import { ArrowLeft, Copy, RefreshCw, Settings2, Server } from "lucide-react";
 import { api, ApiError, jsonBody, message, timeAgo, type Dashboard, type Panel } from "../api";
 import { getLocale } from "../i18n";
-import { Alert, Button, Field, Input } from "../ui";
+import { Alert, Button, Field } from "../ui";
 import { useSession } from "../ui/session";
 import { nativePanelForSDK } from "../grafana/panel-queries";
 import type { TimeSelection } from "../grafana/time-range";
 import { DashboardVariableBar, useDashboardVariables } from "../components/DashboardVariables";
 import { TimeRangePicker } from "../components/TimeRangePicker";
 import { rangeFromURL, writeRangeURL } from "../grafana/time-range";
-import { groupBusinessInstances } from "./business-instance-groups";
+import BusinessInstanceDirectory, { environmentName } from "./BusinessInstanceDirectory";
+import { instanceTitle, type BusinessInstance as Instance } from "./business-instance-directory-model";
 import BusinessDataTable, { PopulationNotice, type Population } from "./BusinessDataTable";
+
 import { useBusinessPanelSize } from "./use-business-panel-size";
 import { localizeInstancePanel, instancePanelGroups } from "./business-instance-panels";
 import { HostResources, type HostResourcesData, type HostAlertRule } from "./HostResources";
@@ -34,52 +36,17 @@ function independentPanels(panels: Panel[]): Panel[] {
   }
   return copy;
 }
-type Identity = { service: string; role: string; serverId: string; environment: string; channel: string; instance: string; implementation: string };
-type Instance = { id: string; identity: Identity; reported_ip: string; observed_ip: string; first_seen: number; last_seen: number; binding: { version: number; mode: "default" | "inherit" | "independent"; dashboard_id: string } };
-type InstancePage = { items: Instance[]; next_cursor: string; capacity: number; at_capacity: boolean };
 type HostBinding = { version: number; kind: "" | "managed_host" | "collector"; id: string };
 type InstanceHost = { binding: HostBinding; name: string; enabled: boolean; available: boolean; last_seen: number; interval_seconds: number; resources?: HostResourcesData; dashboard?: Dashboard; rules?: HostAlertRule[] };
 type HostOption = { kind: "managed_host" | "collector"; id: string; name: string };
 type Resolved = { instance: Instance; dashboard: Dashboard; process_dashboard?: Dashboard; population?: Population; host?: InstanceHost; host_error?: boolean };
 type Props = { dashboards: Dashboard[]; open: (dashboard: Dashboard) => void; reload: () => Promise<void>; tick?: number };
-function environmentLabel(environment: string): string {
-  if (environment === "release") return text("Production · release", "正式环境 · release");
-  if (environment === "test") return text("Test · test", "测试环境 · test");
-  if (environment === "intranet") return text("Intranet · intranet", "内网环境 · intranet");
-  if (environment === "shared") return text("Shared · shared", "共享环境 · shared");
-  return environment ? text(`Other environment · ${environment}`, `其他环境 · ${environment}`) : text("Environment not reported", "环境未上报");
-}
-
 export default function BusinessInstances({ dashboards, open, reload, tick = 0 }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
-  const [cursor, setCursor] = useState("");
-  const [previous, setPrevious] = useState<string[]>([]);
-  const [revision, setRevision] = useState(0);
-  const [page, setPage] = useState<InstancePage | null>(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
-  useEffect(() => {
-    if (selected) return;
-    const controller = new AbortController(); setLoading(true); setError("");
-    api<InstancePage>(`/business/instances?limit=50&cursor=${encodeURIComponent(cursor)}&q=${encodeURIComponent(query)}`, { signal: controller.signal })
-      .then(value => { if (!controller.signal.aborted) setPage(value); })
-      .catch(cause => { if (!controller.signal.aborted) setError(message(cause)); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => controller.abort();
-  }, [cursor, revision, query, tick, selected]);
-  if (selected) return <BusinessInstanceDetail key={selected} id={selected} dashboards={dashboards} open={open} reload={reload} tick={tick} back={() => { setSelected(null); setRevision(value => value + 1); }} />;
-  return <section className="business-instance-directory" aria-label={text("Business instances", "业务实例")}>
-    <div className="business-instance-toolbar"><h2>{text("Instance dashboards", "实例仪表盘")}</h2><Button disabled={loading} onClick={() => setRevision(value => value + 1)}><RefreshCw size={16} />{text("Refresh instances", "刷新实例")}</Button></div>
-    {error && <Alert severity="error" title={text("Cannot load instances", "无法加载实例")}>{error}</Alert>}
-    {loading && <p role="status">{text("Loading instances…", "正在加载实例…")}</p>}
-    {page?.at_capacity && <Alert severity="warning" title={text("Instance observation capacity reached", "实例观测容量已满")}>{text(`The ${page.capacity} existing identities continue to update; new identities cannot be observed.`, `现有 ${page.capacity} 个身份继续更新，暂不登记新身份。`)}</Alert>}
-    <form className="business-instance-toolbar" onSubmit={event => { event.preventDefault(); setCursor(""); setPrevious([]); setQuery(search.trim()); }}><Field label={text("Search all instances", "搜索全部实例")}><Input aria-label={text("Search all instances", "搜索全部实例")} type="search" maxLength={128} value={search} onChange={event => setSearch(event.target.value)} placeholder="service / serverId / IP" /></Field><Button type="submit" disabled={loading}>{text("Search", "搜索")}</Button></form>
-    {groupBusinessInstances(page?.items || []).map(group => <section key={group.environment} aria-label={environmentLabel(group.environment)}><h3>{environmentLabel(group.environment)} <small>({group.instances.length})</small></h3><div className="table-scroll"><table className="business-instance-list"><thead><tr><th>{text("Instance dashboard", "实例仪表盘")}</th><th>{text("Scope", "范围")}</th><th>{text("Reported host IP", "上报宿主 IP")}</th><th>{text("Observed source IP", "服务端观测来源 IP")}</th><th>{text("Last report", "最近上报")}</th></tr></thead><tbody>{group.instances.map(item => <tr key={item.id}><td><Button onClick={() => setSelected(item.id)}>{item.identity.service} · {item.identity.role} · {item.identity.serverId}<ArrowRight size={15} /></Button><div className="subtle">{item.identity.instance} · {item.identity.implementation || "—"}</div></td><td>{item.identity.environment || text("Not reported", "未上报")} / {item.identity.channel || "—"}</td><td>{item.reported_ip || "—"}<small>{text("Advisory label", "仅为上报标签")}</small></td><td>{item.observed_ip || text("Collector / unavailable", "采集或尚未观测")}</td><td>{timeAgo(item.last_seen)}<small>{text("Observation, not availability", "上报记录，不代表在线状态")}</small></td></tr>)}</tbody></table></div></section>)}
-    {!loading && !page?.items.length && <p role="status">{text("No reported business instances. Send service, role (gateway/logic/game), serverId and instance labels; environment and channel keep deployments separate.", "尚无业务实例。上报需包含 service、role（gateway/logic/game）、serverId 与 instance；environment、channel 用于区分环境。")}</p>}
-    <div className="business-instance-toolbar"><Button disabled={!previous.length || loading} onClick={() => { const before = [...previous]; setCursor(before.pop() || ""); setPrevious(before); }}>{text("Previous", "上一页")}</Button><span>{text("Up to 50 instances per page", "每页最多 50 个实例")}</span><Button disabled={!page?.next_cursor || loading} onClick={() => { setPrevious(value => [...value, cursor]); setCursor(page!.next_cursor); }}>{text("Next", "下一页")}</Button></div>
-  </section>;
+  return <>
+    <div hidden={selected !== null}><BusinessInstanceDirectory active={selected === null} select={setSelected} reload={reload} tick={tick} /></div>
+    {selected && <BusinessInstanceDetail key={selected} id={selected} dashboards={dashboards} open={open} reload={reload} tick={tick} back={() => setSelected(null)} />}
+  </>;
 }
 
 function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }: Props & { id: string; back: () => void }) {
@@ -92,6 +59,8 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
   const [template, setTemplate] = useState("");
   const [hostOptions, setHostOptions] = useState<HostOption[]>([]);
   const [hostChoice, setHostChoice] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [large, setLarge] = useBusinessPanelSize();
   const [range, setRange] = useState<TimeSelection>(() => { try { return rangeFromURL() || "1h"; } catch { return "1h"; } });
   const changeRange = (value: TimeSelection) => { setRange(value); writeRangeURL(value); };
   const [tab, setTab] = useState<"overview" | "regions" | "sql">("overview");
@@ -143,39 +112,41 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
   const item = resolved?.instance || record, dashboard = resolved?.dashboard;
   const mode = item?.binding.mode;
   return <section className="business-instance-detail" aria-label={text("Instance dashboard", "实例仪表盘")}>
-    <div className="business-instance-toolbar"><Button onClick={back}><ArrowLeft size={15} />{text("All business instances", "全部业务实例")}</Button><Button disabled={busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15} />{text("Refresh instance", "刷新实例")}</Button></div>
+    <div className="business-detail-topline"><Button fill="text" onClick={back}><ArrowLeft size={15} />{text("All instances", "全部实例")}</Button><div><Button disabled={busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15} />{text("Refresh", "刷新")}</Button><Button aria-expanded={settingsOpen} aria-controls="business-instance-settings" onClick={() => {
+      if (!settingsOpen && canAdmin) { const binding = resolved?.host?.binding; setHostChoice(binding?.kind ? `${binding.kind}:${binding.id}` : ""); void api<HostOption[]>("/business/host-options").then(setHostOptions).catch(cause => setError(message(cause))); }
+      setSettingsOpen(value => !value);
+    }}><Settings2 size={15} />{text("Dashboard settings", "仪表盘设置")}</Button></div></div>
     {error && <Alert severity="error" title={text("Instance operation failed", "实例操作失败")}>{error}</Alert>}
     {error && item && !dashboard && canEdit && item.binding.mode !== "default" && <Button disabled={busy} onClick={() => void bind("default", "")}>{text("Reset built-in view", "恢复内置视图")}</Button>}
     {!resolved && !error && <p role="status">{text("Loading instance…", "正在加载实例…")}</p>}
-    {resolved && item && dashboard && <><h2>{item.identity.service} · {item.identity.role} · {item.identity.serverId}</h2><p className="subtle">{item.identity.environment || text("Environment not reported", "环境未上报")} / {item.identity.channel || "—"} · {item.identity.instance}</p><details><summary>{text("Instance identity and source IPs", "实例身份与来源 IP")}</summary><dl className="business-instance-scope">{Object.entries(item.identity).map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value || text("Not reported", "未上报")}</dd></div>)}<div><dt>{text("Reported host IP (advisory)", "上报宿主 IP（标签）")}</dt><dd>{item.reported_ip || "—"}</dd></div><div><dt>{text("Canonical observed source IP", "服务端规范来源 IP")}</dt><dd>{item.observed_ip || "—"}</dd></div></dl>
+    {resolved && item && dashboard && <><header className="business-detail-heading"><div><h1>{instanceTitle(item.identity, getLocale() === "zh")}</h1><p>{item.identity.service} · {item.identity.instance}</p></div><div className="business-detail-meta"><span>{environmentName(item.identity.environment, true)} · {item.identity.channel || "—"}</span><span><Server size={15} />{item.reported_ip || item.observed_ip || "—"}</span></div></header><details className="business-identity-details"><summary>{text("Instance identity and source IPs", "实例身份与来源 IP")}</summary><dl className="business-instance-scope">{Object.entries(item.identity).map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value || text("Not reported", "未上报")}</dd></div>)}<div><dt>{text("Reported host IP (advisory)", "上报宿主 IP（标签）")}</dt><dd>{item.reported_ip || "—"}</dd></div><div><dt>{text("Canonical observed source IP", "服务端规范来源 IP")}</dt><dd>{item.observed_ip || "—"}</dd></div><div><dt>{text("Last report", "最近上报")}</dt><dd>{timeAgo(item.last_seen)}</dd></div></dl>
       <p className="subtle">{text("The source IP may be a NAT/proxy address. Labels and fixed query variables are display/query scope, never authorization boundaries.", "来源 IP 可能为 NAT 或代理出口。标签和固定变量只限定展示查询，不是权限隔离。")}</p></details>
-      <details className="business-instance-binding" onToggle={event => { if (event.currentTarget.open && canAdmin) { const binding = resolved.host?.binding; setHostChoice(binding?.kind ? `${binding.kind}:${binding.id}` : ""); void api<HostOption[]>("/business/host-options").then(setHostOptions).catch(cause => setError(message(cause))); } }}><summary>{text("Dashboard settings", "仪表盘设置")} · {mode === "inherit" ? text("Live template", "继承模板") : mode === "independent" ? text("Custom panels", "自定义面板") : text("Built-in panels", "内置面板")}</summary>
+      {settingsOpen && <section className="business-instance-binding" id="business-instance-settings" aria-label={text("Dashboard settings", "仪表盘设置")}><h2>{text("Dashboard settings", "仪表盘设置")}<span>{mode === "inherit" ? text("Live template", "继承模板") : mode === "independent" ? text("Custom panels", "自定义面板") : text("Built-in panels", "内置面板")}</span></h2>
       {canAdmin && resolved.host && <div className="business-host-association"><Field label={text("Physical host", "所属物理主机")}><select aria-label={text("Physical host", "所属物理主机")} value={hostChoice} onChange={event => setHostChoice(event.target.value)}><option value="">{text("Not associated", "暂不关联")}</option>{hostOptions.map(option => <option key={`${option.kind}:${option.id}`} value={`${option.kind}:${option.id}`}>{option.name} · {option.kind === "managed_host" ? text("Host agent", "主机采集器") : text("Node exporter", "主机指标采集")}</option>)}</select></Field><Button disabled={busy || !hostOptions.length} onClick={() => void bindHost()}>{text("Save host association", "保存主机关联")}</Button><p className="subtle">{text("Choose the actual machine running this instance. Shared egress IPs do not identify a host.", "请选择实际运行此实例的机器，共用公网出口不代表同一台主机。")}</p></div>}
-      {canEdit && <div className="business-instance-actions"><Button disabled={busy} onClick={() => void copy()}><Copy size={15} />{text("Save independent copy", "另存独立副本")}</Button>{mode === "independent" && <Button disabled={busy} onClick={() => open(dashboard)}>{text("Edit independent dashboard", "编辑独立仪表盘")}</Button>}{mode === "inherit" && <Button disabled={busy} onClick={() => { const source = dashboards.find(value => value.id === item.binding.dashboard_id); if (source) open(source); }}>{text("Edit shared template", "编辑共享模板")}</Button>}<details><summary>{text("Template binding", "模板绑定")}</summary><p className="subtle">{text("Inheritance follows the latest template. Save a copy for independent panel edits.", "继承会跟随模板最新版，另存副本后可独立编辑图表。")}</p><Field label={text("Native dashboard template", "原生仪表盘模板")}><select value={template} aria-label={text("Native dashboard template", "原生仪表盘模板")} onChange={event => setTemplate(event.target.value)}><option value="">{text("Choose a dashboard", "选择仪表盘")}</option>{dashboards.filter(value => !value.grafana).map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></Field><Button disabled={busy || !template} onClick={() => void bind("inherit", template)}>{text("Use live template", "使用实时模板")}</Button><Button disabled={busy || mode === "default"} onClick={() => void bind("default", "")}>{text("Reset built-in view", "恢复内置视图")}</Button></details></div>}</details>
-      <div className="business-instance-tabs" role="group" aria-label={text("Instance sections", "实例区块")}>{([ ["overview", text("Overview", "总览")], ["regions", text("Player regions · all", "玩家地区 · 全部")], ["sql", text("Slow SQL Top10", "慢 SQL Top10")]] as const).filter(([key]) => item.identity.role !== "gateway" || key === "overview").map(([key, label]) => <Button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</Button>)}</div>
-      <p className="business-report-age subtle">{text("Latest accepted instance report", "实例最近上报")}：{timeAgo(item.last_seen)}</p>
+      {canEdit && <div className="business-instance-actions"><Button disabled={busy} onClick={() => void copy()}><Copy size={15} />{text("Save independent copy", "另存独立副本")}</Button>{mode === "independent" && <Button disabled={busy} onClick={() => open(dashboard)}>{text("Edit independent dashboard", "编辑独立仪表盘")}</Button>}{mode === "inherit" && <Button disabled={busy} onClick={() => { const source = dashboards.find(value => value.id === item.binding.dashboard_id); if (source) open(source); }}>{text("Edit shared template", "编辑共享模板")}</Button>}<details><summary>{text("Template binding", "模板绑定")}</summary><p className="subtle">{text("Inheritance follows the latest template. Save a copy for independent panel edits.", "继承会跟随模板最新版，另存副本后可独立编辑图表。")}</p><Field label={text("Native dashboard template", "原生仪表盘模板")}><select value={template} aria-label={text("Native dashboard template", "原生仪表盘模板")} onChange={event => setTemplate(event.target.value)}><option value="">{text("Choose a dashboard", "选择仪表盘")}</option>{dashboards.filter(value => !value.grafana).map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></Field><Button disabled={busy || !template} onClick={() => void bind("inherit", template)}>{text("Use live template", "使用实时模板")}</Button><Button disabled={busy || mode === "default"} onClick={() => void bind("default", "")}>{text("Reset built-in view", "恢复内置视图")}</Button></details></div>}</section>}
+      <div className="business-detail-navigation"><div className="business-instance-tabs" role="group" aria-label={text("Instance sections", "实例区块")}>{([ ["overview", text("Overview", "总览")], ["regions", text("Player regions · all", "玩家地区 · 全部")], ["sql", text("Slow SQL Top10", "慢 SQL Top10")]] as const).filter(([key]) => item.identity.role !== "gateway" || key === "overview").map(([key, label]) => <Button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</Button>)}</div>{tab === "overview" && <div className="business-range-controls"><TimeRangePicker value={range} onChange={changeRange} /><label className="business-panel-size"><span>{text("Panels", "面板大小")}</span><select aria-label={text("Panel size", "面板大小")} value={large ? "large" : "normal"} onChange={event => setLarge(event.target.value === "large")}><option value="normal">{text("Comfortable", "舒适")}</option><option value="large">{text("Large", "大面板")}</option></select></label></div>}</div>
       {Date.now() - item.last_seen > 90000 && <Alert severity="warning" title={text("Instance reporting is stale", "实例上报已超过90秒")}>
-        {text("The last samples may belong to an earlier process. Historical curves do not establish current server availability.", "当前显示的可能是之前进程的历史样本；历史曲线不代表服务仍在线，请先检查上报链路。")}
+        {text("The last samples may belong to an earlier process. Historical curves do not establish current server availability.", `最近上报：${timeAgo(item.last_seen)}。当前值等待新采样，历史曲线不代表服务仍在线，请检查上报链路。`)}
       </Alert>}
       {tab === "overview" && <PopulationNotice population={resolved?.population} />}
-      {tab === "overview" && <><div className="business-range-controls"><TimeRangePicker value={range} onChange={changeRange} /></div>
-        <section className="business-resource-section"><div className="business-resource-heading"><h3>{text("Physical host", "整机资源")}{resolved.host?.name ? ` · ${resolved.host.name}` : ""}</h3><span className="subtle">{text("Shared by processes on this machine", "同一主机上的服务共享这些资源")}</span></div>
+      {tab === "overview" && <><section className="business-resource-section"><div className="business-resource-heading"><h3>{text("Physical host", "整机资源")}{resolved.host?.name ? ` · ${resolved.host.name}` : ""}</h3><span className="subtle">{text("Shared by processes on this machine", "同一主机上的服务共享这些资源")}</span></div>
         {resolved.host?.available && resolved.host.binding.kind === "collector" && <p className="subtle">{text("Host collector's last observation", "整机采集最近观测")}：{timeAgo(resolved.host.last_seen)}{!resolved.host.enabled || Date.now() - resolved.host.last_seen > Math.max(90000, resolved.host.interval_seconds * 3000) ? text(" · paused or stale; current gauges are hidden, historical curves remain", " · 采集暂停或数据过期，隐藏当前仪表，只保留历史趋势") : ""}</p>}
-        {resolved.host_error ? <p role="status">{text("Host data is temporarily unavailable. Process metrics remain below.", "主机资源暂时读取失败，下方保留进程指标。")}</p> : resolved.host?.available ? resolved.host.binding.kind === "managed_host" ? <HostResources id={resolved.host.binding.id} resources={resolved.host.resources} enabled={resolved.host.enabled} interval={resolved.host.interval_seconds} rules={resolved.host.rules || []} rulesState="ready" /> : resolved.host.dashboard ? <InstanceNativePanels dashboard={!resolved.host.enabled || Date.now() - resolved.host.last_seen > Math.max(90000, resolved.host.interval_seconds * 3000) ? { ...resolved.host.dashboard, panels: resolved.host.dashboard.panels.filter(panel => panel.visualization === "timeseries") } : resolved.host.dashboard} builtin={false} range={range} setRange={changeRange} tick={revision + tick} /> : null : <p className="business-host-empty">{text("Associate the machine in Dashboard settings to see its CPU, memory and disk. Process resource usage is shown below.", "在“仪表盘设置”关联实际主机后，这里显示整机 CPU、内存和磁盘。下方是当前服务进程的资源占用。")}</p>}</section>
-        {resolved.process_dashboard && <InstanceNativePanels dashboard={resolved.process_dashboard} builtin={true} range={range} setRange={changeRange} tick={revision + tick} />}
-        <InstanceNativePanels key={dashboard.id} dashboard={dashboard} builtin={mode === "default"} range={range} setRange={changeRange} tick={revision + tick} /></>}
+        {resolved.host_error ? <p role="status">{text("Host data is temporarily unavailable. Process metrics remain below.", "主机资源暂时读取失败，下方保留进程指标。")}</p> : resolved.host?.available ? resolved.host.binding.kind === "managed_host" ? <HostResources compact large={large} id={resolved.host.binding.id} resources={resolved.host.resources} enabled={resolved.host.enabled} interval={resolved.host.interval_seconds} rules={resolved.host.rules || []} rulesState="ready" /> : resolved.host.dashboard ? <InstanceNativePanels dashboard={!resolved.host.enabled || Date.now() - resolved.host.last_seen > Math.max(90000, resolved.host.interval_seconds * 3000) ? { ...resolved.host.dashboard, panels: resolved.host.dashboard.panels.filter(panel => panel.visualization === "timeseries") } : resolved.host.dashboard} builtin={false} hostView large={large} range={range} setRange={changeRange} tick={revision + tick} /> : null : <p className="business-host-empty">{text("Associate the machine in Dashboard settings to see its CPU, memory and disk. Process resource usage is shown below.", "在“仪表盘设置”关联实际主机后，这里显示整机 CPU、内存和磁盘。下方是当前服务进程的资源占用。")}</p>}</section>
+        {resolved.process_dashboard && <InstanceNativePanels dashboard={resolved.process_dashboard} builtin={true} large={large} range={range} setRange={changeRange} tick={revision + tick} />}
+        <InstanceNativePanels key={dashboard.id} dashboard={dashboard} builtin={mode === "default"} large={large} range={range} setRange={changeRange} tick={revision + tick} /></>}
       {tab !== "overview" && <BusinessDataTable key={`${id}:${tab}`} id={id} kind={tab} tick={tick} refresh={revision} />}
+
     </>}
   </section>;
 }
 
-function InstanceNativePanels({ dashboard, builtin, range, setRange, tick }: { dashboard: Dashboard; builtin: boolean; range: TimeSelection; setRange: (range: TimeSelection) => void; tick: number }) {
+function InstanceNativePanels({ dashboard, builtin, range, setRange, tick, large, hostView = false }: { dashboard: Dashboard; builtin: boolean; range: TimeSelection; setRange: (range: TimeSelection) => void; tick: number; large: boolean; hostView?: boolean }) {
   const state = useDashboardVariables(dashboard, range, tick);
-  const [large, setLarge] = useBusinessPanelSize();
   const renderPanel = (panel: Panel) => <NativePanel key={panel.id} panel={nativePanelForSDK(builtin ? localizedBuiltin(panel) : panel)} values={state.effective} range={range} onRange={setRange} tick={tick} dashboard={builtin ? undefined : dashboard} />;
-  return <><div className="business-panel-controls"><DashboardVariableBar state={state} /><Field label={text("Panel size", "面板大小")}><select aria-label={text("Panel size", "面板大小")} value={large ? "large" : "normal"} onChange={event => setLarge(event.target.value === "large")}><option value="normal">{text("Comfortable", "舒适")}</option><option value="large">{text("Large", "大面板")}</option></select></Field></div>{state.error && <Alert severity="error" title={text("Variable resolution failed", "变量解析失败")}>{state.error}</Alert>}{state.ready ? <Suspense fallback={<p role="status">{text("Loading panels…", "正在加载图表…")}</p>}>{instancePanelGroups(dashboard.panels, builtin).map(group => <section className="business-resource-section" key={group.id}>
+  const hasVariables = state.variables.some(variable => variable.type !== "constant" && variable.config?.hide !== 2 && variable.config?.hide !== "hideVariable");
+  return <>{hasVariables && <div className="business-panel-controls"><DashboardVariableBar state={state} /></div>}{state.error && <Alert severity="error" title={text("Variable resolution failed", "变量解析失败")}>{state.error}</Alert>}{state.ready ? <Suspense fallback={<p role="status">{text("Loading panels…", "正在加载图表…")}</p>}>{instancePanelGroups(dashboard.panels, builtin).map(group => <section className={`business-resource-section${hostView ? " business-host-panels" : ""}`} key={group.id}>
     {group.id !== "custom" && <div className="business-resource-heading"><h3>{group.id === "process" ? text("Server process", "服务进程") : text("Business metrics", "业务指标")}</h3><span className="subtle">{group.id === "process" ? text("This instance only", "仅当前游戏服或网关实例") : text("Actual reported values", "实际上报的业务数据")}</span></div>}
     <div className={`business-instance-stats${large ? " business-instance-panels-large" : ""}`}>{group.panels.filter(panel => panel.visualization === "stat").map(renderPanel)}</div>
-    <div className={`business-instance-panels${large ? " business-instance-panels-large" : ""}`}>{group.panels.filter(panel => panel.visualization !== "stat").map(renderPanel)}</div>
+    <div className={`business-instance-gauges${large ? " business-instance-panels-large" : ""}`}>{group.panels.filter(panel => panel.visualization === "gauge").map(renderPanel)}</div><div className={`business-instance-panels${large ? " business-instance-panels-large" : ""}`}>{group.panels.filter(panel => panel.visualization !== "stat" && panel.visualization !== "gauge").map(renderPanel)}</div>
   </section>)}</Suspense> : <p role="status">{text("Resolving variables…", "正在解析变量…")}</p>}</>;
 }

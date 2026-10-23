@@ -53,7 +53,7 @@ function modelBody(raw: string, fields: Record<string, unknown>): string {
   if (!parsed || Array.isArray(parsed) || typeof parsed !== "object")
     throw new Error(t("Panel model must be a JSON object."));
   if (new Blob([raw]).size > 512 * 1024)
-    throw new Error(t("Panel model must be under 512 KiB."));
+    throw new Error(t("Panel model must be under 524 KB."));
   return `{"model":${raw},${JSON.stringify(fields).slice(1, -1)}}`;
 }
 

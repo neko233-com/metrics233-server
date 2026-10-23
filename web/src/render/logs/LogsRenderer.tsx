@@ -1,7 +1,7 @@
+import { formatTimestamp } from "../../display-format";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pencil, Search, Trash2 } from "lucide-react";
 import { t } from "../../i18n";
-import { resolveTimeRange } from "../../grafana/time-range";
 import type { RendererProps } from "../types";
 import "./LogsRenderer.css";
 
@@ -54,7 +54,6 @@ function logRows(frames: RendererProps["frames"]): LogRow[] {
 export default function LogsRenderer({
   panel,
   frames,
-  range,
   timeInfo,
   loading,
   streaming,
@@ -63,7 +62,6 @@ export default function LogsRenderer({
   onRemove,
 }: RendererProps) {
   const config = panel.config;
-  const resolved = resolveTimeRange(range);
   const rows = useMemo(() => logRows(frames), [frames]);
   const [query, setQuery] = useState("");
   const [labelKey, setLabelKey] = useState("");
@@ -130,12 +128,7 @@ export default function LogsRenderer({
   const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
   const visible = Math.max(1, Math.ceil(height / ROW_HEIGHT) + OVERSCAN * 2);
   const slice = filtered.slice(start, start + visible);
-  const timeZone =
-    resolved.timezone === "browser"
-      ? undefined
-      : resolved.timezone === "utc"
-        ? "UTC"
-        : resolved.timezone;
+
 
   return (
     <section
@@ -248,10 +241,7 @@ export default function LogsRenderer({
               >
                 <time>
                   {row.time
-                    ? new Date(row.time).toLocaleTimeString(undefined, {
-                        timeZone,
-                        hour12: false,
-                      })
+                    ? formatTimestamp(row.time)
                     : ""}
                 </time>
                 <span className="native-logs-labels">

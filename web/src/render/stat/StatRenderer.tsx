@@ -10,8 +10,8 @@ import { getLocale, t } from "../../i18n";
 import { formatValue } from "../../api";
 import type { RendererProps } from "../types";
 import { seriesPresentations } from "../series-presentation";
-import { dataPointTime, MetricDetailsButton, pointTimeText } from "../MetricDetails";
-import { resolveTimeRange } from "../../grafana/time-range";
+import { dataPointTime, MetricDetailsButton } from "../MetricDetails";
+import { rawSelection, resolveTimeRange } from "../../grafana/time-range";
 import { RiskGauge } from "../../ui/RiskGauge";
 
 function display(
@@ -77,6 +77,7 @@ export default function StatRenderer({
     rawName: getFieldDisplayName(field, frame, frames), unit: field.config.unit || panel.unit,
     timestamp: dataPointTime(field.values, frame.fields.find(value => value.type === FieldType.time)?.values),
   }));
+  const current = rawSelection(range).to === "now" && ["last", "lastNotNull"].includes(reducer) && !reduce.values;
   const stats = fields.flatMap(({ field, frame }, fieldIndex) => {
     const times = reduce.values ? frame.fields.find(value => value.type === FieldType.time)?.values : undefined;
     const values = reduce.values
@@ -86,17 +87,20 @@ export default function StatRenderer({
             ? reduceField({ field, reducers: [reducer] })[reducer]
             : undefined,
         ];
-    return values.map((value, i) => ({
-      field,
-      name:
-        presentations[fieldIndex].name +
-        (values.length > 1 ? ` ${i + 1}` : ""),
-      value: value == null || !Number.isFinite(Number(value)) ? null : value,
-      timestamp: reduce.values ? dataPointTime([value], times ? [times[i]] : undefined) : details[fieldIndex].timestamp,
-      formatted: value == null || !Number.isFinite(Number(value)) ? { text: "—" }
-        : (field.config.unit || panel.unit) === "uptime"
-          ? { text: formatValue(Number(value), "uptime"), color: display(field, value).color } : display(field, value),
-    }));
+    return values.map((value, i) => {
+      const timestamp = reduce.values ? dataPointTime([value], times ? [times[i]] : undefined) : details[fieldIndex].timestamp;
+      const stale = current && timestamp !== undefined && (Date.now() - timestamp > 90000 || timestamp > Date.now() + 30000);
+      const shown = stale || (current && queryError) ? null : value;
+      return {
+        field,
+        name: presentations[fieldIndex].name + (values.length > 1 ? ` ${i + 1}` : ""),
+        value: shown == null || !Number.isFinite(Number(shown)) ? null : shown,
+        stale,
+        formatted: shown == null || !Number.isFinite(Number(shown)) ? { text: "—" }
+          : (field.config.unit || panel.unit) === "uptime"
+            ? { text: formatValue(Number(shown), "uptime"), color: display(field, value).color } : display(field, shown),
+      };
+    });
   });
   const unsupported = !fieldReducers.getIfExists(reducer);
   return (
@@ -148,6 +152,7 @@ export default function StatRenderer({
         className={`grafana-values ${config?.options?.orientation || "auto"} ${stats.length > 1 ? "multiple" : "single"}`}
       >
         {stats.map((stat, i) => {
+          const color = stats.length === 1 && stat.field.config.color?.mode === "palette-classic" && !stat.field.config.mappings?.length ? undefined : stat.formatted.color;
           const min = stat.field.config.min ?? 0,
             max =
               stat.field.config.max ??
@@ -162,18 +167,16 @@ export default function StatRenderer({
           );
           return (
             <div className="grafana-value" key={i}>
-              <span className="subtle native-stat-name" title={stat.name}>{stat.name}</span>
+              {stats.length > 1 || stat.name !== t(panel.title) ? <span className="subtle native-stat-name" title={stat.name}>{stat.name}</span> : null}
               {type === "gauge" ? <RiskGauge value={stat.value == null ? null : Number(stat.value)} label={stat.name}
                 formatted={stat.formatted.text} min={min} max={max}
                 steps={stat.field.config.thresholds?.steps || []}
                 percentage={stat.field.config.thresholds?.mode === "percentage"}
-                valueColor={stat.formatted.color} /> : null}
-              {type !== "gauge" ? <strong style={{ color: stat.formatted.color }}>
+                valueColor={color} /> : null}
+              {type !== "gauge" ? <strong style={{ color }}>
                 {stat.formatted.text}
               </strong> : null}
-              {stat.timestamp ? <time className="native-stat-time" dateTime={new Date(stat.timestamp).toISOString()}>
-                {t("Data point time")}: {pointTimeText(stat.timestamp, timezone)}
-              </time> : null}
+              {stat.stale ? <small className="native-stat-stale">{getLocale() === "zh" ? "等待新采样，旧值已隐藏" : "Awaiting fresh data; previous value hidden"}</small> : null}
               {type === "bargauge" && stat.value != null ? (
                 <progress
                   max="1"

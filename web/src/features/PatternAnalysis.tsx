@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useEffect, useMemo, useState } from "react";
 import { ScanLine, Save } from "lucide-react";
 import {
@@ -40,7 +41,7 @@ type SearchResult = {
 const describe = (p: Pattern) =>
   `${p.metric} · ${Object.entries(p.labels)
     .map(([k, v]) => `${k}=${v}`)
-    .join(", ")} · ${new Date(p.start).toLocaleString()}`;
+    .join(", ")} · ${formatTimestamp(p.start)}`;
 
 export function PatternAnalysis({
   metric,
@@ -322,9 +323,9 @@ export function PatternAnalysis({
                           .join(", ")}
                       </td>
                       <td>
-                        {new Date(hit.pattern.start).toLocaleString()}
+                        {formatTimestamp(hit.pattern.start)}
                         <br />
-                        {new Date(hit.pattern.end).toLocaleString()}
+                        {formatTimestamp(hit.pattern.end)}
                       </td>
                       <td>{hit.distance.toFixed(4)}</td>
                       <td>{Math.round(hit.pattern.coverage * 100)}%</td>

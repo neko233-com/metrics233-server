@@ -1,3 +1,4 @@
+import { BrowserClock } from "./ui/BrowserClock";
 import { t as tr } from "./i18n";
 import { getLocale, setLocale, type Locale } from "./i18n";
 import {
@@ -885,6 +886,7 @@ export default function App() {
           </div>
           <div className="topbar-status">
             {languageButton}
+            <BrowserClock />
             <span className="status healthy">
               <i />
               {tr("Self-hosted")}

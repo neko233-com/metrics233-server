@@ -17,6 +17,8 @@
 .host-view-nav small { margin-left: auto; color: var(--muted); font-size: 11px; }
 .host-resources { padding: 12px; }
 .host-instruments, .host-trends { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.host-resources-large .host-instruments, .host-resources-large .host-trends { grid-template-columns: minmax(0, 1fr); }
+.business-instance-detail .host-resources-large .host-instrument .risk-gauge { max-width: 360px; }
 .host-instrument, .host-trend, .host-disk-section, .host-resource-legend { border: 1px solid var(--border); border-radius: 6px; min-width: 0; background: #141d25; }
 .host-resources h3 { margin: 15px 16px 0; font-size: 13px; font-weight: 600; }
 .host-instrument-description { margin: 7px 16px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
@@ -33,6 +35,10 @@
 .host-alert-link { display: inline-block; margin: 10px 16px 16px; font-size: 12px; }
 .host-reading-details { margin-top: 12px; padding: 12px 4px 0; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; line-height: 1.65; }
 .host-reading-details summary { cursor: pointer; width: fit-content; }
+.host-history { border: 1px solid var(--border); border-radius: 6px; margin-top: 12px; }
+.host-history > summary { cursor: pointer; padding: 12px 16px; color: var(--muted); font-size: 13px; }
+.host-history[open] { border: 0; }
+.host-history[open] > summary { padding-inline: 4px; }
 .host-capacity { padding: 0 12px 14px; margin: -4px 0 0; text-align: center; color: #b0c0cf; font-size: 12px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
 .host-trends { margin-top: 10px; }
 .host-trend h3 { display: flex; justify-content: space-between; gap: 12px; }
@@ -43,6 +49,9 @@
 .host-trend small { display: block; padding: 0 16px 10px; color: #edb84b; }
 .host-resource-footer { display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; margin-top: 10px; }
 .host-resource-footer { align-items: start; }
+.host-resource-footer > details > summary { cursor: pointer; min-height: 46px; padding: 14px 16px; color: #d9e6ef; font-size: 13px; font-weight: 550; }
+.host-resource-footer > details[open] > summary { border-bottom: 1px solid var(--border); }
+.host-disk-mount { display: block; color: var(--muted); font-size: 11px; margin-top: 4px; }
 .host-sampling-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 16px 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 12px; }
 .host-sampling-summary span { display: block; color: var(--muted); margin-bottom: 7px; }
 .host-sampling-summary strong { color: var(--text); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }

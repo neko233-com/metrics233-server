@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import {
   Component,
   useEffect,
@@ -953,7 +954,7 @@ export default function AnnotationQueriesEditor({
                   {result.events.slice(0, 20).map((event, index) => (
                     <li key={index}>
                       <time>
-                        {new Date(Number(event.time)).toLocaleString()}
+                        {formatTimestamp(Number(event.time))}
                       </time>
                       <span>{event.text || event.title}</span>
                     </li>

@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import {
   lazy,
   Suspense,
@@ -16,7 +17,7 @@ import {
   type InterpolationValues,
   dashboardUID,
 } from "../api";
-import { t, getLocale } from "../i18n";
+import { t } from "../i18n";
 import { queryValues } from "../grafana/variables";
 import {
   DashboardVariableBar,
@@ -218,7 +219,7 @@ export function TemplateView({
           <h1>{dashboard.name}</h1>
           <p>
             {snapshot?.created
-              ? `${t("Snapshot")} · ${new Date(snapshot.created).toLocaleString(getLocale() === "zh" ? "zh-CN" : "en-US")}`
+              ? `${t("Snapshot")} · ${formatTimestamp(snapshot.created)}`
               : `${t("Panels")}: ${dashboard.panels.length}`}
           </p>
         </div>

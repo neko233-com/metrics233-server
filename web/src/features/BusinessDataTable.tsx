@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useEffect, useRef, useState } from "react";
 import { api, message } from "../api";
 import { getLocale } from "../i18n";
@@ -10,8 +11,8 @@ type DataPage = { items: DataRow[]; total: number; next_cursor: string; evaluate
 export function PopulationNotice({ population }: { population?: Population }) {
   if (!population) return null;
   if (!population.available) return <Alert severity="warning" title={text("Player snapshot unavailable", "玩家快照不可用")}>{population.status === "ambiguous" ? text("Multiple population series share the latest timestamp. Check the instance labels; they are not added together.", "最新时间戳存在多个人口序列，请检查实例标签；不会将它们相加。") : population.status === "invalid" ? text("The population sample is invalid.", "人口样本无效。") : text("No authoritative population sample is available in the last five minutes, or its query failed. Missing data is not zero and does not prove that players are offline.", "最近 5 分钟缺少权威人口样本或查询失败。缺失不等于 0，也不能据此认定玩家离线。")}</Alert>;
-  const stamp = new Date(population.snapshot_at).toLocaleString();
-  return population.stale ? <Alert severity="warning" title={text("Player data is stale (over 90 seconds)", "玩家数据陈旧（超过 90 秒）")}>{text(`The last snapshot at ${stamp} reported ${population.players} players. It does not establish the current population or server availability. Longer configured reporting intervals can also trigger this freshness warning.`, `最近快照 ${stamp} 上报 ${population.players} 名玩家，不代表当前人口或服务可用性；配置较长上报间隔也可能触发此新鲜度提示。`)}</Alert> : <p className="subtle">{text(`Player snapshot: ${stamp} · ${population.players} reported players`, `玩家快照：${stamp} · 上报 ${population.players} 人`)}</p>;
+  const stamp = formatTimestamp(population.snapshot_at);
+  return population.stale ? <Alert severity="warning" title={text("Player data is stale (over 90 seconds)", "玩家数据陈旧（超过 90 秒）")}>{text(`The last snapshot at ${stamp} reported ${population.players} players. It does not establish the current population or server availability. Longer configured reporting intervals can also trigger this freshness warning.`, `最近快照 ${stamp} 上报 ${population.players} 名玩家，不代表当前人口或服务可用性；配置较长上报间隔也可能触发此新鲜度提示。`)}</Alert> : null;
 }
 const ROW_HEIGHT = 44;
 export default function BusinessDataTable({ id, kind, tick = 0, refresh = 0 }: { id: string; kind: "regions" | "sql"; tick?: number; refresh?: number }) {
@@ -81,7 +82,7 @@ function PagedBusinessTable({ id, kind, window, tick, refresh }: { id: string; k
       </table>
     </div>
     <div className="business-instance-toolbar">
-      <span role="status">{loading ? text(rows.length ? "Refreshing…" : "Loading…", rows.length ? "正在更新…" : "正在加载…") : isSQL ? text(`${rows.length} results`, `${rows.length} 项`) : `${rows.length} / ${page?.total ?? "—"}`}{page ? ` · ${new Date(page.evaluated_at).toLocaleTimeString()}` : ""}</span>
+      <span role="status">{loading ? text(rows.length ? "Refreshing…" : "Loading…", rows.length ? "正在更新…" : "正在加载…") : isSQL ? text(`${rows.length} results`, `${rows.length} 项`) : `${rows.length} / ${page?.total ?? "—"}`}{page ? ` · ${formatTimestamp(page.evaluated_at)}` : ""}</span>
       {!isSQL && page?.next_cursor && <Button disabled={loading} onClick={() => void load(page.next_cursor)}>{text("Load more", "加载更多")}</Button>}
       {error && <Button disabled={loading} onClick={() => void load("")}>{text("Retry", "重试")}</Button>}
     </div>
