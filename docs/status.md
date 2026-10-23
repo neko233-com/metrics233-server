@@ -12,9 +12,15 @@ Updated: 2026-10-23. This file is the durable progress ledger. Update it wheneve
   views. Current stat cards omit per-point timestamps; source freshness is checked independently of PromQL
   evaluation time. Historical queries retain their meaning and valid zero samples are not treated as missing.
 - An isolated candidate excluding unrelated work passed 167 frontend units, the production frontend build and
-  targeted business/host Go tests. Edge exercised desktop and mobile directory/filter/detail flows and inspected
-  the rendered concept comparison. Production worker deployment and real collection remain separate gates.
-  Overall roadmap weighting remains 94%; this does not certify every optional subsystem.
+  targeted business/host Go tests and vet. Fixed-source private 0.2.21 subsequently passed the complete worker
+  Go suite/vet, frontend units/build, native account/token readiness, collector builds and archive/download checks,
+  then deployed successfully. Runtime source is 548ab439f37034e8c5e0f38e1a7f0816bbdd923d.
+- Edge verified the actual six reporting identities, environment selection, retained filters, live LAN host
+  instruments, decimal process memory, recent-hour resource history and SQL multi-sort. Native desktop 2514×1234,
+  concept-sized 1586×992 and mobile 390×844 were inspected; mobile had no horizontal overflow and the production
+  console had no relevant errors/warnings. Both generated concepts and latest production screenshots were viewed
+  directly for the five-point comparison. Illustrative mockup controls/data are intentionally not copied.
+  Overall roadmap weighting remains 94%; this does not certify every optional subsystem or new gameplay login.
 
 ### 2026-10-22 — Reporting-server resource and sorting production acceptance
 
