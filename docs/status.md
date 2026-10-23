@@ -1,5 +1,23 @@
 # Project status and progress protocol
 
+### 2026-10-23 — Fixed-source 0.2.22 production acceptance
+
+- Immutable runtime source `28b6c727c298887659f1ee08d08d3ab53e2d7ac4` passed the complete fixed-source
+  worker: frontend units/build, full Go tests/vet, account/token readiness and archive verification. Official
+  build 1077 and deployment 430 succeeded; public health reports 0.2.22 and database=ok. Artifact SHA256 is
+  `ee0e7925182957469ae133ffc65623b811bbdaf746ab664e78c6532d5da0e74d4`.
+- Edge used the existing authorized administrator session to run native stored PromQL queries for actual
+  SDK, gateway and logic HTTP/WebSocket, Go goroutine and Rust Tokio task series. Seven actual business
+  identities include the new shared SDK; its process/HTTP/outbound Link/RPC dashboard works without player
+  population cards. Navigation and lazy routes work after explicitly refreshing the previously stale client.
+- The real SDK SQL page renders table statistics and the slow-template/table grouping view. The selected
+  production window has no reported templates meeting the 200 ms threshold, with an explicit honest empty
+  state. Populated variant grouping, redaction, authentication and exact-instance isolation are covered by real
+  local HTTP tests; no artificial SQL or synthetic business metrics were injected into production.
+- The existing 0.2.21 artifact belonged to another source and was not overwritten. A subsequent worker caught
+  the original ANN recall defect before publication; the queued-bridge and true-maximum fixes retain the
+  recall requirement. Runtime release evidence is distinct from future device, capacity and multi-node checks.
+
 ### 2026-10-23 — Publication resilience regressions
 
 Edge reproduced a blank page when a stale client requested a removed lazy asset. A page recovery boundary now
@@ -8,11 +26,11 @@ discarding edits or exposing the exception. Its fallback/recovery unit and TypeS
 A full worker run also exposed an existing ANN recall failure. A failing queued-bridge regression identified
 premature termination; min-heap maximum pruning was independently incorrect. Both are fixed without reducing
 the recall assertion. Vector-store/HNSW suites and 30 consecutive original recall checks passed. The exact
-fixed-source production worker and final browser acceptance remain separate gates.
+fixed-source production worker and final Edge acceptance subsequently passed as recorded above.
 
 ### 2026-10-23 — Bounded slow SQL diagnostics and transport metrics
 
-Native slow SQL counters now feed an exact-instance read API with redacted template variants, bounded Levenshtein groups and table summaries. SDK identities have process/HTTP/WebSocket/RPC panels and do not claim player populations. Targeted real HTTP/auth/instance-isolation/SQL grouping tests and TypeScript compilation passed. Producer lifecycle and TLS ACK tests passed separately. Edge validation, clean fixed-source worker checks and production rollout remain separate acceptance gates; see docs/slow-sql.md.
+Native slow SQL counters now feed an exact-instance read API with redacted template variants, bounded Levenshtein groups and table summaries. SDK identities have process/HTTP/WebSocket/RPC panels and do not claim player populations. Targeted real HTTP/auth/instance-isolation/SQL grouping tests and TypeScript compilation passed. Producer lifecycle and TLS ACK tests passed separately. Final fixed-source worker, deployment and Edge evidence are recorded above; see docs/slow-sql.md for semantics.
 
 
 Updated: 2026-10-23. This file is the durable progress ledger. Update it whenever a progress unit completes.
