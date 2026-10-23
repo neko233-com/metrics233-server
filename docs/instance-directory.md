@@ -36,3 +36,29 @@ Snapshots store only the latest bounded projection; history uses the compressed 
 Exporter hosts require `netdev` and use `node_network_*_bytes_total`. A visible NIC selector defaults to a conventional
 physical NIC when one is available. Physical, bridge and tunnel interfaces remain separate and must not be summed.
 Collectors and historical/custom host dashboards are upgraded separately; provisioning preserves customized boards.
+
+## Rendered acceptance and design comparison
+
+The directory and network-view concepts were generated before implementation, then compared directly with the
+final 0.2.24 production Edge render. The review covered five points:
+
+1. Navigation and layout: retained grouped navigation and a 224px desktop sidebar, with three aligned service
+   cards per row and a stacked single-column layout at 390px.
+2. Palette: GitHub Dark canvas `#0d1117`, card `#161b22`, elevated control `#21262d`, border `#30363d`, green
+   actions and blue links replace the concept's residual cyan accents. Chart classic colors and threshold bands
+   remain independent, as requested.
+3. Hierarchy and type: service identity, environment, editable note, physical-host meters, service traffic and
+   absolute report time appear in that order. Stable server ordering and actual identity lengths replace
+   illustrative names and concept ordering.
+4. Containers and controls: search, sorting, environment and category selection share one toolbar flow. Card
+   note slots preserve alignment. Network rate and estimated last-hour volume use separate native panels to
+   preserve their different units and query semantics; this intentionally takes more height than the concept's
+   combined tiles. Host NICs are selected explicitly rather than adding interface totals.
+5. Responsive behavior and refresh: no horizontal overflow at 390px, real card/canvas node identity retained
+   across same-scope refresh, and selected NIC/search drafts retained. New filter scopes still wait for their own
+   result instead of presenting previous-scope cards.
+
+Production acceptance used seven real identities. Chinese multiline notes were saved, searched and reopened,
+then restored to their original value. Real service body traffic, Linux NIC throughput and LAN NIC switching were
+observed; zero idle business rates were not replaced with invented traffic. These checks do not certify gameplay
+Login/Ready/Ping, optional plugin parity or long-duration capacity.

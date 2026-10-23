@@ -1,5 +1,8 @@
 # Console layout and display conventions
 
+The row-based 0.2.21 design below is retained as historical acceptance. The current GitHub Dark card directory,
+network view and final 0.2.24 comparison are specified in [instance-directory.md](instance-directory.md).
+
 The service directory uses one aligned list with environment section labels, a compact search/sort toolbar and persistent selection controls. Friendly service titles do not replace the canonical identity. The directory never invents CPU, memory or health values from report labels. Each native page remains bounded to 50 instances; environment counts/filters and ordering explicitly describe that page. Search still covers all identities through the server API. Default service-number ordering avoids polling-driven row movement; recent-report ordering is opt-in.
 
 Instance details put the service identity, section navigation and time range above physical-host, service-process and business metrics. Host association and template management stay behind Dashboard settings. Existing independent/inherited templates, SQL multi-sort and virtual player-region lists remain functional. Embedded host history, disk inventory and alert policy are expandable so the three current instruments remain the first resource view; expanding history starts its bounded queries. One size control applies to all sections.

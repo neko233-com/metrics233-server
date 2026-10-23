@@ -1,5 +1,30 @@
 # Project status and progress protocol
 
+### 2026-10-23 — Final GitHub Dark cards and network acceptance
+
+- Runtime 0.2.24 fixes source `87258d928e3e270fddfaf76d243bd5571bfb2efb`. The native worker passed full Go
+  tests/vet, 169 frontend units/build, native account/token readiness, collector builds and archive/download
+  checks. Deployment 439 succeeded; runtime health reports 0.2.24 and database=ok. Archive SHA256:
+  `d9677e0a1a2f02f942efc7ef33ca46c757912535c3313192772bab3c77a1ab620`.
+- The existing LAN collector was upgraded from the fixed 0.2.23 source. Its actual new counters and 17 NICs
+  were observed through the production UI, beyond the initial installation acknowledgement. The existing Linux
+  exporter was extended through a backed-up systemd override; netdev success and four receive-counter series
+  were read back. Business and physical-NIC bytes stay separate and idle business counters honestly show zero.
+- Edge verified all seven real identities and their explicit host resources; a newly observed SDK host association
+  was completed only after confirming its actual running executable on that machine. Environment/category
+  filters, global host-IP ordering, Chinese multiline note save/search/reopen/restore and actual per-NIC switching
+  passed. Same-scope refresh preserved the actual card DOM node and chart canvas node after completion, the
+  unsubmitted search draft and chosen NIC. This establishes no remount in these exercised refresh flows, rather
+  than a claim about every browser/driver timing.
+- Final desktop 1513×1039 and mobile 390×844 were inspected, with mobile client/scroll width both 375px
+  (15px scrollbar). The final production validation tab had no captured warnings/errors. Both generated concepts
+  and the latest actual screenshots were directly viewed; the five-point comparison and intentional functional
+  differences are recorded in [the instance contract](instance-directory.md).
+- Go reporting package tests and all six Rust reporter tests, including actual HTTPS/token/payload-alias proof,
+  passed. Producer changes are pushed separately; this monitoring release does not assert that a new game
+  binary was deployed. Current production legacy-counter fallback was exercised. No synthetic metrics, load
+  spike or new Feishu notification was injected for this UI acceptance. Overall roadmap weighting remains 94%.
+
 ### 2026-10-23 — Card release and sanitizer patch
 
 The immutable 0.2.23 worker for `6d0eae8fd08350e5cbba9a3cb77fa13be4291b97` passed all Go tests,
