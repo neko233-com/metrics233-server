@@ -183,7 +183,7 @@ export async function captureDashboardSnapshot(
           512 * 1024
         )
           throw new Error(
-            "Snapshot panel exceeds 512 KiB. Choose a shorter time range.",
+            "Snapshot panel exceeds 524 KB. Choose a shorter time range.",
           );
       }
     }),
@@ -209,7 +209,7 @@ export async function captureDashboardSnapshot(
   };
   if (new TextEncoder().encode(JSON.stringify(source)).length > 4 * 1024 * 1024)
     throw new Error(
-      "Snapshot exceeds 4 MiB. Choose fewer panels or a shorter time range.",
+      "Snapshot exceeds 4.2 MB. Choose fewer panels or a shorter time range.",
     );
   return source;
 }

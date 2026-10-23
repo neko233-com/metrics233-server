@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useEffect, useRef, useState } from "react";
 import { Download, History } from "lucide-react";
 import {
@@ -12,7 +13,7 @@ import {
   type DashboardVersion,
   type DashboardVersions,
 } from "../api";
-import { getLocale, t } from "../i18n";
+import { t } from "../i18n";
 import { Dialog } from "./Dialog";
 
 const pageSize = 20;
@@ -204,17 +205,13 @@ function DashboardHistory({
                           </small>
                         )}
                         <small className="history-mobile-meta">
-                          {new Date(item.created).toLocaleString(
-                            getLocale() === "zh" ? "zh-CN" : "en-US",
-                          )}{" "}
+                          {formatTimestamp(item.created)}{" "}
                           · {item.createdBy}
                         </small>
                       </td>
                       <td>
                         <time dateTime={item.created}>
-                          {new Date(item.created).toLocaleString(
-                            getLocale() === "zh" ? "zh-CN" : "en-US",
-                          )}
+                          {formatTimestamp(item.created)}
                         </time>
                       </td>
                       <td>{item.createdBy || "—"}</td>

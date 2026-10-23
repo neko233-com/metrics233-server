@@ -91,7 +91,7 @@ export function DashboardImport({
       } else {
         sourceText = raw ?? json;
         if (new TextEncoder().encode(sourceText).length > 4 * 1024 * 1024)
-          throw new Error(t("Import must be under 4 MiB"));
+          throw new Error(t("Import must be under 4.2 MB"));
         result = await api<Preview>("/import/grafana-preview", {
           method: "POST",
           body: grafanaImportBody(sourceText),
@@ -232,7 +232,7 @@ export function DashboardImport({
                       if (!file) return;
                       try {
                         if (file.size > 4 * 1024 * 1024)
-                          throw new Error(t("Import must be under 4 MiB"));
+                          throw new Error(t("Import must be under 4.2 MB"));
                         const text = await file.text();
                         if (!alive.current) return;
                         setJSON(text);

@@ -32,9 +32,9 @@ func HostDashboard(host ManagedHost, language string) Dashboard {
 		encoded, _ := json.Marshal(cfg)
 		d.Panels = append(d.Panels, Panel{ID: fmt.Sprintf("host-%d", id), Title: title, Visualization: kind, Aggregation: "last", Expr: expr, Unit: unit, Config: encoded})
 	}
-	titles := []string{tr("CPU usage", "CPU 使用率"), tr("Memory usage", "内存使用率"), tr("Disk usage", "磁盘使用率")}
+	titles := []string{tr("CPU usage", "CPU 使用率"), tr("Memory usage", "内存使用率"), tr("Disk capacity used · busiest partition", "磁盘容量占用 · 最满分区")}
 	exprs := []string{"host_cpu_usage_percent" + selector, "host_memory_used_percent" + selector, "max(host_disk_used_percent" + selector + ")"}
-	desc := []string{tr("CPU busy time between observations; no initial synthetic zero.", "相邻采样的 CPU 忙碌时间占比；首次采样建立基线，不显示伪零值。"), tr("1 - available / total. Reclaimable memory counts as available.", "1 - 可用内存 / 总内存；可回收内存算作可用。"), tr("Highest writable local volume usage. APFS helper volumes are excluded; shared capacity must not be summed.", "可写本地数据卷的最高占用；排除 APFS 辅助卷，共享容器容量不能相加。")}
+	desc := []string{tr("CPU busy time between observations; no initial synthetic zero.", "相邻采样的 CPU 忙碌时间占比；首次采样建立基线，不显示伪零值。"), tr("1 - available / total. Reclaimable memory counts as available.", "1 - 可用内存 / 总内存；可回收内存算作可用。"), tr("Highest writable volume (total minus available) / total; includes reserved space and may exceed df Use%. APFS shared capacity must not be summed.", "显示最满分区；按（总容量−可用空间）/总容量计算，包含保留空间，可能略高于 df 的 Use%。云盘扩容后还需扩展分区和文件系统，共享卷容量不能相加。")}
 	for i := 0; i < 3; i++ {
 		warn := 85.0
 		if i == 1 {

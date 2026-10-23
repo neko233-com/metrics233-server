@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useEffect, useState } from "react";
 import { Layers } from "lucide-react";
 import { api, message } from "../api";
@@ -17,7 +18,7 @@ type Group = {
 };
 const text = (en: string, zh: string) => (getLocale() === "zh" ? zh : en);
 const date = (at: number) =>
-  at ? new Date(at).toLocaleString(getLocale() === "zh" ? "zh-CN" : "en") : "—";
+  at ? formatTimestamp(at) : "—";
 export function NotificationGroupsPanel({
   tick,
   points,

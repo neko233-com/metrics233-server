@@ -24,7 +24,7 @@ test("host guidance excludes paused, foreign, acceptance and unsupported conditi
 test("host cards explain free capacity and sustained notification rules; paths stay in technical details", () => {
   const resources = { observed_at: Date.now(), cpu_percent: 8, cores: 10, memory_percent: 60, memory_total: 1000, memory_available: 400, uptime: 3600, disks: [{ mountpoint: "/System/Volumes/Data", device: "disk", fstype: "apfs", total: 10000, available: 7000, used_percent: 30 }] };
   const markup = renderToStaticMarkup(React.createElement(host.HostResources, { id: "one", resources, interval: 30, enabled: true, rules: [rule()], rulesState: "ready" }));
-  for (const value of ["还可用", "还剩", "处理器忙碌程度", "系统数据盘", "10分钟", "5分钟", "1小时", "黄色虚线", "采样口径与技术信息"]) assert.ok(markup.includes(value), value);
+  for (const value of ["还可用", "还剩", "CPU 使用率", "系统数据盘", "10分钟", "5分钟", "1小时", "黄色虚线", "采样口径与技术信息"]) assert.ok(markup.includes(value), value);
   assert.doesNotMatch(markup.split("<details")[0].replace(/<[^>]+>/g, ""), /\/System\/Volumes\/Data/);
   const stale = renderToStaticMarkup(React.createElement(host.HostResources, { id: "one", resources, interval: 30, enabled: false, rules: [], rulesState: "error" }));
   assert.doesNotMatch(stale, /role="meter"/); assert.match(stale, /上次采样/); assert.match(stale, /暂时无法读取规则/);

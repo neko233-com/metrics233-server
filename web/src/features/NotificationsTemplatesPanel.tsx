@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useEffect, useState } from "react";
 import { Code2, Pencil, Play, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { api, jsonBody, message } from "../api";
@@ -154,9 +155,7 @@ export function NotificationsTemplatesPanel({
                 <td>{value.definitions?.join(", ") || value.name}</td>
                 <td>{value.version}</td>
                 <td>
-                  {new Date(value.updated_at).toLocaleString(
-                    getLocale() === "zh" ? "zh-CN" : "en",
-                  )}
+                  {formatTimestamp(value.updated_at)}
                 </td>
                 <td>
                   <div className="row-actions">

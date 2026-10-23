@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../../display-format";
 import {
   useEffect,
   useLayoutEffect,
@@ -270,10 +271,7 @@ export default function HeatmapRenderer({
             style={{ left: hover.left, top: hover.top }}
           >
             <time>
-              {new Date(hover.time).toLocaleString(undefined, {
-                timeZone,
-                hour12: false,
-              })}
+              {formatTimestamp(hover.time)}
             </time>
             <span>{hover.label}</span>
             <strong>{hover.value}</strong>

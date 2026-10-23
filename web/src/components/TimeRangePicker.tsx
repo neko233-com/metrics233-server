@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useState } from "react";
 import { CalendarClock } from "lucide-react";
 import { Dialog } from "./Dialog";
@@ -32,10 +33,10 @@ export function TimeRangePicker({
       {!known && (
         <span
           className="time-range-summary"
-          title={`${resolved.sdk.from.toISOString()} → ${resolved.sdk.to.toISOString()}`}
+          title={`${formatTimestamp(resolved.start)} → ${formatTimestamp(resolved.end)}`}
         >
-          {resolved.sdk.from.format("MM-DD HH:mm:ss")} →{" "}
-          {resolved.sdk.to.format("MM-DD HH:mm:ss")} ·{" "}
+          {formatTimestamp(resolved.start)} →{" "}
+          {formatTimestamp(resolved.end)} ·{" "}
           {resolved.timezone === "browser"
             ? t("Browser time")
             : resolved.timezone}

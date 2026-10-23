@@ -5,7 +5,9 @@
 Native slow SQL counters now feed an exact-instance read API with redacted template variants, bounded Levenshtein groups and table summaries. SDK identities have process/HTTP/WebSocket/RPC panels and do not claim player populations. Targeted real HTTP/auth/instance-isolation/SQL grouping tests and TypeScript compilation passed. Producer lifecycle and TLS ACK tests passed separately. Edge validation, clean fixed-source worker checks and production rollout remain separate acceptance gates; see docs/slow-sql.md.
 
 
-更新时间：2026-10-22。
+更新时间：2026-10-23。
+
+- [x] **实例目录与资源界面重设计**：统一环境分组列表、紧凑搜索/排序、保留返回筛选；实例页突出整机仪表、服务进程和业务指标，低频设置与历史折叠，一处切换大面板。容量改为十进制 MB/GB；完整显示时间统一浏览器时区与格式，顶部独立时钟；当前值移除数据点时间，原始信息仍可展开，过期源样本不冒充当前值。隔离候选的167项前端单测/build及业务/主机 Go 测试通过，Edge 桌面/移动交互验收完成；生产发布和实际采集回读单独记录。
 
 - [x] **上报服务器仪表盘与多重排序**：同页展示明确关联的整机 CPU/内存/磁盘、实例进程资源和业务指标；继承模板与独立面板保留。SQL/地区支持完整结果集多列排序、优先级编辑和冻结排序的分页游标。环境/重启隔离、绑定CAS及权限、完整 SQL 集合取前10测试与163项前端单测/build、Edge示例渲染通过；私有0.2.19完整worker与部署成功；六实例真实主机与进程查询、Edge内网页和正式服完整84项取前10多重排序已验收。
 

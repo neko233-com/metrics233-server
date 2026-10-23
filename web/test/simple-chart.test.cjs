@@ -12,7 +12,7 @@ function load(file) {
   vm.runInNewContext(code, {
     exports: exported,
     require: (id) => id.includes("i18n") ? { getLocale: () => "en", t: (text) => text }
-      : id === "react" ? { lazy: () => null } : {},
+      : id.includes("display-format") ? load("src/display-format.ts") : id === "react" ? { lazy: () => null } : {},
     URLSearchParams,
   });
   return exported;
@@ -55,7 +55,7 @@ test("duration and small numeric formatting retain real precision, ratios and mi
   assert.equal(formatValue(0.003), "0.003");
   assert.equal(formatValue(0.75, "percentunit"), "75.0%");
   assert.equal(formatValue(75, "percent"), "75.0%");
-  assert.equal(formatValue(2048, "binBps"), "2 KiB /s");
+  assert.equal(formatValue(2048, "binBps"), "2 KB /s");
   assert.equal(formatValue(NaN, "seconds"), "—");
   assert.equal(formatValue(Infinity), "—");
 });

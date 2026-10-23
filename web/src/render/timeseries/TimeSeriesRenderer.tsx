@@ -1,3 +1,4 @@
+import { formatChartTimestamp, formatTimestamp } from "../../display-format";
 import {
   useCallback,
   useDeferredValue,
@@ -81,7 +82,7 @@ function formatValue(field: Field, value: unknown, timezone: string): string {
 function AnnotationOverlay({
   bounds,
   events,
-  timezone,
+  timezone: _timezone,
 }: {
   bounds?: PlotBounds;
   events: Annotation[];
@@ -101,9 +102,7 @@ function AnnotationOverlay({
           (time) => (time - bounds.start) / (bounds.end - bounds.start) * bounds.width);
         if (!geometry) return null;
         const color = event.color || "#5794f2";
-        const date = new Date(event.time).toLocaleString(undefined, {
-          timeZone: timezone === "browser" ? undefined : timezone === "utc" ? "UTC" : timezone,
-        });
+        const date = formatTimestamp(event.time);
         const title = event.text +
           (event.newState
             ? "\n" + t("Alert state") + ": " +
@@ -218,13 +217,6 @@ export default function TimeSeriesRenderer({
     const element = host.current;
     if (!element || !canRender) return;
     const locale = getLocale() === "zh" ? "zh-CN" : "en-US";
-    const axisTime = new Intl.DateTimeFormat(locale, {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      timeZone: resolved.timezone === "browser" ? undefined :
-        resolved.timezone === "utc" ? "UTC" : resolved.timezone,
-    });
     const profiles = (["y","y2"] as const).flatMap(axis=>{
       const items=model.series.filter(item=>item.axis===axis);
       const profile=items[0];
@@ -274,7 +266,8 @@ export default function TimeSeriesRenderer({
           stroke: "rgba(180, 190, 205, 0.65)",
           grid: { stroke: "rgba(180, 190, 205, 0.10)", width: 1 },
           ticks: { stroke: "rgba(180, 190, 205, 0.16)", width: 1 },
-          values: (_plot, ticks) => ticks.map((value) => axisTime.format(new Date(value))),
+          values: (_plot, ticks) => ticks.map((value) => formatChartTimestamp(value)),
+          size: 48, space: 120,
         },
         {
           scale: "y",
@@ -525,13 +518,7 @@ export default function TimeSeriesRenderer({
             }}
           >
             <time>
-              {new Date(Number(model.data[0][cursor.index])).toLocaleString(undefined, {
-                timeZone: resolved.timezone === "browser"
-                  ? undefined
-                  : resolved.timezone === "utc"
-                    ? "UTC"
-                    : resolved.timezone,
-              })}
+              {formatTimestamp(Number(model.data[0][cursor.index]))}
             </time>
             {tooltipItems.map(({ item, value }) => (
               <div className="native-timeseries-tooltip-row" key={item.id}>

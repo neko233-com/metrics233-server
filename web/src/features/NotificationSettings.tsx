@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { useEffect, useRef, useState } from "react";
 import {
   CircleCheck,
@@ -67,7 +68,7 @@ type Delivery = {
 const text = (en: string, zh: string) => (getLocale() === "zh" ? zh : en);
 const date = (value: number) =>
   value
-    ? new Date(value).toLocaleString(getLocale() === "zh" ? "zh-CN" : "en")
+    ? formatTimestamp(value)
     : "—";
 const deliveryState = (value: Delivery["state"]) =>
   ({

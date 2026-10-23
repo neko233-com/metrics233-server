@@ -107,6 +107,65 @@ func TestBusinessProcessQueriesExcludeOtherEnvironmentAndRestartLabels(t *testin
 	}
 }
 
+func TestBusinessCurrentPanelsRejectOldSourceSamplesAndRetainHistoricalZero(t *testing.T) {
+	db, h := setup(t, "")
+	ctx, now := context.Background(), time.Now()
+	for _, fixture := range []struct {
+		id     string
+		offset time.Duration
+		fresh  bool
+	}{{"stale", 2 * time.Minute, false}, {"fresh", time.Second, true}} {
+		identity := model.BusinessIdentity{Service: "fixture", Role: "logic", ServerID: fixture.id, Instance: fixture.id}
+		at := now.Add(-fixture.offset)
+		var samples []model.Sample
+		for _, name := range []string{"process_resident_memory_bytes", "game_players_online", "game_player_sessions_started_total"} {
+			samples = append(samples, model.Sample{Name: name, Labels: identity.Labels(), Value: 0, Timestamp: at.UnixMilli()})
+		}
+		require.NoError(t, db.Ingest(ctx, samples))
+		w := call(h, "GET", "/api/v1/business/instances/"+store.BusinessInstanceID(identity)+"/dashboard", "", "", "")
+		require.Equal(t, 200, w.Code)
+		var out struct {
+			Dashboard model.Dashboard `json:"dashboard"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &out))
+		var scope string
+		for _, variable := range out.Dashboard.Variables {
+			if variable.Name == "business_scope" {
+				scope = variable.Current
+			}
+		}
+		for _, panel := range out.Dashboard.Panels {
+			if panel.ID != "process-memory" && panel.ID != "online" && panel.ID != "sessions" {
+				continue
+			}
+			expr := strings.ReplaceAll(panel.Expr, "${business_scope:raw}", scope)
+			query := "/prometheus/api/v1/query?query=" + url.QueryEscape(expr)
+			read := func(path string) int {
+				q := call(h, "GET", path, "", "", "")
+				require.Equal(t, 200, q.Code, q.Body.String())
+				var result struct {
+					Data struct {
+						Result []struct {
+							Value []any `json:"value"`
+						} `json:"result"`
+					} `json:"data"`
+				}
+				require.NoError(t, json.Unmarshal(q.Body.Bytes(), &result))
+				if len(result.Data.Result) > 0 {
+					require.Equal(t, "0", result.Data.Result[0].Value[1], panel.ID)
+				}
+				return len(result.Data.Result)
+			}
+			if fixture.fresh {
+				require.Equal(t, 1, read(query), panel.ID)
+			} else {
+				require.Zero(t, read(query), panel.ID+" must not revive a stale value through instant-query evaluation time")
+				require.Equal(t, 1, read(query+"&time="+fmt.Sprintf("%.3f", float64(at.Add(time.Second).UnixMilli())/1000)), panel.ID+" must retain valid historical zero")
+			}
+		}
+	}
+}
+
 func TestBusinessDataMultipleSortsGlobalBeforeLimitAndCursorScope(t *testing.T) {
 	db, h := setup(t, "")
 	ctx := context.Background()

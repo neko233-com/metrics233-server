@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import { t as tr } from "../i18n";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { getLocale } from "../i18n";
@@ -103,7 +104,7 @@ export function Dashboards({
           if (!file) return;
           try {
             if (file.size > 4 * 1024 * 1024)
-              throw new Error("Import must be under 4 MiB");
+              throw new Error("Import must be under 4.2 MB");
             const text = await file.text();
             const data = JSON.parse(text) as Dashboard & {
               title?: string;
@@ -191,7 +192,7 @@ export function Dashboards({
                       <ArrowRight size={17} />
                     </button>
                     <div className="subtle mono">{d.id}</div>
-                    <div className="dashboard-mobile-meta subtle">{folderTrail(d.folder_uid || "", folders).map((folder) => folder.title).join(" / ") || tr("General")} · {new Date(d.updated_at).toLocaleString()}</div>
+                    <div className="dashboard-mobile-meta subtle">{folderTrail(d.folder_uid || "", folders).map((folder) => folder.title).join(" / ") || tr("General")} · {formatTimestamp(d.updated_at)}</div>
                     {(d.grafana as { snapshot?: unknown } | undefined)
                       ?.snapshot ? (
                       <span className="subtle">{tr("Snapshot")}</span>
@@ -199,7 +200,7 @@ export function Dashboards({
                   </td>
                   <td>{folderTrail(d.folder_uid || "", folders).map((folder) => folder.title).join(" / ") || tr("General")}</td>
                   <td>{d.panels.length}</td>
-                  <td>{new Date(d.updated_at).toLocaleString()}</td>
+                  <td>{formatTimestamp(d.updated_at)}</td>
                   <td>
                     <div className="row-actions">
                       <button

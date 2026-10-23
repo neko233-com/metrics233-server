@@ -118,11 +118,12 @@ func businessDefaultDashboard(item model.BusinessInstance) model.Dashboard {
 		{ID: "players-trend", Title: "Online players over time", Metric: "game_players_online", Expr: `sum(game_players_online{${business_scope:raw}})`, Aggregation: "last", Visualization: "timeseries", Unit: "count"},
 	}}
 	current := businessCurrentPopulation("${business_scope:raw}")
-	d.Panels[0].Expr = "sum((" + current + ") >= 0) and (count(" + current + ") == 1)"
-	d.Panels[2].Expr = d.Panels[0].Expr
 	population := "game_players_online{${business_scope:raw}}"
+	fresh := " and (max(timestamp(" + population + ")) >= time() - 90)"
+	d.Panels[0].Expr = "sum((" + current + ") >= 0) and (count(" + current + ") == 1)" + fresh
+	d.Panels[2].Expr = d.Panels[0].Expr
 	sessions := businessAtSnapshot("game_player_sessions_started_total", "${business_scope:raw}", "scalar(max(timestamp("+population+")))")
-	d.Panels[1].Expr = "sum(" + sessions + ") and (count(" + current + ") == 1)"
+	d.Panels[1].Expr = "sum(" + sessions + ") and (count(" + current + ") == 1)" + fresh
 	if item.Identity.Role == "gateway" || item.Identity.Role == "sdk" {
 		d.Panels = []model.Panel{}
 	}

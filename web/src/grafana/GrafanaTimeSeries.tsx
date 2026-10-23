@@ -1,3 +1,4 @@
+import { formatTimestamp } from "../display-format";
 import {
   Component,
   useCallback,
@@ -90,7 +91,7 @@ class PlotBoundary extends Component<{ children: ReactNode }, { error: string }>
   }
 }
 
-function AnnotationOverlay({ config, events, timezone }: {
+function AnnotationOverlay({ config, events, timezone: _timezone }: {
   config: UPlotConfigBuilder;
   events: Annotation[];
   timezone: string;
@@ -135,9 +136,7 @@ function AnnotationOverlay({ config, events, timezone }: {
           (time) => bounds.plot.valToPos(time, "x"));
         if (!geometry) return null;
         const color = event.color || "#5794f2";
-        const timestamp = new Date(event.time).toLocaleString(undefined, {
-          timeZone: timezone === "browser" ? undefined : timezone === "utc" ? "UTC" : timezone,
-        });
+        const timestamp = formatTimestamp(event.time);
         const title = `${event.text}${event.newState ? `\n${t("Alert state")}: ${annotationStateLabel(event.prevState || "Normal", t)} → ${annotationStateLabel(event.newState, t)}` : ""}\n${event.tags.join(", ")}\n${timestamp}`;
         return (
           <g key={event.key || event.id || index} className="annotation-marker" data-annotation-key={event.key}

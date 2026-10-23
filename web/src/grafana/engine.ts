@@ -1,3 +1,4 @@
+import { formatBytes, formatTimestamp } from "../display-format";
 import {
   FieldType,
   createTheme,
@@ -631,13 +632,16 @@ async function decorateFrames(
       if (resolved.displayName)
         resolved.displayName = replace(resolved.displayName);
       const decorated = { ...field, config: resolved };
+      const processor = getDisplayProcessor({ field: decorated, theme, timeZone });
       return {
         ...decorated,
-        display: getDisplayProcessor({
-          field: decorated,
-          theme,
-          timeZone,
-        }),
+        display: (value: unknown) => {
+          const shown = processor(value);
+          const unit = resolved.unit || "";
+          if (field.type === FieldType.time) return { ...shown, text: formatTimestamp(value as number), prefix: undefined, suffix: undefined };
+          if (["bytes", "decbytes", "binBps", "Bps"].includes(unit)) return { ...shown, text: value == null ? "—" : formatBytes(Number(value)), prefix: undefined, suffix: unit === "binBps" || unit === "Bps" ? " /s" : undefined };
+          return shown;
+        },
       };
     }),
   }));
