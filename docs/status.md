@@ -1,6 +1,42 @@
 # Project status and progress protocol
 
-### 2026-10-26 — Mobile navigation correction: local candidate
+### 2026-10-26 — 0.2.30 production, public release and full tag CI accepted
+
+Immutable source `17791c531c8941b5df56abdb706f4e6435663227` fixes the actual mobile backdrop hit region and is
+deployed as 0.2.30. The fixed native worker passed private tests/vet, backup/target preflight, 174 frontend units/build,
+same-source account/token readiness, full Go tests, collector cross-builds, archive/download checks and zero-advisory
+dependency audit. Completed deployment, actual process/source/binary identity, version/database health and the
+official initialized-account/anonymous-401/ingest-query-403 readiness check pass; private identities live separately.
+An early health read during the unfinished cutover saw a missing PID; checks after completed deployment all pass.
+
+The actual Windows ZIP passes the complete **103-case zero-retry browser suite** (7.4 min), with two external-SQL
+environment skips. The final Linux ZIP passes ten normal-click/keyboard/mobile-layout browser repetitions without
+retries (41.9 s), in addition to the five Windows/ten Linux candidate rounds and the original-release geometric red
+test. No forced clicks or weaker assertions were introduced. The actual Linux ZIP also passes two unchanged confined
+runtime/browser rounds (156.531 s): nonroot/read-only, 1 CPU/256 MiB, existing memory assertions, five reporting paths,
+roles, restart, HTTPS-origin and offline backup/restore. Eight reported memory snapshots peak at 131907584 bytes.
+Two independent five-platform builds produce identical seven-file sets; independent ZIP CRC, architecture,
+source/module/binary hashes and actual Windows version checks pass. All seven uploaded asset digests match;
+after public publication, all seven files were anonymously downloaded from the official release and hash-matched
+against the tested artifacts. Both README languages are included.
+Native Darwin/Linux arm64 execution and a new real SQL-browser run are not inferred from these checks.
+
+Production Edge again verifies seven instances, release filtering (two), gateway classification (one), LAN IP and
+multiline-note search (one), save/reopen and exact original-note restoration. Same-scope refresh retains card node
+116895, traffic canvas node 119476, search draft and explicit NIC choice. Real en0 receive/send and the independent
+service-byte view work; Automatic selects the active NIC, and explicit en1 survives refresh. No synthetic production
+samples, resource load or extra Feishu messages were used. Mobile normal-click and Enter closing pass; the backdrop
+starts at the 250px drawer edge and has about 125px visible width at 390px. The 1512/1100/768/390 instrument grids use
+three/two/one/one columns, explicit Large remains one, and no horizontal overflow or console warnings/errors were
+captured. Console GitHub Dark and Grafana/racing visualization colors remain independent; browser dimensions and
+the All instances view were restored. [Full v0.2.30 tag CI](https://github.com/neko233-com/metrics233-server/actions/runs/40210846886)
+is green: the test job completes in 28m00s, including full Go vet/race and **103 passed / 2 external-SQL skipped**
+hosted browser cases (7.3 min, no retries); repeated Docker integration/runtime completes in 10m50s.
+[v0.2.30](https://github.com/neko233-com/metrics233-server/releases/tag/v0.2.30) was publicly published at
+2026-10-25 16:46:06 UTC. The failed v0.2.29 tag/draft/history remain intact. The preceding candidate and failure
+entries below are historical observations, superseded by this final acceptance. Weighted roadmap progress stays 95%.
+
+### 2026-10-26 — Mobile navigation correction: earlier local candidate
 
 The 0.2.29 exact-tag workflow passed full Go vet/race and repeated Docker integration/runtime checks, but its
 final browser shell case timed out twice: 102 passed, two external-SQL skips and one failed case. Public assets

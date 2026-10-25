@@ -1,8 +1,8 @@
 # metrics233-server 执行计划
 
-- [~] 2026-10-26 移动侧栏遮罩：0.2.29完整tag CI通过Go race和Docker，但最后侧栏用例102通过/2跳过/1失败（重试仍超时）。Linux本地原版五轮复现1失败；新增实际命中区断言在原版立即失败（遮罩x=0，抽屉右边250）。共享移动导航宽度并将遮罩限制到抽屉外，保留正常点击/键盘断言；Windows连续5轮、Linux10轮零重试通过。0.2.30固定发行、线上和完整CI待收口。
+- [x] 2026-10-26 移动侧栏遮罩：0.2.29完整tag CI通过Go race和Docker，但最后侧栏用例102通过/2跳过/1失败（重试仍超时）。Linux本地原版五轮复现1失败；新增实际命中区断言在原版立即失败（遮罩x=0，抽屉右边250）。共享移动导航宽度并将遮罩限制到抽屉外，保留正常点击/键盘断言；候选Windows连续5轮、Linux10轮零重试通过。固定17791c5的v0.2.30已公开发布并部署线上，完整tag CI全绿：测试28分钟、Docker10分50秒，托管浏览器103通过/2外部SQL跳过且无重试。最终Windows ZIP完整浏览器103通过，Linux ZIP移动侧栏再10轮与正式runtime/browser两轮通过；七产物匿名下载hash一致，Edge真实导航及原交互验收通过。
 - [x] 2026-10-25 GitHub Dark 配色收敛：侧栏/顶栏 #010409，页面 #0d1117、卡片 #161b22、控件 #21262d；灰色选中背景、珊瑚色当前位置、蓝色链接/焦点与绿色主按钮分工明确。表单、弹窗、表格和一等 UI theme 共用语义变量；待触发告警保持黄色。图表/仪表阈值色独立。固定 ebfd82c 的0.2.28已线上发布，Edge真实七实例、筛选搜索、备注恢复、逐网卡流量与卡片/canvas保留通过；169单测/build、101完整浏览器加3真实SQL浏览器、实际Linux归档两轮、两次五平台可复现构建和完整tag CI均通过，七产物匿名下载hash一致。既有Grafana兼容行为保留，各层边界见 docs/status.md。
-- [~] 主机默认视图细化：首次选择新鲜且有实际流量的网卡，保留显式选择；仪表按内容区域宽度自适应。完整 server tests/vet、174 项前端单测/build、103 项完整无重试浏览器及2项定向浏览器、实际Linux归档两轮受限runtime/browser和五平台可复现构建通过。固定352c4c5的0.2.29已部署，Edge真实七卡片、搜索分类、备注恢复、逐网卡收发和刷新节点保持通过，1512/1100/768/390无溢出。当前/历史Grafana兼容说明已分开；tag CI侧栏问题由0.2.30修复后再完成公开下载验收。
+- [x] 主机默认视图细化：首次选择新鲜且有实际流量的网卡，保留显式选择；仪表按内容区域宽度自适应。完整 server tests/vet、174 项前端单测/build、103 项完整无重试浏览器及2项定向浏览器、实际Linux归档两轮受限runtime/browser和五平台可复现构建通过。0.2.29的托管侧栏失败保留；最终0.2.30完整tag CI、公开发行及匿名下载验收通过。Edge真实七卡片、搜索分类、备注保存/搜索/恢复、逐网卡收发和刷新节点保持通过，1512/1100/768/390分别三/二/一/一列且无溢出。当前/历史Grafana兼容说明已分开，UI与渲染器风格独立。
 
 - [x] 2026-10-25 快速接入与基础设施：真实协议探测、只读预览、带凭据快照证明的原子应用与幂等回执；默认仪表盘和持续/恢复/1h CD 告警，已有采集器复用凭据，固定本机 Exporter 发现。GitHub Dark 控制台与渲染器配色独立，大仪表和移动单列保留自定义布局。模型/HTTP/事务/权限/CLI、完整 Go tests/vet、169 项前端单测/build、6 项布局浏览器通过；修正持续告警后四真库/八协议流程连续两轮通过，最终源码运行容器含 Browser 再通过两轮。固定源码1da41fe的0.2.26已发布；Edge真实七实例、筛选搜索、备注、逐网卡流量、200px仪表和390px无横向溢出通过，刷新保留实际DOM/选择。各层源码与生产边界见 docs/status.md。
 
@@ -15,7 +15,7 @@
 Native slow SQL counters now feed an exact-instance read API with redacted template variants, bounded Levenshtein groups and table summaries. SDK identities have process/HTTP/WebSocket/RPC panels and do not claim player populations. Targeted real HTTP/auth/instance-isolation/SQL grouping tests, producer lifecycle/TLS ACK and TypeScript checks passed. Fixed-source 0.2.22 full worker and deployment succeeded; Edge verified actual runtime series, SDK panels and the honest empty slow-template window. Populated grouping remains attributed to real local HTTP fixtures, with no injected production SQL. See docs/slow-sql.md and docs/status.md.
 
 
-更新时间：2026-10-23。
+更新时间：2026-10-26。
 
 - [x] **实例目录与资源界面重设计**：统一环境分组列表、紧凑搜索/排序、保留返回筛选；实例页突出整机仪表、服务进程和业务指标，低频设置与历史折叠，一处切换大面板。容量改为十进制 MB/GB；完整显示时间统一浏览器时区与格式，顶部独立时钟；当前值移除数据点时间，原始信息仍可展开，过期源样本不冒充当前值。隔离候选167项前端单测/build及业务/主机 Go 测试/vet通过；固定源码548ab439的私有0.2.21完整worker、归档校验和部署成功，Edge实际六实例、内网整机资源、最近60分钟趋势/SQL多排序与桌面/移动视口验收通过。
 
@@ -68,7 +68,7 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 | 采集 | 15% | 95% | OTLP/remote-write 严格预检、上限、部分成功与真库采集已验收；协议支持子集有明确契约 |
 | 存储与查询 | 15% | 95% | SQLite bucket-last/选序列下推、PromQL 保真上限、真实 ClickHouse 大范围实测；不引入破坏覆盖语义的预聚合 |
 | 认证与安全 | 15% | 95% | API namespace、失败限流、代理来源和 HTTPS root 已修复；真实公网配置仍需目标验收 |
-| 运维与交付 | 10% | 100% | v0.2.28完整tag CI、五平台可复现归档、匿名下载、备份恢复、固定原生发布与Edge已分层验收 |
+| 运维与交付 | 10% | 100% | v0.2.30完整tag CI、五平台可复现归档、匿名下载、备份恢复、固定原生发布与Edge已分层验收 |
 | 文档与 agent 契约 | 5% | 95% | 契约与实测同步；持续维护 |
 | 性能 | 10% | 90% | Worker/min-max、100k/1m 基准与大范围存储实测；JSON 解析与增量归一化仍有边界 |
 
