@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, formatValue, timeAgo } from "../api";
 import { getLocale } from "../i18n";
+import { useObservationClock } from "../observation-clock";
 import { RiskGauge, type GaugeStep } from "../ui/RiskGauge";
 import "./ManagedHosts.css";
 import HostNetworkResources from "./HostNetworkResources";
@@ -85,10 +86,12 @@ function HostTrends({ id, observedAt, enabled, rules }: { id: string; observedAt
 export function HostResources({ id, resources, enabled, interval, rules = [], rulesState = "loading", compact = false, large = false }: { id: string; resources?: HostResourcesData; enabled: boolean; interval: number; rules?: HostAlertRule[]; rulesState?: "loading" | "ready" | "error"; compact?: boolean; large?: boolean }) {
   const [historyOpen, setHistoryOpen] = useState(!compact);
   const hostRules = useMemo(() => rules.filter(rule => rule?.labels?.managed_host === id), [rules, id]);
-  const fresh = !!resources && Date.now() - resources.observed_at <= Math.max(90000, interval * 3000);
+  const expiresAt = (resources?.observed_at || 0) + Math.max(90000, interval * 3000);
+  const now = useObservationClock(resources ? [resources.observed_at - 30000, expiresAt + 1] : [], enabled);
+  const fresh = !!resources && resources.observed_at > 0 && resources.observed_at <= now + 30000 && now <= expiresAt;
   const active = enabled && fresh;
   const worst = resources?.disks.reduce<HostResourcesData["disks"][number] | null>((a, b) => !a || b.used_percent > a.used_percent ? b : a, null);
-  const values = [resources?.cpu_percent ?? null, resources?.memory_percent ?? null, worst?.used_percent ?? null];
+  const values = active ? [resources?.cpu_percent ?? null, resources?.memory_percent ?? null, worst?.used_percent ?? null] : [null, null, null];
   return <div className={`host-resources${large ? " host-resources-large" : ""}`}>
     {!resources ? <p className="host-resource-note">{text("Host resources appear after updating the collector. Database collection continues independently.", "更新采集器后显示主机资源，数据库采集独立运行。")}</p> : null}
     <div className="host-instruments">{specs.map((spec, i) => {

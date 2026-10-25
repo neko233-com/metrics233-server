@@ -24,9 +24,9 @@ const test = base.extend<{}, { service: Service }>({ service: [async ({}, use) =
   }
 }, { scope: "worker" }] });
 
-async function open(page: Page, service: Service, route: string) {
+async function open(page: Page, service: Service, route: string, refreshOff = false) {
   await page.addInitScript(token => { sessionStorage.setItem("metricspanel-token", token); localStorage.setItem("metricspanel-locale", "en"); }, service.token);
-  await page.goto(service.url + "/#" + route);
+  await page.goto(service.url + "/" + (refreshOff ? "?refresh=" : "") + "#" + route);
 }
 const nic = (device: string, receive: number | null, send = 0) => ({ device, receive_bytes: 1000, transmit_bytes: 1000, receive_per_second: receive, transmit_per_second: send });
 const resources = () => ({ observed_at: Date.now(), cpu_percent: 25, cores: 8, memory_percent: 50, memory_total: 16e9, memory_available: 8e9, uptime: 7200, disks: [{ device: "/dev/fixture", mountpoint: "/", fstype: "ext4", total: 150e9, available: 120e9, used_percent: 20 }], network: [nic("anpi0", 0), nic("en0", 10), nic("en1", 20)] });
@@ -40,6 +40,95 @@ async function history(page: Page, service: Service, host: string) {
 
 // The bounded heartbeat projection is a fixture; chart queries use the real
 // native server/store. Backend recommendation/freshness has separate HTTP tests.
+test("paused directory expires current readings without requests, remounts or lost note drafts", async ({ page, service }) => {
+  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+  let observedAt = Date.now(), requests = 0;
+  await ingest(page, service, [{ name: "game_players_online", value: 0, labels: { service: "expiry-fixture", role: "logic", serverId: "83", environment: "test", channel: "fixture", instance: "expiry-process", implementation: "go" } }]);
+  await page.route("**/api/v1/business/directory?**", async route => {
+    requests++; const response = await route.fetch(), data = await response.json();
+    const item = data.items.find((value: any) => value.identity.service === "expiry-fixture");
+    if (item) { item.last_seen = observedAt; data.summaries[item.id] = { host_name: "Expiry fixture", host_observed_at: observedAt, host_expires_at: observedAt + 60000, cpu_percent: 25, memory_percent: 50, disk_percent: 20, memory_total: 16e9, memory_available: 8e9, receive_per_second: 1000, transmit_per_second: 2000, traffic_scope: "payload" }; }
+    await route.fulfill({ response, json: data });
+  });
+  await page.clock.install({ time: observedAt });
+  await open(page, service, "business", true);
+  const card = page.getByRole("article", { name: "Game server 83", exact: true });
+  await expect(card.locator(".business-card-meter strong").first()).toHaveText("25.0%");
+  const original = await card.elementHandle(), originalRequests = requests;
+  const search = page.getByRole("searchbox", { name: "Search all instances", exact: true });
+  await search.fill("unfinished search");
+  await card.getByRole("button", { name: "Edit note for Game server 83", exact: true }).click();
+  const draft = page.getByRole("textbox", { name: "Instance description", exact: true });
+  await draft.fill("unsaved maintenance note");
+  await page.clock.fastForward(60001);
+  await expect(card.locator(".business-card-meter strong")).toHaveText(["—", "—", "—"]);
+  await expect(card.locator(".business-card-meter").nth(1)).not.toHaveAttribute("title", /Available/);
+  await page.clock.fastForward(30000);
+  await expect(card.locator(".business-card-traffic strong")).toHaveText(["—", "—"]);
+  await expect(card.locator("footer")).toHaveClass("report-old");
+  expect(requests).toBe(originalRequests);
+  expect(await original!.evaluate(element => element.isConnected)).toBe(true);
+  await expect(search).toHaveValue("unfinished search");
+  await expect(draft).toHaveValue("unsaved maintenance note");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  observedAt += 90001;
+  await page.getByRole("region", { name: "Business instances", exact: true }).getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(card.locator(".business-card-meter strong").first()).toHaveText("25.0%");
+  await expect(card.locator(".business-card-traffic strong")).not.toHaveText(["—", "—"]);
+  await expect(card.locator("footer")).toHaveClass("report-fresh");
+  expect(await original!.evaluate(element => element.isConnected)).toBe(true);
+  await expect(search).toHaveValue("unfinished search"); expect(errors).toEqual([]);
+});
+
+test("automatic refresh catches up once after a suspended timer without replacing the directory", async ({ page, service }) => {
+  const now = Date.now(); let requests = 0;
+  await ingest(page, service, [{ name: "game_players_online", value: 0, labels: { service: "resume-fixture", role: "logic", serverId: "84", environment: "test", channel: "fixture", instance: "resume-process", implementation: "go" } }]);
+  await page.route("**/api/v1/business/directory?**", async route => { requests++; await route.continue(); });
+  await page.clock.install({ time: now });
+  await open(page, service, "business");
+  await expect.poll(() => requests).toBe(1);
+  const first = await page.getByRole("article", { name: "Game server 84", exact: true }).elementHandle();
+  const search = page.getByRole("searchbox", { name: "Search all instances", exact: true }); await search.fill("unfinished search");
+  await page.clock.pauseAt(now + 1000);
+  await page.clock.setSystemTime(now + 6000);
+  await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+  await expect.poll(() => requests, { timeout: 2000 }).toBe(2);
+  await page.evaluate(() => { document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("pageshow")); });
+  await expect(search).toHaveValue("unfinished search");
+  expect(await first!.evaluate(element => element.isConnected)).toBe(true); expect(requests).toBe(2);
+});
+
+test("host current gauges and NIC rates expire on a resumed page while history and NIC choice survive", async ({ page, service }) => {
+  const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));
+  let current = resources(); const observedAt = current.observed_at;
+  await page.route("**/api/v1/managed-hosts", route => route.fulfill({ json: [{ id: "host-expiry", name: "Host expiry fixture", address: "127.0.0.1", port: 22, user: "fixture", enabled: true, version: 1, target: { name: "fixture", kind: "prometheus", url: "http://127.0.0.1/metrics", interval_seconds: 30, enabled: true }, last_seen: current.observed_at, agent_state: "collecting", agent_os: "darwin", agent_arch: "arm64", collect_host: true, resources: current }] }));
+  await history(page, service, "host-expiry"); await page.clock.install({ time: observedAt });
+  await open(page, service, "hosts", true);
+  const card = page.getByRole("region", { name: "Host expiry fixture", exact: true });
+  await expect(card.getByRole("meter", { name: "CPU usage", exact: true })).toHaveAttribute("aria-valuenow", "25");
+  await card.getByText("Network interfaces · receive and send", { exact: true }).click();
+  const select = card.getByRole("combobox", { name: "History interface", exact: true });
+  await select.selectOption("en0");
+  const canvas = card.locator(".host-network-resources canvas").first(); await expect(canvas).toBeVisible();
+  const original = await canvas.elementHandle();
+  // A system-clock jump does not execute pending timers; pageshow must catch up.
+  await page.clock.setSystemTime(observedAt + 90001);
+  await page.evaluate(() => window.dispatchEvent(new Event("pageshow")));
+  await expect(card.getByRole("meter")).toHaveCount(0);
+  await expect(card.getByRole("img", { name: "CPU usage", exact: true })).toBeVisible();
+  await expect(card.locator(".host-identity + .status")).toHaveText("Heartbeat expired");
+  await expect(card.locator(".host-instruments .host-capacity")).not.toContainText(["8 GB"]);
+  const rates = card.locator(".host-network-resources tbody tr").first().locator("td");
+  await expect(rates).toHaveText(["anpi0", "—", "—"]);
+  await expect(select).toHaveValue("en0"); expect(await original!.evaluate(element => element.isConnected)).toBe(true);
+  current = { ...resources(), observed_at: observedAt + 90001, network: [nic("anpi0", 0), nic("en0", 30), nic("en1", 900)] };
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
+  await expect(card.getByRole("meter", { name: "CPU usage", exact: true })).toHaveAttribute("aria-valuenow", "25");
+  await expect(rates).not.toHaveText(["anpi0", "—", "—"]);
+  await expect(select).toHaveValue("en0"); expect(await original!.evaluate(element => element.isConnected)).toBe(true);
+  expect(errors).toEqual([]);
+});
+
 test("host instruments adapt to their container and keep automatic/manual NIC identity", async ({ page, service }, info) => {
   test.setTimeout(60000);
   const errors: string[] = []; page.on("pageerror", error => errors.push(error.message));

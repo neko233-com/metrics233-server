@@ -370,34 +370,37 @@ export default function App() {
     }
     if (!interval) return;
     let timer: ReturnType<typeof setTimeout>,
-      blocked = false;
+      blocked = false, nextDeadline = 0;
     const schedule = (deadline = Date.now() + interval) => {
+      nextDeadline = deadline;
       timer = setTimeout(
         () => {
           if (Date.now() < deadline) {
             schedule(deadline);
             return;
           }
-          if (document.hidden) blocked = true;
-          else refreshWorkspace();
-          schedule();
+          try {
+            if (document.hidden) blocked = true;
+            else refreshWorkspace();
+          } finally { schedule(); }
         },
         Math.min(2147483647, Math.max(1, deadline - Date.now())),
       );
     };
     const resume = () => {
-      if (blocked && !document.hidden) {
+      if (!document.hidden && (blocked || Date.now() >= nextDeadline)) {
         blocked = false;
         clearTimeout(timer);
-        refreshWorkspace();
-        schedule();
+        try { refreshWorkspace(); } finally { schedule(); }
       }
     };
     schedule();
     document.addEventListener("visibilitychange", resume);
+    window.addEventListener("pageshow", resume);
     return () => {
       clearTimeout(timer);
       document.removeEventListener("visibilitychange", resume);
+      window.removeEventListener("pageshow", resume);
     };
   }, [refreshChoice, range, refreshResolution]);
   useEffect(() => {

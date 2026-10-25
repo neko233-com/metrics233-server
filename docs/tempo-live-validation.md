@@ -73,5 +73,6 @@ Full run 40216847324 passes Go vet/race, 103 browser cases and repeated Docker b
 [focused hosted validation](https://github.com/neko233-com/metrics233-server/actions/runs/40219239682): two actual
 Linux/API/browser rounds in 21.222s without retries, plus negative regressions/vet; job 2m38s. Final combined-source
 full-workflow acceptance is separate and pending.
-Only tests/CI/docs change. Production remains v0.2.30; this is not a production Tempo deployment or a new game/server
+The R2c evidence commits through b0c9045 change only tests/CI/docs. At that checkpoint production remains v0.2.30;
+this is not a production Tempo deployment or a new game/server
 binary rollout. Full and focused results keep separate source identities in [status](status.md).

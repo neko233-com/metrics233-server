@@ -1,5 +1,25 @@
 # Project status and progress protocol
 
+### 2026-10-26 — Current snapshot expiry and suspended refresh: local candidate
+
+A deterministic regression against the previous UI keeps CPU 25%, memory 50% and disk 20% after the host
+snapshot's expiry with refresh Off. Another regression against the old scheduler receives no catch-up request
+when the clock advances beyond its deadline before a foreground event. The first isolated scheduler test lacked
+its own identity and timed out in fixture setup; after adding that identity, the preserved failure is specifically
+the missing second request. Neither failure was hidden by a retry or a longer assertion timeout.
+
+The candidate adds boundary-driven snapshot expiry and foreground/pageshow catch-up. Directory host tooltips,
+current service rates, gauges, host heartbeat and NIC rates become unknown/expired without network polling;
+expired capacity is not presented as current. Automatic refresh catches up once when overdue and remains Off
+when configured Off. Historical curves, mounted card/canvas nodes, unsaved notes/search and manual NIC choice
+survive, including recovery on a new sample. No UI palette, Grafana classic series palette or gauge styling changes.
+
+Five targeted native-server browser cases pass without retries in 9.6s; 174 frontend units and the production
+bundle build pass. The complete candidate browser suite passes 106 cases without retries in 7.5 minutes; two
+external-SQL cases and the separately owned live-Tempo case skip without their environments. Edge, immutable archives, release-tag CI and
+production are still separate pending gates for this candidate. Production remains v0.2.30 at this checkpoint;
+the earlier real-Tempo full workflow continues independently on source b0c9045. Weighted roadmap remains 95%.
+
 ### 2026-10-26 — Production configuration readback and plan reconciliation
 
 Edge still authenticates the actual root account and displays seven reporting identities with real host resources.

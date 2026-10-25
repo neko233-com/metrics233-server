@@ -15,6 +15,14 @@ resources require an explicit managed-host or exporter association; NAT/label ad
 Missing, stale or failed observations remain unknown. Refresh preserves mounted cards for the same filter scope;
 a changed scope discards the old view and aborts old requests. Observation times are distinct from the browser clock.
 
+Current directory readings expire even when automatic refresh is off: host meters and capacity tooltips follow
+the server's `host_expires_at`, while service rates and the report indicator follow the 90-second report window.
+The UI wakes at the next meaningful expiry boundary and rechecks on visibility/pageshow; it does not poll the API
+or rerender all charts every second. Expired readings show unknown, not zero. A later fresh response updates the
+same card nodes without discarding an unsaved search or description. Historical chart data is not removed.
+With automatic refresh enabled, returning after a suspended timer performs one overdue refresh; repeated foreground
+events do not duplicate it. The Off setting still performs no automatic API refresh.
+
 `PUT /api/v1/business/instances/{id}/note` requires Editor and `{version,description}`. Descriptions allow multiline
 UTF-8 up to 4096 bytes, rendered as plain text. Their own SQLite CAS revision is independent of reporting identity,
 host binding and template changes. HTTP 409 preserves the draft and requires an explicit review of the latest text.

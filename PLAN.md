@@ -180,6 +180,11 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 
 ### P1 深度与交付
 
+- [~] **F2 — 暂停刷新后的当前采样失效**
+  - 现象：当前卡片只在重新渲染时计算采样有效期，暂停刷新或后台挂起后可能继续显示旧 CPU、内存和流量。
+  - 范围：按采样截止时间唤醒，前台恢复时重新判断；不每秒重绘整个仪表盘，不删除历史趋势，不重建卡片/图表或覆盖备注草稿。
+  - 验收：先保留确定性失败，再验证到期隐藏与新采样恢复、DOM/草稿/网卡选择保持；针对性浏览器、Edge 和实际发布分开记录。可与 R2c 的独立完整 CI 等待并行。
+
 - [x] **F1 — 稳定仪表盘变量解析时序**
   - 现象：`dashboard-variables` 偶发在预览或保存后面板查询中出现未解析的 `$var`。
   - 验收：`npx playwright test dashboard-variables.spec.ts --retries=0` 连续 3 次通过；面板不得在变量未就绪时发查询。

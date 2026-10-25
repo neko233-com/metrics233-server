@@ -9,7 +9,8 @@ const compile = (file, overrides) => {
   return exports;
 };
 const gauge = compile("src/ui/RiskGauge.tsx", {});
-const host = compile("src/features/HostResources.tsx", { "./HostNetworkResources": { default: () => null }, "../ui/RiskGauge": gauge, "../api": { api: () => { throw new Error("render must not perform I/O"); }, formatValue: value => String(value), timeAgo: () => "刚刚" } });
+const clock = compile("src/observation-clock.ts", {});
+const host = compile("src/features/HostResources.tsx", { "../observation-clock": clock, "./HostNetworkResources": { default: () => null }, "../ui/RiskGauge": gauge, "../api": { api: () => { throw new Error("render must not perform I/O"); }, formatValue: value => String(value), timeAgo: () => "刚刚" } });
 const rule = () => ({ uid: "fixture", labels: { managed_host: "one", resource: "cpu", severity: "warning" }, annotations: { threshold: "outdated display annotation", unit: "%" }, paused: false, for_seconds: 600, keep_firing_for_seconds: 300, notification_cooldown_seconds: 3600,
   grafana: { condition: "B", data: [{ refId: "A", model: { expr: 'host_cpu_usage_percent{managed_host="one"}' } }, { refId: "B", model: { type: "threshold", expression: "A", conditions: [{ evaluator: { type: "gt", params: [85] }, unloadEvaluator: { type: "lt", params: [80] } }] } }] } });
 

@@ -9,6 +9,7 @@ import {
 import { Monitor, MoreHorizontal, Pencil, Plus, RefreshCw, ShieldCheck, ArrowUpRight } from "lucide-react";
 import { api, message, timeAgo, type Target } from "../api";
 import { getLocale } from "../i18n";
+import { useObservationClock } from "../observation-clock";
 import { Alert, AppModal, Button, Field, Input } from "../ui";
 import { useSession } from "../ui/session";
 import "./ManagedHosts.css";
@@ -85,7 +86,7 @@ const fresh = (): Draft => ({
   collectorPassword: "",
   collectorBearer: "",
 });
-const stateText = (host: Host) =>
+const stateText = (host: Host, now: number) =>
   host.revoked
     ? text(
         "Access revoked; reinstall before enabling",
@@ -93,7 +94,7 @@ const stateText = (host: Host) =>
       )
     : !host.last_seen
       ? text("Awaiting first heartbeat", "等待首次心跳")
-      : Date.now() - host.last_seen > 90000
+      : host.last_seen > now + 30000 || now - host.last_seen > 90000
         ? text("Heartbeat expired", "心跳已超时")
         : host.agent_state === "paused"
           ? text("Collection paused", "采集已暂停")
@@ -112,6 +113,7 @@ export default function ManagedHosts({
     [loaded, setLoaded] = useState(false),
     [draft, setDraft] = useState<Draft | null>(null),
     [busy, setBusy] = useState("");
+  const now = useObservationClock(hosts.flatMap(host => [host.last_seen - 30000, host.last_seen + 90001]));
   const [events, setEvents] = useState<{
     host: Host;
     items: { at: number; actor: string; action: string; result: string }[];
@@ -347,7 +349,7 @@ export default function ManagedHosts({
       )}
       <div className="managed-host-grid">
         {hosts.map((host) => {
-          const fresh = host.last_seen > Date.now() - 90000,
+          const fresh = host.last_seen > 0 && host.last_seen <= now + 30000 && now - host.last_seen <= 90000,
             healthy = fresh && host.agent_state === "collecting";
           return (
             <section
@@ -359,7 +361,7 @@ export default function ManagedHosts({
                 <Monitor size={26} className="host-icon" /><div className="host-identity"><h2>{host.name}</h2><p>{host.agent_os === "darwin" ? "macOS" : host.agent_os || "—"} · {host.agent_arch || "—"} · {host.address}</p></div>
                 <span className={`status ${healthy ? "healthy" : "warning"}`}>
                   <i />
-                  {stateText(host)}
+                  {stateText(host, now)}
                 </span>
                 <Button size="sm" disabled={!!busy} onClick={() => void action(host,"host-dashboard")}><ArrowUpRight size={15} />{text("Open dashboard", "打开仪表盘")}</Button>
               </div>

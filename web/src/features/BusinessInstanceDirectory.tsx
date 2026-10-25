@@ -3,6 +3,7 @@ import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Box, Gamepad2, Info, Network
 import { api, formatValue, message } from "../api";
 import { formatTimestamp } from "../display-format";
 import { getLocale } from "../i18n";
+import { useObservationClock } from "../observation-clock";
 import { Alert, Button, Input } from "../ui";
 import { useSession } from "../ui/session";
 import BusinessNoteEditor from "./BusinessNoteEditor";
@@ -22,12 +23,12 @@ function ResourceMeter({ label, value, warning, title }: { label: string; value?
   return <div className={"business-card-meter risk-" + risk} title={title}><div><span>{label}</span><strong>{percent(value)}</strong></div><progress aria-label={label} max={100} value={value == null ? 0 : Math.min(100, Math.max(0, value))} />{value == null && <small>{text("Awaiting sample", "等待采样")}</small>}</div>;
 }
 
-function InstanceCard({ item, summary, select, edit, canEdit }: { item: BusinessInstance; summary?: InstanceSummary; select: (id: string) => void; edit: (item: BusinessInstance) => void; canEdit: boolean }) {
+function InstanceCard({ item, summary, select, edit, canEdit, now }: { item: BusinessInstance; summary?: InstanceSummary; select: (id: string) => void; edit: (item: BusinessInstance) => void; canEdit: boolean; now: number }) {
   const title = instanceTitle(item.identity, getLocale() === "zh");
   const Icon = item.identity.role === "gateway" ? Network : item.identity.role === "sdk" ? Box : Gamepad2;
-  const fresh = reportFresh(item.last_seen);
-  const host = summary?.host_expires_at && summary.host_expires_at >= Date.now() ? summary : undefined;
-  const memoryDetail = summary?.memory_total ? text("Available", "可用") + " " + formatValue(summary.memory_available ?? 0, "bytes") + " / " + formatValue(summary.memory_total, "bytes") : undefined;
+  const fresh = reportFresh(item.last_seen, now);
+  const host = summary?.host_expires_at && summary.host_expires_at >= now ? summary : undefined;
+  const memoryDetail = host?.memory_total ? text("Available", "可用") + " " + formatValue(host.memory_available ?? 0, "bytes") + " / " + formatValue(host.memory_total, "bytes") : undefined;
   const trafficValue = (value: number | null | undefined) => value == null ? "—" : formatValue(value, "Bps");
   return <article className="business-instance-card" aria-label={title}>
     <button className="business-card-open" onClick={() => select(item.id)} aria-label={text("Open ", "打开 ") + title + " " + environmentName(item.identity.environment, true) + " " + channelName(item.identity.channel)}>
@@ -38,7 +39,7 @@ function InstanceCard({ item, summary, select, edit, canEdit }: { item: Business
     <div className="business-card-resource-title"><span>{text("Host resources", "主机资源")}</span>{summary?.host_name && <span title={summary.host_name}>{summary.host_name}</span>}</div>
     <div className="business-card-meters"><ResourceMeter label="CPU" value={host?.cpu_percent} warning={85} /><ResourceMeter label={text("Memory", "内存")} value={host?.memory_percent} warning={90} title={memoryDetail} /><ResourceMeter label={text("Disk", "磁盘")} value={host?.disk_percent} warning={85} title={text("Busiest writable partition", "最满可写分区")} /></div>
     <div className="business-card-traffic"><span>{summary?.traffic_scope === "http" ? text("HTTP body traffic", "HTTP 请求体流量") : text("Service traffic", "业务流量")}</span><div><span><ArrowDown size={17} /><small>{text("Receive", "下行")}</small><strong>{trafficValue(fresh ? summary?.receive_per_second : null)}</strong></span><span><ArrowUp size={17} /><small>{text("Send", "上行")}</small><strong>{trafficValue(fresh ? summary?.transmit_per_second : null)}</strong></span></div></div>
-    <footer className={fresh ? "report-fresh" : "report-old"}><i /><span>{text("Last report", "最近上报")}</span><time dateTime={item.last_seen ? new Date(item.last_seen).toISOString() : undefined}>{formatTimestamp(item.last_seen || undefined)}</time></footer>
+    <footer className={fresh ? "report-fresh" : "report-old"}><i /><span>{fresh ? text("Last report", "最近上报") : text("Report overdue", "上报待更新")}</span><time dateTime={item.last_seen ? new Date(item.last_seen).toISOString() : undefined}>{formatTimestamp(item.last_seen || undefined)}</time></footer>
   </article>;
 }
 
@@ -53,6 +54,7 @@ export default function BusinessInstanceDirectory({ active, select, reload, tick
   const scope = JSON.stringify([cursor, query, environment, role, sort]);
   const [pageScope, setPageScope] = useState("");
   const displayed = pageScope === scope ? page : null;
+  const now = useObservationClock(displayed?.items.flatMap(item => [item.last_seen - 30000, item.last_seen + 90001, (displayed.summaries?.[item.id]?.host_expires_at || 0) + 1]) || [], active);
   const resetPage = () => { setCursor(""); setPrevious([]); };
   useEffect(() => {
     if (!active) return;
@@ -75,7 +77,7 @@ export default function BusinessInstanceDirectory({ active, select, reload, tick
     </div>
     <div className="business-environment-filter business-role-tabs" role="group" aria-label={text("Service categories", "服务分类")}>{[["all", text("All", "全部")], ["game", text("Game servers", "游戏服")], ["gateway", text("Gateways", "网关")], ["sdk", "SDK"]].map(([value, label]) => <button key={value} aria-pressed={role === value} onClick={() => { resetPage(); setRole(value); }}>{label}<span>{displayed?.counts?.[value] ?? "—"}</span></button>)}</div>
     {!displayed && loading && <p className="business-directory-empty" role="status">{text("Loading instances…", "正在加载实例…")}</p>}
-    <div className="business-card-grid">{displayed?.items.map(item => <InstanceCard key={item.id} item={item} summary={displayed.summaries?.[item.id]} select={select} edit={setEditing} canEdit={canEdit} />)}</div>
+    <div className="business-card-grid">{displayed?.items.map(item => <InstanceCard key={item.id} item={item} summary={displayed.summaries?.[item.id]} select={select} edit={setEditing} canEdit={canEdit} now={now} />)}</div>
     {displayed && !displayed.items.length && <div className="business-directory-empty" role="status"><Server size={26} /><p>{text("No matching instances.", "没有匹配的实例。")}</p><Button onClick={() => { setSearch(""); setQuery(""); setEnvironment(""); setRole("all"); resetPage(); }}>{text("Show all", "查看全部实例")}</Button></div>}
     <footer className="business-directory-footer"><p><Info size={15} />{text("Last report indicates received data, not service health.", "最近上报表示收到数据，不代表服务健康。")}</p>{previous.length > 0 || displayed?.next_cursor ? <div className="business-directory-paging"><Button size="sm" disabled={!previous.length || loading} onClick={() => { const before = [...previous]; setCursor(before.pop() || ""); setPrevious(before); }}><ArrowLeft size={15} />{text("Previous", "上一页")}</Button><span>{text("Page ", "第 ") + (previous.length + 1)} · {displayed?.matched ?? "—"} {text("results", "个结果")}</span><Button size="sm" disabled={!displayed?.next_cursor || loading} onClick={() => { setCursor(displayed!.next_cursor); setPrevious([...previous, cursor]); }}>{text("Next", "下一页")}<ArrowRight size={15} /></Button></div> : <span>{displayed?.matched ?? 0} {text("results", "个结果")}</span>}</footer>
     {editing && <BusinessNoteEditor item={editing} close={() => setEditing(null)} saved={note => { setPage(value => value ? { ...value, items: value.items.map(item => item.id === editing.id ? { ...item, note } : item) } : value); setRevision(value => value + 1); }} />}

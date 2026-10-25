@@ -17,6 +17,11 @@ are collected; shared container capacities must not be summed. Genuine zero and 
 observations. The server validates finite ranges, pins host/job/configured identity labels and derives a bounded
 latest summary from accepted samples. It does not trust client-supplied summary JSON. Failed resources disappear
 from the new summary. Paused heartbeats preserve the old observation timestamp; the UI displays a stale state.
+The host page also expires heartbeat status, current gauges, capacity summaries and interface rates by wall clock
+without waiting for the next API response. Validity is max(90 seconds, three configured intervals) for resource
+snapshots, with at most 30 seconds of future clock skew. Foreground/pageshow rechecks handle suspended tabs;
+timers wake at observation boundaries rather than redrawing every second. Historical disk details and network
+curves retain their observation context, and a selected NIC stays selected through expiry and fresh recovery.
 
 Admin `POST /api/v1/managed-hosts/{id}/dashboard` accepts `{"kind":"host","language":"zh"}` for an eight-panel
 host board. The default kind remains `mysql`, preserving existing consumers. Every resource query pins the actual
