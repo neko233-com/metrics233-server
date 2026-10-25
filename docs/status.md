@@ -1,5 +1,21 @@
 # Project status and progress protocol
 
+### 2026-10-26 — Real Tempo daemon and rendered workflow: local acceptance
+
+`TestTempoLiveDataSource` starts official Tempo 3.1.1 pinned by digest, posts actual OTLP spans, and queries
+search/detail through an authenticated Metrics233 HTTP server. Two zero-retry API/browser rounds pass in 20.512s;
+the actual daemon, hierarchy, service names, duration/error message, missing trace, anonymous-401, reload/history
+and 390/768/1280 containment are verified. Edge separately inspects that same live fixture and captures three spans
+and database error attributes, without console warnings/errors. The held run passes in 90.109s including inspection.
+Existing deterministic trace boundaries pass in 6.038s; integration vet and TypeScript pass. Initial dashboard-field
+and Windows temp-alias fixture failures remain attributed to the fixture. Checked cleanup removes owned containers.
+
+The normal browser suite explicitly skips this case without its fixture; the new hosted test-job step runs it twice
+against the real daemon. Docker integration separately covers its API path. Hosted verification is pending. No
+product runtime code, production data or configured datasources change: production remains v0.2.30/17791c5. This
+closes a real-service evidence gap without implying a local trace store, service graphs, partial traces or production
+Tempo installation. See [the reproducible contract](tempo-live-validation.md). Roadmap remains 95% pending hosted CI.
+
 ### 2026-10-26 — 0.2.30 production, public release and full tag CI accepted
 
 Immutable source `17791c531c8941b5df56abdb706f4e6435663227` fixes the actual mobile backdrop hit region and is

@@ -95,8 +95,9 @@ is queried without a search-window restriction so persisted deep links can resol
   A direct span query renders the same detail view. Superseded requests are aborted and Retry starts a new lookup.
 - Browser contract coverage uses a protocol fixture served through a real HTTP upstream, the Go query API and the
   rendered UI. It covers hierarchy, error attributes, timeline, deep links/history, empty/error/retry and 390/768/1280
-  containment. This is not evidence of a live Tempo deployment, Tempo v2 partial-trace support, trace ingestion or a
-  locally owned trace store.
+  containment. A separate [real Tempo 3.1.1 contract](tempo-live-validation.md) now verifies actual OTLP ingestion,
+  TraceQL, detail and browser/Edge rendering against an immutable upstream daemon. Its local fixture is distinct
+  from production deployment. Tempo v2 partial traces and a locally owned trace store are not implied.
 - The browser datasource runtime routes the existing Prometheus, Loki and Tempo types through its built-in backend
   adapter; these queries do not require installing external datasource plugin packages. HTTP upstream fixture tests
   exercise normal Tempo search and Loki log queries in addition to trace detail. An attributed excerpt from the

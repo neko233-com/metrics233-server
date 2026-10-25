@@ -156,6 +156,11 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
   - 验收：真实 Tempo fixture；span 层级、耗时与错误状态；`?traceId=` 深链。
   - 证据：官方固定 SHA fixture、边界/取消 Go 测试、实际 HTTP→Go→UI 浏览器通过；非 live Tempo daemon 验收。
 
+- [~] **R2c — 真实 Tempo 服务接入闭环**
+  - 范围：固定官方 Tempo 发行镜像；真实 OTLP 上报、TraceQL 搜索、trace-ID 详情、层级/耗时/错误状态与仪表盘浏览器，不替换已有 fixture 回归。
+  - 验收：隔离的真实服务与监控 HTTP API；实际搜索后打开详情、深链/重载、缺失 trace 和响应式界面；普通账号边界保留。测试仅绑定 loopback，清理自有资源，不连接生产或伪造生产 trace。
+  - 当前：官方3.1.1固定镜像、真实API及无重试浏览器连续两轮20.512秒通过，另有同数据Edge检索/错误详情截图；原Tempo边界回归、vet与TypeScript通过。已加入tag/手动CI的独立真实服务浏览器步骤，托管验证待收口；见 docs/tempo-live-validation.md。
+
 - [x] **R3 — Heatmap / Histogram / Vector 渲染器**
   - 范围：按渲染器矩阵补齐常用分析视图；向量视图读取 64 维字段。
   - 验收：每类一个浏览器契约；大 frame 有分帧或降采样。

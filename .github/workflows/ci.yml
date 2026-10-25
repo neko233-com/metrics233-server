@@ -32,6 +32,10 @@ jobs:
       - run: mkdir -p bin && go build -tags webui -o bin/metricspanel ./cmd/metricspanel
       - run: npx playwright install --with-deps chromium && npm run test:e2e
         working-directory: web
+      - name: Real Tempo ingestion, query and browser contract
+        env:
+          METRICSPANEL_TEMPO_BROWSER_TEST: '1'
+        run: go test -tags=integration,webui ./tests/integration -run '^TestTempoLiveDataSource$' -count=2 -v -timeout=6m
   docker:
     runs-on: ubuntu-latest
     timeout-minutes: 30

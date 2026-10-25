@@ -1,6 +1,6 @@
 # Grafana interoperability and historical core audit
 
-## Current supported workflows — 2026-10-25
+## Current supported workflows — 2026-10-26
 
 The current implementation and executable contracts supersede the historical missing-feature rows below.
 The first-party console uses independent GitHub Dark tokens; existing visualization palettes and saved query
@@ -14,8 +14,9 @@ the native panel host and the focused contracts linked here.
   legends, tooltips and zoom. Tables use native virtualized rows and typed display fields. Current renderer tests
   exercise these paths; the old SDK-only warning below applies to the October 12 audit, not current acceptance.
 - Query adapters include local/external Prometheus, MySQL/MariaDB, PostgreSQL, Loki log queries, and Tempo search
-  plus trace-ID detail. Live SQL checks and local HTTP Loki/Tempo fixtures have distinct evidence layers; a fixture
-  is not a live external daemon. Collection/storage support does not imply an additional Grafana datasource editor.
+  plus trace-ID detail. Live SQL, fixed HTTP fixtures and the [real Tempo 3.1.1 daemon/browser contract](tempo-live-validation.md)
+  have distinct evidence layers. Loki's fixed fixture is not a live Loki daemon. Collection/storage support does
+  not imply an additional Grafana datasource editor.
 - Existing Classic/V1/V2 import/export, opaque integer/resource preservation, variables, query/expression editing,
   time windows, comparisons, annotations, snapshots, layout and alert graphs have executable browser coverage.
   The optional plugin host separately covers signed Clock, AppPlugin/SDK services, UI extensions and Go backend
