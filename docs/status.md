@@ -1,6 +1,6 @@
 # Project status and progress protocol
 
-### 2026-10-26 — 0.2.31 archive and Edge acceptance; release CI/production pending
+### 2026-10-26 — 0.2.31 public release, complete CI and production Edge accepted
 
 A deterministic regression against the previous UI keeps CPU 25%, memory 50% and disk 20% after the host
 snapshot's expiry with refresh Off. Another regression against the old scheduler receives no catch-up request
@@ -33,9 +33,35 @@ New ACKed samples and manual refresh recover nonzero rates while the search draf
 through the actual API and matches a combined note search/SDK-category query. Edge captures no warnings/errors.
 The temporary pages close and the ownership-checked Edge container, data volume and release verification image
 are removed; formal runtime and SQL fixtures also report their own cleanup. Shared images/caches are preserved.
-Seven draft GitHub asset digests match the verified local files. The new v0.2.31 complete tag workflow 40222966206
-is running (Docker passed); formal publication, anonymous downloads, production upgrade and production Edge
-remain pending. Production still runs v0.2.30. R2c's earlier full workflow is now accepted below; roadmap is 96%.
+The [complete exact-tag workflow](https://github.com/neko233-com/metrics233-server/actions/runs/40222966206)
+passes: test job 41m54s, complete Go vet/race 31m29s, 106 default browser cases/three environment skips/8.1m
+with zero retries, two additional real Tempo/API/browser rounds, and Docker 7m53s. The dedicated Tempo step and
+independent real-SQL browser run cover the owned environments skipped by the default suite.
+[v0.2.31](https://github.com/neko233-com/metrics233-server/releases/tag/v0.2.31) was formally published at
+2026-10-25 19:32:55 UTC. All seven anonymous official HTTPS downloads (215594380 bytes) match the independently
+verified local deliveries. Original failed/intermediate workflows and immutable tags retain their attribution.
+
+The existing single private native pipeline deploys the same fixed source as 0.2.31 after private tests/vet,
+backup/target preflight, 174 frontend units/build, complete Go tests, collector cross-builds and immutable
+archive/download checks. Official account/ingest readiness returns success; systemd, actual process image hash,
+source/version/deployment metadata and unprivileged UID are read back. Native deployment and confined Docker
+settings are distinct: no claim is made that the native unit has the container's Seccomp/NoNewPrivs settings.
+Private control-plane identities and credentials remain outside this public repository.
+
+Production Edge reloads the actual release and observes seven active reporting identities. With refresh Off and
+an actual wait past 90 seconds, all 21 host CPU/memory/disk values and 14 service receive/send values expire to
+unknown; each card reports overdue while open note/search drafts remain. Manual refresh restores all current
+resources and freshness without dropping those drafts. No browser clock or response substitution, fake production
+samples, threshold changes or extra provider notifications are used for this check.
+Release filtering returns two instances, LAN-IP search one and Rust gateway category one. The gateway retains
+three racing gauges, two actual traffic curves and separate idle service bytes versus nonzero physical-NIC traffic.
+A temporary note is saved, found by complete-catalog search and reopened, then restored to the original empty value.
+The 14 unpaused alert rules have zero firing/pending instances and current evaluations; the actual LAN CPU warning
+again shows 30s evaluation, 600s sustained trigger, 300s recovery and 3600s cooldown. Final search is empty, seven
+cards have numeric resources, default 5s refresh and the original business entry are restored, and no captured
+browser warnings/errors remain. GitHub Dark chrome and Grafana classic/racing renderers stay independent.
+F2 closes; the supported server roadmap remains 96%, without extending the claim to optional technologies or
+unbounded capacity. R2c's independently accepted real-service evidence is retained below.
 
 ### 2026-10-26 — Production configuration readback and plan reconciliation
 
