@@ -8400,6 +8400,11 @@ test("Workspace shell collapses the left navigation and keeps content responsive
     .getByRole("button", { name: "Open navigation", exact: true })
     .click();
   await expect(sidebar).toHaveClass(/open/);
+  await expect.poll(async () => (await sidebar.boundingBox())!.x).toBeGreaterThanOrEqual(-1);
+  const backdrop = page.getByRole("button", { name: "Close navigation", exact: true });
+  const drawerBounds = (await sidebar.boundingBox())!, backdropBounds = (await backdrop.boundingBox())!;
+  expect(backdropBounds.x).toBeGreaterThanOrEqual(drawerBounds.x + drawerBounds.width - 1);
+  expect(backdropBounds.width).toBeGreaterThanOrEqual(44);
   await page
     .getByRole("button", { name: "Close navigation", exact: true })
     .click();

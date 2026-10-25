@@ -1,5 +1,61 @@
 # Project status and progress protocol
 
+### 2026-10-26 — Mobile navigation correction: local candidate
+
+The 0.2.29 exact-tag workflow passed full Go vet/race and repeated Docker integration/runtime checks, but its
+final browser shell case timed out twice: 102 passed, two external-SQL skips and one failed case. Public assets
+remain a draft and the immutable tag is unchanged. A native Linux browser run reproduced one failure in five
+zero-retry repetitions: the 250px mobile drawer intercepted the close-backdrop button's centre. A geometric
+regression assertion fails immediately on the original release (backdrop x=0, required x>=249).
+
+The candidate shares the mobile drawer width and constrains the backdrop to the visible area outside that drawer.
+GitHub Dark backdrop hover stays stable, without changing chart/gauge colors or using forced clicks. The original
+normal mouse/keyboard/responsive assertions remain; the new check requires an uncovered touch target of at least
+44px. Windows passes five consecutive zero-retry rounds (9.5s); the actual Linux candidate in the official native
+browser image passes ten (33.4s). The production build passes. Fixed 0.2.30 artifacts, deployment, Edge and full tag
+workflow remain pending. This corrective unit does not change the 95% roadmap scope.
+
+### 2026-10-25 — 0.2.29 production accepted; public CI failed at mobile backdrop
+
+Source `352c4c5492da3d344a175f3380ec03e5ca56f793` is fixed by immutable tag `v0.2.29` and is now running in
+production. The existing reviewed native worker completed private tests/vet, target/backup preflight, 174 frontend
+units/build, token/local readiness, full Go tests, collector cross-builds, archive verification and zero-advisory
+dependency audit before publication. Post-deploy build identity and actual running-executable hash were checked;
+minimal health reports version 0.2.29/database OK, and the official initialized-account/anonymous-401/ingest-query-403
+readiness check passes. Deployment receipts and actual process identity remain in the private deployment repository.
+
+The final Windows ZIP passes the complete zero-retry browser suite: **103 passed / 2 external-SQL skipped / 7.5 min**.
+The initial full attempt lacked Go in PATH: 16 plugin-fixture startup failures (`spawn go ENOENT`), 87 passes and two
+skips. That failed log is retained; supplying the proper toolchain and rerunning the entire frozen-source suite
+produced the result above, without source changes or weaker assertions. External SQL-browser acceptance from
+0.2.28 remains attributed to that release, not counted as new passes here.
+
+Two independent five-platform builds produce identical seven-file sets. Independent ZIP CRC, architecture,
+executable/provenance/hash checks pass; the actual Windows executable reports 0.2.29. The verified Linux amd64 ZIP
+binary, copied into the otherwise unchanged formal runtime definition, passes **two confined runtime/browser
+rounds in 159.852 seconds**. Existing nonroot, read-only, 1 CPU/256 MiB and memory assertions remain; the largest
+reported memory observation is 135352320 bytes across eight snapshots. Restart, five reporting protocols, roles, HTTPS-origin and offline
+backup/restore stay intact. Test-owned containers/volumes were removed. Darwin/Linux arm64 native execution is not
+claimed. The seven uploaded draft assets match local hashes; publication was withheld after the mobile-backdrop
+CI failure documented above.
+
+Edge on production verifies all seven real instances; release filtering yields two, gateway classification one,
+and LAN IP/Chinese-note search one. A multiline note was saved, reopened, searched and restored to its original
+empty value. Card node 100057 and host-traffic canvas node 104944 remained mounted through same-scope refreshes;
+the search draft and explicit NIC choice also remained. Automatic selection chose the genuinely active en0 rather
+than idle anpi0, and real receive/send rates were visible independently of the zero-idle service rates. No synthetic
+production samples, load or extra Feishu messages were introduced.
+
+At 768px, the same 483px content area previously squeezed three approximately 154px instruments; it now displays
+one full-width column. Production 1512/1100/768/390px checks show three/two/one/one columns, no horizontal overflow,
+and a working explicit Large view. Desktop/tablet retain the current browser clock and GMT+8; narrow mobile
+retains the timezone indicator. Console warnings/errors are
+empty. Console tokens match GitHub Dark while Grafana classic line colors and racing threshold gauges stay
+independent. [The compatibility reference](grafana-compatibility.md) now distinguishes current contracts from its
+historical October 12 audit. Overall roadmap progress stays 95%; current capacity and optional-catalog boundaries
+remain. [Exact-tag workflow](https://github.com/neko233-com/metrics233-server/actions/runs/40205605215) Docker passed
+in 11m18s and full vet/race passed, while the 44m23s test job failed its last mobile-backdrop browser case.
+
 ### 2026-10-25 — Host default-view refinement: local candidate
 
 The GitHub Dark console and independent Grafana/racing visualization palettes remain intact. Automatic NIC

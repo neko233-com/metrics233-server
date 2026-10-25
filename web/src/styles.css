@@ -33,6 +33,7 @@
   --warning: #d29922;
   --danger: #f85149;
   --mono: "Cascadia Code", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --mobile-navigation-width: 250px;
   color-scheme: dark;
 }
 .annotation-dialog {
@@ -1629,7 +1630,7 @@ dialog::backdrop {
 }
 @media (max-width: 700px) {
   .sidebar {
-    width: 250px;
+    width: var(--mobile-navigation-width);
     transform: translateX(-100%);
     transition: transform 0.2s;
   }
@@ -1639,12 +1640,14 @@ dialog::backdrop {
   .sidebar-overlay {
     display: block;
     position: fixed;
-    inset: 0;
-    background: #030711aa;
+    /* Keep the actionable backdrop outside the drawer, including its centre. */
+    inset: 0 0 0 var(--mobile-navigation-width);
+    background: #010409aa;
     border: 0;
     border-radius: 0;
     z-index: 19;
   }
+  .sidebar-overlay:hover { background: #010409aa; }
   .workspace-main {
     margin: 0;
     width: 100%;

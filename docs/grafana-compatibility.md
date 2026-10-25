@@ -1,12 +1,39 @@
-# Grafana core coverage audit — 2026-10-12
+# Grafana interoperability and historical core audit
 
-Baseline: Grafana **v13.2.3** source tag. This is a read-only source inspection of MetricsPanel233's current implementation, not a claim that all supported features were exercised in this audit. SQL real MariaDB/PostgreSQL checks and browser checks are tracked separately in docker logs.
+## Current supported workflows — 2026-10-25
+
+The current implementation and executable contracts supersede the historical missing-feature rows below.
+The first-party console uses independent GitHub Dark tokens; existing visualization palettes and saved query
+identities remain intact. Current entry points are `web/src/render/index.ts`, `internal/server/builtin_sources.go`,
+the native panel host and the focused contracts linked here.
+
+- Native metric panels: time series, stat, gauge, bar gauge, table, bar chart, pie chart, state timeline, status
+  history, histogram and heatmap. Native logs/traces viewers, sanitized text and metric-window vector views are
+  separate paths. See [native panel types](native-panel-types.md) for exact inputs, budgets and unsupported types.
+- Time series includes log/multiple axes, absolute/percent stacking, comparison alignment, thresholds, annotations,
+  legends, tooltips and zoom. Tables use native virtualized rows and typed display fields. Current renderer tests
+  exercise these paths; the old SDK-only warning below applies to the October 12 audit, not current acceptance.
+- Query adapters include local/external Prometheus, MySQL/MariaDB, PostgreSQL, Loki log queries, and Tempo search
+  plus trace-ID detail. Live SQL checks and local HTTP Loki/Tempo fixtures have distinct evidence layers; a fixture
+  is not a live external daemon. Collection/storage support does not imply an additional Grafana datasource editor.
+- Existing Classic/V1/V2 import/export, opaque integer/resource preservation, variables, query/expression editing,
+  time windows, comparisons, annotations, snapshots, layout and alert graphs have executable browser coverage.
+  The optional plugin host separately covers signed Clock, AppPlugin/SDK services, UI extensions and Go backend
+  subprocesses. This verifies selected workflows rather than every official plugin option or package.
+
+See [current status](status.md) for immutable source, test results and production acceptance, and
+[renderer performance](performance-baseline.md) for measured large-frame limits. The historical manifest inventory
+is retained for traceability; its implementation counts and priorities must not be used as the current roadmap.
+
+## Historical manifest audit — 2026-10-12
+
+Baseline: Grafana **v13.2.3** source tag. The remainder is the read-only October 12 inspection of MetricsPanel233's implementation at that time, not a current implementation inventory or a claim that all supported features were exercised. SQL real MariaDB/PostgreSQL checks and browser checks are tracked separately in docker logs.
 
 This is an interoperability reference, not the product roadmap or an all-features acceptance target. Implement compatibility entries when they support a selected migration workflow; see the [project goals](project-goals.md).
 
 Official baseline lists: [core data sources](https://github.com/grafana/grafana/blob/v13.2.3/docs/sources/datasources/_index.md#built-in-core-data-sources), [core visualizations](https://github.com/grafana/grafana/blob/v13.2.3/docs/sources/visualizations/panels-visualizations/visualizations/_index.md).
 
-## Data sources
+### Historical data sources
 
 The tagged documentation lists 19 core sources. MetricsPanel233 has local query implementations for three. The other 16 can potentially use the installed-plugin host, but their official packages, query editors, resource APIs, authentication, platform executables, and real-service behavior are not bundled or individually established. Collector health/metrics for a product is a different capability from its Grafana datasource query implementation.
 
@@ -45,7 +72,7 @@ Special sources, outside that list:
 
 SQL annotation mapping and editing are implemented in the builtin SDK datasource, and backend metadata advertises annotations=true. The fresh single-container browser suite passed all three desktop cases: both real SQL engines, dynamic variable labels/multiple selections, native SQL query editing, and English/Chinese annotation point/range, variable, field mapping, preview/save/reload and opaque-field preservation. No page/console warnings or errors were recorded. SQL-specific remaining gaps include the official visual SQL builder, schema/table/column completion, and a real certificate/TLS endpoint integration check. Query execution is bounded and runs read-only transactions; explicit limits can reject a very large imported query. Read-only prevents updates but is not a sandbox against resource-intensive SELECT functions; server timeout handles cancellation.
 
-## Visualizations
+### Historical visualizations
 
 The tagged documented list has 25 visualizations. Six have local renderers: time series and table now use first-party implementations, and stat/gauge/bar gauge/text retain their local implementations. The other 19 go through PluginPanel -> loadPlugin, which requires an installed package; no bundled official core renderer/import map was found. A community panel with a different ID does not make the original core ID compatible automatically.
 
