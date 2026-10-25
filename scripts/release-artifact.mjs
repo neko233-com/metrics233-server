@@ -7,7 +7,7 @@ import { crc32, createDeflateRaw } from "node:zlib";
 
 // Fingerprint every repository input consumed by Vite or the embedded Go build.
 export function isBuildInput(file) {
-  return ["go.mod", "go.sum", "README.md", "LICENSE", "web/package.json", "web/package-lock.json", "web/vite.config.ts", "web/index.html"].includes(file) ||
+  return ["go.mod", "go.sum", "README.md", "README-CN.md", "LICENSE", "web/package.json", "web/package-lock.json", "web/vite.config.ts", "web/index.html"].includes(file) ||
     /^(cmd|internal|web\/src|web\/public)\//.test(file) || /^web\/[^/]+\.go$/.test(file) || /^web\/tsconfig.*\.json$/.test(file) || /^scripts\/(build-release|release-artifact)/.test(file);
 }
 

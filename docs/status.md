@@ -16,6 +16,14 @@ Both five-platform builds of the 0.2.26 candidate produced identical seven-file 
 binary hashes, source/architecture metadata and the actual Linux archive's confined runtime checks passed.
 That does not establish its complete-browser or hosted-CI gate. The immutable candidate tag is preserved while
 the corrected release proceeds separately.
+The first Windows archive's complete zero-retry suite finished at 87 passed / 14 failed / 2 external-SQL skips.
+Fourteen failures cover the tablet overflow and outdated card, gauge-SVG, missing/time, decimal-unit, localized
+Feishu and disjoint-histogram expectations. The corrected seven-file subset passed 33/34; its sole remaining
+`KB /s` spacing assertion then passed independently. Original identity, environment, template, 235-row virtualization,
+global SQL Top10, replay/staleness, unsafe-content, unit persistence and risk-color checks remain in place.
+The original tag's Docker job passed; its still-running test job was explicitly cancelled after the real browser
+failure evidence, rather than advertised as green. The next release also packages both README languages, hashes
+the Chinese document as a build input, and gives download users account-based startup steps without build tools.
 
 ### 2026-10-25 — Quick connect, GitHub Dark and readable host instruments accepted
 

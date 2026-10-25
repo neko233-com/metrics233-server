@@ -58,6 +58,29 @@ automatically embedding every observation. See [storage contracts and measured p
 
 ## Run locally
 
+### Download and start
+
+Download your platform ZIP from [Releases](https://github.com/neko233-com/metrics233-server/releases/latest),
+extract it into a writable folder and open a terminal in that folder. The downloaded executable needs no Go,
+Node.js, Docker or external database.
+
+```powershell
+# Windows
+.\metricspanel.exe serve --auth=local --open
+```
+
+```sh
+# Linux / macOS
+chmod +x ./metricspanel
+./metricspanel serve --auth=local --open
+```
+
+Keep the terminal open. First start prints a one-time setup token: use it in the browser to create your own
+administrator account. This setup token is separate from reporting credentials. The default listener is loopback;
+public access requires the documented HTTPS proxy configuration. In **Dashboards → Infrastructure**, Quick connect
+tests a source and previews its panels/alerts before saving. Data stays in the same working folder's `data/`
+directory across restarts; metric retention defaults to 15 days. Stop with Ctrl+C. The ZIP also includes `README-CN.md`.
+
 ### Fast development
 
 ```sh

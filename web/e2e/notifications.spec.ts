@@ -112,7 +112,7 @@ test("Feishu cards preview saved templates, status and safe text without sending
     let payload = await (await response).json();
     expect(payload.sent).toBe(false); expect(payload.bytes).toBeLessThanOrEqual(20 * 1024);
     const preview = dialog.getByRole("region", {name: "Feishu message preview", exact: true});
-    await expect(preview.locator('header[data-color="orange"]')).toContainText("FIRING");
+    await expect(preview.locator('header[data-color="orange"]')).toContainText("资源持续偏高，需要关注");
     await expect(preview).toContainText("Operations · example-host");
     await expect(preview).toContainText("cpu=88.5 CD=3600");
     await expect(preview).toContainText("＜at");
@@ -120,7 +120,7 @@ test("Feishu cards preview saved templates, status and safe text without sending
     await expect(preview.locator("a, img, script")).toHaveCount(0);
     await dialog.getByLabel("Preview state", {exact: true}).selectOption("resolved");
     await dialog.getByRole("button", {name: "Preview Feishu message", exact: true}).click();
-    await expect(preview.locator('header[data-color="green"]')).toContainText("RESOLVED");
+    await expect(preview.locator('header[data-color="green"]')).toContainText("资源已恢复正常");
     await expect(preview).toContainText("cpu=65 CD=3600");
     await preview.screenshot({path: testInfo.outputPath("feishu-resolved-preview.png")});
     await dialog.getByLabel("Title template", {exact: true}).fill("{{");

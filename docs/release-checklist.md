@@ -13,9 +13,9 @@ The full validation workflow still runs only on `v*` tags or explicit dispatch.
 4. The default five targets are Windows amd64, Linux amd64/arm64 and macOS amd64/arm64. PowerShell `-Targets` or
    shell `TARGETS` can select a subset. Unsupported or duplicate targets and unsafe versions fail before building.
 5. Output is a new `dist/<version>/` directory. Existing output is refused, with all existing files preserved.
-   The source and frontend inputs are hashed before/after the build; concurrent changes fail the build. A staging
+   The source and frontend inputs (including both packaged README languages) are hashed before/after the build; concurrent changes fail the build. A staging
    directory is owned by one run and is the only directory eligible for failure cleanup.
-6. Check `SHA256SUMS` against every ZIP and `PROVENANCE.json`. Each ZIP contains the executable, README, license
+6. Check `SHA256SUMS` against every ZIP and `PROVENANCE.json`. Each ZIP contains the executable, English/Chinese README, license
    and `BUILDINFO.json`; the latter identifies version, target, compiler, Node, source revision, dirty state, input
    hashes and binary SHA-256. The manifest includes uncommitted source inputs; a Git SHA alone does not describe a
    dirty candidate. No credential, local database, plugin directory or `.env` is copied into an archive.
@@ -42,7 +42,8 @@ The full validation workflow still runs only on `v*` tags or explicit dispatch.
 2. Restore that backup into a separate empty directory/volume and verify sign-in, metric queries and decryption
    before changing the live installation. Never restore identity or encryption keys from an unrelated instance.
 3. Existing ClickHouse Compose users must include `compose.clickhouse.yml`; the default `compose.yml` now selects
-   SQLite. Switching backends does not migrate historical metric samples. Existing ClickHouse TTL changes remain an
+   embedded compressed TSDB and local vectors. SQLite still stores control/identity metadata; explicit legacy
+   `--storage sqlite` remains available. Switching backends does not migrate historical metric samples. Existing ClickHouse TTL changes remain an
    explicit `ALTER TABLE` operation; a changed CLI retention value does not rewrite old table TTLs.
 4. Use the real HTTPS root URL, trust only the actual proxy peer CIDRs, and keep port 7333 bound behind the proxy.
    First-account/password entry remains on the official user-operated setup page or the existing operator workflow.

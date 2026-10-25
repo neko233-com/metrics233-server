@@ -77,9 +77,9 @@ test("Percent stacks and absolute right-axis units remain independent", async ({
   await page.goto(endpoint + `/d/${saved.id}/independent-axes?from=${start}&to=${end}&timezone=utc`);
   const region = page.getByRole("region", { name: "Independent axis units", exact: true });
   await expect(region.locator("canvas")).toBeVisible();
-  await expect.poll(() => page.evaluate(() => (window as any).__metricsAxisLabels.some((label: string) => label.includes("MiB")))).toBe(true);
+  await expect.poll(() => page.evaluate(() => (window as any).__metricsAxisLabels.some((label: string) => label.includes("MB")))).toBe(true);
   await expect.poll(() => page.evaluate(() => (window as any).__metricsAxisLabels.some((label: string) => label.includes("%")))).toBe(true);
-  await expect(region.locator(".native-timeseries-legend")).toContainText("MiB");
+  await expect(region.locator(".native-timeseries-legend")).toContainText("MB");
   await page.screenshot({ path: info.outputPath("independent-axis-units.png") });
   expect(issues).toEqual([]);
 });

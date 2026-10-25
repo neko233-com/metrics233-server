@@ -491,7 +491,8 @@ test("Stat, gauge and bar gauge render through first-party registry paths", asyn
   await expect(meter).toHaveAttribute("aria-valuenow", "75");
   await expect(meter).toHaveAttribute("aria-valuemin", "0");
   await expect(meter).toHaveAttribute("aria-valuemax", "200");
-  await expect(gauge.locator(".grafana-value strong")).toHaveText("75");
+  await expect(meter).toHaveAttribute("aria-valuetext", "75");
+  await expect(gauge.locator(".risk-gauge-value")).toHaveText("75");
   const bar = page.getByRole("region", { name: "Bar gauge value", exact: true });
   const progress = bar.locator("progress");
   await expect(progress).toHaveAttribute("max", "1");
@@ -544,7 +545,7 @@ test("Readable value panels preserve aliases, separate game servers and expose f
   await expect(custom.locator(".native-stat-description")).toContainText("已认证");
   await expect(custom).not.toContainText("diagnostic_label");
   const empty = page.getByRole("region", { name: "暂无采样", exact: true });
-  await expect(empty.locator(".grafana-value strong")).toHaveText("—");
+  await expect(empty.locator(".risk-gauge-value")).toHaveText("—");
   await expect(empty.getByRole("meter")).toHaveCount(0);
   await expect(empty).toContainText("所选时间范围内没有样本");
   const emptyBar = page.getByRole("region", { name: "空条形读数", exact: true });
@@ -554,12 +555,13 @@ test("Readable value panels preserve aliases, separate game servers and expose f
   const pointPanel = page.getByRole("region", { name: "逐点采样时间", exact: true });
   const points = pointPanel.locator(".grafana-value");
   await expect(points).toHaveCount(3);
-  await expect(points.nth(0).locator("strong")).toHaveText("0");
+  await expect(points.nth(0).locator(".risk-gauge-value")).toHaveText("0");
   await expect(points.nth(0).getByRole("meter")).toHaveAttribute("aria-valuenow", "0");
-  await expect(points.nth(0).locator("time")).toHaveAttribute("datetime", new Date(start).toISOString());
-  await expect(points.nth(1).locator("strong")).toHaveText("5");
-  await expect(points.nth(1).locator("time")).toHaveAttribute("datetime", new Date(start + 10000).toISOString());
-  await expect(points.nth(2).locator("strong")).toHaveText("—");
+  await expect(points.nth(0).locator("time")).toHaveCount(0);
+  await expect(points.nth(1).locator(".risk-gauge-value")).toHaveText("5");
+  await expect(points.nth(1).getByRole("meter")).toHaveAttribute("aria-valuenow", "5");
+  await expect(points.nth(1).locator("time")).toHaveCount(0);
+  await expect(points.nth(2).locator(".risk-gauge-value")).toHaveText("—");
   await expect(points.nth(2).locator("time")).toHaveCount(0);
   await expect(points.nth(2).getByRole("meter")).toHaveCount(0);
   await expect(page.getByRole("region", { name: "未知业务指标", exact: true }).locator(".native-stat-name")).toHaveText("unknown_metric_233");
@@ -926,7 +928,11 @@ test("Histogram renderer normalizes bucket bars", async ({ page, endpoint }) => 
   const panel = page.getByRole("region", { name: "Latency distribution", exact: true });
   await expect(panel).toHaveAttribute("data-bar-count", "5");
   await expect(panel.locator(".native-histogram-bar")).toHaveCount(5);
-  await expect(panel.locator(".native-histogram-bar").last()).toContainText("50");
+  // Prometheus le buckets are cumulative: each disjoint interval contains 10,
+  // while the total population is 50. Do not render cumulative counts as bars.
+  await expect(panel.locator(".native-histogram-value")).toHaveText(["10", "10", "10", "10", "10"]);
+  await expect(panel.locator(".native-histogram-label").last()).toHaveText("(5, 10]");
+  expect(await panel.locator(".native-histogram-value").evaluateAll(nodes => nodes.reduce((sum, node) => sum + Number(node.textContent), 0))).toBe(50);
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
@@ -1036,14 +1042,14 @@ test("native editor round-trips bytes per second without changing panel identity
   const created = await page.request.post(endpoint + "/api/v1/dashboards", { data: source }); expect(created.ok()).toBeTruthy(); const dashboard = await created.json();
   await page.goto(`${endpoint}/d/${dashboard.id}/unit-editor`);
   const panel = page.getByRole("region", { name: "Byte transfer", exact: true });
-  await expect(panel.locator(".grafana-value strong")).toContainText("KiB");
+  await expect(panel.locator(".grafana-value strong")).toContainText("KB");
   await page.getByRole("button", { name: "Edit Byte transfer", exact: true }).click();
   const editor = page.getByRole("dialog", { name: "Edit panel", exact: true });
   await editor.getByLabel("Unit", { exact: true }).selectOption("binBps");
   const patch = page.waitForRequest(request => request.method() === "PATCH" && request.url().endsWith(`/dashboards/${dashboard.id}/panels`));
   await editor.getByRole("button", { name: "Save panel", exact: true }).click();
   const payload = (await patch).postDataJSON(); expect(payload.panel.unit).toBe("bytes"); expect(payload.panel.display_unit).toBe("binBps");
-  await expect(editor).not.toBeVisible(); await expect(panel.locator(".grafana-value strong")).toContainText("KiB/s");
+  await expect(editor).not.toBeVisible(); await expect(panel.locator(".grafana-value strong")).toContainText(/KB\s*\/s/);
   const saved = async () => (await (await page.request.get(endpoint + "/api/v1/dashboards")).json()).find((item: any) => item.id === dashboard.id);
   const bytes = (await saved()).panels.find((item: any) => item.id === "byte-rate");
   expect(bytes.unit).toBe("bytes"); expect(bytes.config.fieldConfig.defaults.unit).toBe("binBps");

@@ -10,9 +10,10 @@ The entry point builds the real `Dockerfile --target runtime`, including Vite's 
 Go binary. `scripts/docker-verify.ps1` is a compatibility entry point to the same checks. No second runtime
 Dockerfile is maintained: release and test image definitions must stay identical.
 
-The default `compose.yml` also selects the single-service SQLite runtime, with the same read-only/capability and
+The default `compose.yml` also selects the single-service embedded TSDB/vector runtime, with independent SQLite
+control metadata and the same read-only/capability and
 resource constraints. `compose.clickhouse.yml` is an explicit optional overlay. Existing ClickHouse deployments
-must include that overlay on upgrade; switching to default SQLite does not migrate historical metric samples.
+must include that overlay on upgrade; switching to the default embedded backend does not migrate historical metric samples.
 The default `docker build .` also selects this production runtime; database fixtures require `--target integration`.
 
 To add the existing database, exporter, plugin, alert and dashboard integration suite:

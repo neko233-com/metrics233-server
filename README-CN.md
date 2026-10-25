@@ -2,6 +2,26 @@
 
 实例入口提供可搜索的服务卡片、环境与分类筛选、自由备注和上下行流量。控制台使用 GitHub Dark 背景与控件配色；Grafana 风格折线图、跑车仪表盘及预警线保持独立。指标口径、权限与版本冲突见[实例目录与网络观测](docs/instance-directory.md)。
 
+## 下载后直接启动
+
+从[发行页](https://github.com/neko233-com/metrics233-server/releases/latest)下载对应平台 ZIP，解压到可写目录，
+在该目录打开终端。下载版不需要安装 Go、Node.js、Docker 或外置数据库。
+
+```powershell
+# Windows
+.\metricspanel.exe serve --auth=local --open
+```
+
+```sh
+# Linux / macOS
+chmod +x ./metricspanel
+./metricspanel serve --auth=local --open
+```
+
+保持终端开启。首次启动会打印一次性 Setup token，在浏览器填写并创建自己的管理员账号；这不是业务上报 Token。
+默认仅监听本机，公网访问需按文档配置 HTTPS 代理。在「仪表盘 → 基础设施」测试接入、预览面板与告警后保存。
+数据保存在当前工作目录的 `data/`，重启时继续使用同一目录；指标默认保留 15 天。Ctrl+C 停止服务。
+
 [快速接入](docs/quick-connect.md)：测试真实数据库或 Exporter，预览实际指标对应的面板和持续告警，再一起保存。在「仪表盘 → 基础设施」查看资源卡片；已有采集器可复用受保护凭据生成面板。Agent 使用相同 HTTP 预览/应用流程及 `metricspanel connections` 命令。
 
 ## 架构

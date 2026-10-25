@@ -7,7 +7,7 @@ import path from "node:path";
 import { isBuildInput, sha256, writeDeterministicZip } from "../release-artifact.mjs";
 
 test("source identity includes frontend entry and Go embed sources", () => {
-  for (const file of ["web/index.html", "web/embed.go", "web/embed_dev.go", "web/src/main.tsx", "web/public/favicon.svg", "internal/server/server.go", "scripts/build-release.mjs"]) {
+  for (const file of ["README-CN.md", "web/index.html", "web/embed.go", "web/embed_dev.go", "web/src/main.tsx", "web/public/favicon.svg", "internal/server/server.go", "scripts/build-release.mjs"]) {
     assert.equal(isBuildInput(file), true, file);
   }
   for (const file of ["web/dist/index.html", "web/node_modules/test/index.js", "data/metrics.db", "CODELY.md"]) {

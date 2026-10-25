@@ -98,6 +98,7 @@ try {
       { name: executable, path: binary, executable: true },
       { name: "BUILDINFO.json", path: infoFile },
       { name: "README.md", path: path.join(root, "README.md") },
+      { name: "README-CN.md", path: path.join(root, "README-CN.md") },
       { name: "LICENSE", path: path.join(root, "LICENSE") },
     ]);
     artifacts.push({ file: name, target, sha256: await sha256(archive), binarySHA256 });
