@@ -36,9 +36,17 @@ func (e environment) verifyQuickConnection(address string, target model.Target, 
 	require.NoError(e.t, json.Unmarshal(e.must(address, "POST", "/api/v1/connections/apply", body), &retry))
 	require.Equal(e.t, first, retry, "same reviewed operation must survive restart/restore without duplication")
 	require.Positive(e.t, first.TargetID)
-	var board model.Dashboard
-	require.NoError(e.t, json.Unmarshal(e.must(address, "GET", "/api/v1/dashboards/"+first.DashboardID, nil), &board))
-	require.Equal(e.t, target.Name, board.Name)
+	var boards []model.Dashboard
+	require.NoError(e.t, json.Unmarshal(e.must(address, "GET", "/api/v1/dashboards", nil), &boards))
+	found := false
+	for _, board := range boards {
+		if board.ID == first.DashboardID {
+			found = true
+			require.Equal(e.t, target.Name, board.Name)
+			require.NotEmpty(e.t, board.Panels)
+		}
+	}
+	require.True(e.t, found, "applied dashboard must be present in the native read catalog")
 	// Scrape through the ordinary collector, then read only the new exact scope.
 	e.must(address, "POST", fmt.Sprintf("/api/v1/targets/%d/scrape", first.TargetID), nil)
 	labels, _ := json.Marshal(map[string]string{model.ConnectionLabel: id})
