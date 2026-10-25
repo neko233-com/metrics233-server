@@ -8,6 +8,14 @@ Those locators now use the actual Metrics233 title, preserving their original fl
 Full-suite, tag-CI, five-platform archive and same-input reproducibility results will be recorded only after they
 complete. The optional toolchain/animation proposals do not block this delivery; overall historical weighting
 remains 94% until the outstanding acceptance gates are established.
+The first full Windows-archive pass found additional stale business-list/button, retention-section and timestamp
+assertions, plus a real 768px topbar overflow (scrollWidth 773 with a 768px viewport). Edge confirmed the latter:
+the self-hosted badge crowded the current clock. The follow-up retains clock/timezone/navigation, truncates long
+breadcrumbs and removes the redundant narrow-screen badge. Responsive coverage expands to 701/760/900px.
+Both five-platform builds of the 0.2.26 candidate produced identical seven-file delivery sets; independent ZIP CRC,
+binary hashes, source/architecture metadata and the actual Linux archive's confined runtime checks passed.
+That does not establish its complete-browser or hosted-CI gate. The immutable candidate tag is preserved while
+the corrected release proceeds separately.
 
 ### 2026-10-25 — Quick connect, GitHub Dark and readable host instruments accepted
 

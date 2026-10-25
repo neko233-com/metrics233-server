@@ -79,14 +79,17 @@ test("Business JSON push creates a scoped dashboard with real gauge and counter 
   expect(errors).toEqual([]);
 });
 
-test("Business onboarding is contained at 390/768/1280 and rejects malformed label filters", async ({ page, endpoint }) => {
+test("Business onboarding fits mobile/tablet/desktop with the clock and rejects malformed label filters", async ({ page, endpoint }) => {
   await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
   expect((await page.request.post(endpoint + "/api/v1/ingest", { data: { samples: [{ name: "business_active_users", value: 42 }] } })).ok()).toBeTruthy();
   await page.goto(endpoint + "/#business");
-  for (const width of [390, 768, 1280]) {
+  for (const width of [390, 701, 760, 768, 900, 1280]) {
     await page.setViewportSize({ width, height: 900 });
     await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await expect(page.locator(".topbar .browser-timezone")).toBeVisible();
+    await expect(page.locator(".topbar").getByRole("button", { name: "Switch language", exact: true })).toBeVisible();
+    if (width > 760) await expect(page.locator(".topbar time")).toBeVisible();
     if (process.env.METRICSPANEL_QA_ARTIFACT_DIR && width !== 768) await page.screenshot({ path: path.join(process.env.METRICSPANEL_QA_ARTIFACT_DIR, `business-${width}.png`) });
   }
   await page.getByText("Connect metrics or create a template", { exact: true }).click();

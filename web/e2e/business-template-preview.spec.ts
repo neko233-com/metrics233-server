@@ -109,7 +109,10 @@ test("multi-environment logic preview requires a choice, isolates switches and r
   await page.getByRole("combobox", { name: "Auto refresh", exact: true }).selectOption(""); await page.unroute(sqlPattern);
   await page.getByRole("button", { name: "Dashboards", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
-  for (const name of ["Production · release", "Test · test", "Shared · shared", "Environment not reported"]) await expect(page.getByRole("region", { name, exact: true })).toBeVisible();
-  await page.getByRole("region", { name: "Test · test", exact: true }).getByRole("button", { name: "preview-logic · logic · 7", exact: true }).click();
+  const environment = page.getByRole("combobox", { name: "Environment", exact: true });
+  const cards = page.getByRole("article", { name: "Game server 7", exact: true });
+  for (const name of ["Production", "Test", "Shared", "Unspecified"]) await expect(cards.getByRole("button", { name: `Open Game server 7 ${name} fixture`, exact: true })).toBeVisible();
+  await environment.selectOption("test");
+  await page.getByRole("article", { name: "Game server 7", exact: true }).getByRole("button", { name: "Open Game server 7 Test fixture", exact: true }).click();
   await expect(page.getByRole("combobox", { name: "Time range", exact: true })).toHaveValue("6h");
 });

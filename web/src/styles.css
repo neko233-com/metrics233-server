@@ -388,12 +388,19 @@ pre {
   align-items: center;
   color: #b9c7dd;
   font-size: 14px;
+  gap: 16px;
 }
 .topbar > div {
   display: flex;
   align-items: center;
   gap: 14px;
 }
+.topbar > div:first-child { flex: 1; min-width: 0; }
+.topbar > div:first-child > button,
+.topbar > div:first-child > span:not(:last-child) { flex-shrink: 0; }
+.topbar > div:first-child > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.topbar-status { flex-shrink: 0; }
+@media (max-width: 900px) { .topbar-status .status { display: none; } }
 .breadcrumb-slash {
   color: #647086;
 }

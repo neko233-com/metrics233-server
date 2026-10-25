@@ -76,7 +76,7 @@ test("Chinese onboarding, numeric uptime and editable historical risk lines rend
   await expect(uptime).toContainText(/秒|分钟/);
   await expect(uptime.locator(".native-stat-name")).toHaveText("监控服务运行时长");
   await expect(uptime).toContainText("重启后重新计时");
-  await expect(uptime).toContainText("数据点时间");
+  await expect(uptime).not.toContainText("数据点时间");
   await expect(uptime).not.toContainText("__name__");
   await uptime.getByRole("button",{name:"指标详情 · 运行时长",exact:true}).focus();
   await page.keyboard.press("Enter");
@@ -126,7 +126,7 @@ test("retention defaults to fifteen days, persists and rejects a stale administr
   page.on("pageerror", error => errors.push(error.message));
   await open(page, service);
   await page.getByRole("button", { name: "Collectors", exact: true }).click();
-  const section = page.getByRole("region", { name: "Data retention", exact: true });
+  const section = page.getByRole("region", { name: "Storage & retention", exact: true });
   const input = section.getByLabel("Retention days", { exact: true });
   await expect(input).toHaveValue("15");
   await input.fill("7");
