@@ -11,6 +11,19 @@ export function setLocale(value: Locale) {
   document.documentElement.lang = value === "zh" ? "zh-CN" : "en";
 }
 const zh: Record<string, string> = {
+  "Quick connect":"快速接入", "Test and preview":"测试并预览", "Testing…":"正在测试…",
+  "Create sustained alert rules":"创建持续告警规则", "Follow existing notification policy":"沿用现有通知策略",
+  "Test the connection first, then review the dashboard and sustained alert rules before saving.":"先测试连接，再确认默认面板与持续告警，最后一次保存。",
+  "Saved dashboard unavailable; refresh the resource list.":"已保存的仪表盘暂不可用，请刷新资源列表。",
+  "connection test failed; check the address, credentials, TLS and service permissions":"连接测试失败，请检查地址、凭据、TLS 和服务只读权限。",
+  "detected connection plan changed; preview it again before applying":"检测到的接入方案已变化，请重新测试并确认预览。",
+  "connection setup changed or already exists; inspect current resources before retrying":"接入配置已变化或已存在，请先检查当前资源。",
+  "connection probes busy; retry later":"连接测试繁忙，请稍后重试。",
+  "connection could not be saved; inspect current state before retrying":"接入配置未能保存，请先检查当前状态后再重试。",
+  "collector labels overlap another target; choose distinct identities before creating a dashboard":"此采集器与其他目标的标签重复，请先区分采集身份再生成仪表盘。",
+  "quick connection reserves one identity label":"快速接入需要保留一个独立身份标签，请移除自定义 metrics233_connection 标签或减少标签数量。",
+  "quick connection reserves job and instance labels":"快速接入保留 job 和 instance 标签，请为业务标签使用其他名称。",
+  "quick connection requires a new enabled collector":"快速接入需要启用采集器，且不能填写采样结果等只读字段。",
   "Histogram counts must be non-negative. Cumulative buckets need unique increasing bounds; do not mix them with raw observations.": "直方图计数不能为负；累计桶边界须唯一递增，不能与原始观测混合。",
   "MySQL availability":"MySQL 可用状态", "MySQL uptime":"MySQL 运行时长", "MySQL connection usage":"MySQL 连接使用率", "MySQL active threads":"MySQL 执行中线程", "MySQL queries per second":"MySQL 每秒查询", "MySQL connections":"MySQL 连接数", "MySQL statement throughput":"MySQL SQL 吞吐", "MySQL transaction throughput":"MySQL 显式事务吞吐", "MySQL buffer pool usage":"MySQL 缓冲池占用", "MySQL buffer pool reads":"MySQL 缓冲池读取", "MySQL InnoDB IO":"MySQL InnoDB 读写", "MySQL network traffic":"MySQL 网络流量", "MySQL current row lock waits":"MySQL 当前行锁等待", "MySQL row lock waits":"MySQL 行锁等待次数", "MySQL row lock wait time":"MySQL 行锁累计等待速率", "MySQL aborted connections":"MySQL 异常连接", "MySQL temporary tables":"MySQL 临时表", "MySQL slow query counter":"MySQL 慢查询速率",
   "Running threads":"执行中线程", "Queries /s":"查询 /秒", "Connected":"已连接", "Running":"执行中", "Buffer pool":"缓冲池", "Logical reads":"逻辑读取", "Physical reads":"实际读盘", "Read":"读取", "Written":"写入", "Received":"接收", "Sent":"发送", "Current waits":"当前等待", "Waits /s":"等待 /秒", "Wait seconds /s":"累计等待秒 /秒", "Aborted clients":"异常退出客户端", "Aborted connects":"失败连接", "Temporary tables":"临时表", "On disk":"落盘临时表", "Slow queries /s":"慢查询 /秒",
@@ -603,7 +616,8 @@ const zh: Record<string, string> = {
   "JSON object": "JSON 对象",
   "Automatic collection enabled": "启用自动采集",
   "Save collector": "保存采集器",
-  "MetricsPanel internal collector": "MetricsPanel 内置采集器",
+  "MetricsPanel internal collector": "Metrics233 内置采集器",
+  "Notification receiver": "通知联系点",
   "Memory, goroutines, HTTP requests and uptime · every 5 seconds":
     "内存、协程、HTTP 请求、运行时间 · 每 5 秒采集",
   "Prometheus exporters": "Prometheus 导出器",

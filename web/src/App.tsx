@@ -213,6 +213,7 @@ export default function App() {
   const current = dashboards.find(
     (d) => d.id === (view === "overview" ? "system" : dashboardID),
   );
+  const dashboardNavigation = /^conn-[a-f0-9]{32}$/.test(dashboardID) ? "business" : "dashboards";
   const refreshChoice =
     refreshOverride ??
     ((view === "dashboard" || view === "overview") && current?.grafana
@@ -488,6 +489,9 @@ export default function App() {
     });
   }
   function openDashboard(d: Dashboard) {
+    if (/^conn-[a-f0-9]{32}$/.test(d.id)) {
+      try { sessionStorage.setItem("metrics233-dashboard-category", "resources"); } catch { /* Optional navigation preference. */ }
+    }
     setRefreshOverride(null);
     setDashboardID(d.id);
     // Carry an explicit URL/user time choice between dashboards, without
@@ -791,10 +795,10 @@ export default function App() {
               key={item.id}
               aria-label={tr(item.name)}
               title={tr(item.name)}
-              aria-current={view === item.id || (view === "dashboard" && item.id === "dashboards") ? "page" : undefined}
+              aria-current={view === item.id || (view === "dashboard" && item.id === dashboardNavigation) ? "page" : undefined}
               className={
                 view === item.id ||
-                (view === "dashboard" && item.id === "dashboards")
+                (view === "dashboard" && item.id === dashboardNavigation)
                   ? "active"
                   : ""
               }
@@ -969,16 +973,16 @@ export default function App() {
           {view === "dashboards" && (
             <Dashboards
               tick={tick}
-              dashboards={dashboards}
+              dashboards={dashboards.filter(dashboard=>!/^conn-[a-f0-9]{32}$/.test(dashboard.id))}
               reload={load}
               notify={notify}
               open={openDashboard}
             />
           )}
-          {view === "business" && <Suspense fallback={<p role="status">{tr("Loading…")}</p>}><BusinessMonitoring metrics={metrics} dashboards={dashboards} reload={load} open={openDashboard} navigate={navigate} tick={tick} /></Suspense>}
+          {view === "business" && <Suspense fallback={<p role="status">{tr("Loading…")}</p>}><BusinessMonitoring metrics={metrics} dashboards={dashboards} targets={targets} reload={load} open={openDashboard} navigate={navigate} tick={tick} /></Suspense>}
           {view === "explore" && <Explore metrics={metrics} tick={tick} />}
           {view === "collectors" && (
-            <Collectors targets={targets} reload={load} notify={notify} />
+            <Collectors targets={targets} reload={load} notify={notify} open={openDashboard} />
           )}
           {view === "reporting-sources" && <ReportingSources notify={notify} />}
           {view === "hosts" && <ManagedHosts notify={notify} />}

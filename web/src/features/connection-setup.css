@@ -1,0 +1,39 @@
+.connection-discovery { display:flex; flex-wrap:wrap; align-items:center; gap:16px; padding:20px; margin:0 0 20px; background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+.connection-discovery > div { flex:1; min-width:min(100%,260px); }
+.connection-discovery h2 { margin:0 0 8px; font-size:16px; }
+.connection-discovery p { margin:0; line-height:1.6; }
+.connection-discovery > ul { width:100%; list-style:none; margin:0; padding:0; }
+.connection-discovery li { display:flex; align-items:center; gap:16px; justify-content:space-between; border-top:1px solid var(--border); padding:12px 0; }
+.connection-discovery li > div { display:grid; gap:6px; min-width:0; overflow-wrap:anywhere; }
+.connection-reviewed-name { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+.connection-reviewed-name strong { font-size:18px; }
+.connection-reviewed-name > span { color:var(--muted); }
+.connection-review > p { overflow-wrap:anywhere; line-height:1.6; }
+.connection-review-counts { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin:20px 0; }
+.connection-review-counts > span { padding:12px; display:grid; gap:6px; color:var(--muted); font-size:12px; border:1px solid var(--border); border-radius:6px; font-variant-numeric:tabular-nums; }
+.connection-review-counts b { font-size:20px; color:var(--text); }
+.connection-preview-panels { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px 20px; padding-left:20px; }
+.connection-preview-panels li { line-height:1.5; }
+.connection-preview-rules { display:grid; gap:12px; padding-left:20px; }
+.connection-preview-rules li > span { display:block; margin-top:4px; color:var(--muted); font-size:12px; }
+.connection-surfaces { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px; border-bottom:1px solid var(--border); }
+.connection-surfaces button,.connection-resource-tabs button { color:var(--muted); background:transparent; border:0; border-radius:0; border-bottom:2px solid transparent; }
+.connection-surfaces button[aria-pressed=true],.connection-resource-tabs button[aria-pressed=true] { color:#3fb950; border-bottom-color:#3fb950; }
+.connection-resource-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }
+.connection-resource-tabs span { font-variant-numeric:tabular-nums; }
+.connection-resources > label { max-width:560px; }
+.connection-resource-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:16px; }
+.connection-resource-card { min-width:0; display:flex; flex-direction:column; gap:14px; padding:20px; background:var(--surface); border:1px solid var(--border); border-radius:8px; }
+.connection-resource-card header { display:flex; gap:12px; align-items:center; color:#58a6ff; min-width:0; }
+.connection-resource-card h2 { margin:0 0 4px; color:var(--text); font-size:17px; overflow-wrap:anywhere; }
+.connection-resource-card header span { color:var(--muted); font-size:12px; }
+.connection-resource-card p { margin:0; }
+.connection-resource-endpoint { color:var(--muted); font-size:12px; overflow-wrap:anywhere; line-height:1.6; }
+.connection-resource-card dl { display:grid; gap:10px; margin:0; font-size:12px; }
+.connection-resource-card dl > div { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+.connection-resource-card dt { color:var(--muted); }
+.connection-resource-card dd { margin:0; font-variant-numeric:tabular-nums; }
+.connection-resource-card > button { margin-top:auto; align-self:flex-start; }
+.connection-resource-pagination { display:flex; justify-content:space-between; align-items:center; margin-top:24px; }
+@media(max-width:1100px) { .connection-resource-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media(max-width:600px) { .connection-resource-grid,.connection-preview-panels { grid-template-columns:minmax(0,1fr); } .connection-review-counts { grid-template-columns:repeat(2,minmax(0,1fr)); } .connection-discovery { padding:16px; } .connection-discovery li { align-items:flex-start; flex-wrap:wrap; } }

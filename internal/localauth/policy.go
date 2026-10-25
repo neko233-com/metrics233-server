@@ -41,6 +41,7 @@ var readOnlyPostPrefixes = []string{
 // Admin-only configuration surfaces carry encrypted credentials or install
 // code. They are never writable by Editors.
 var adminPrefixes = []string{
+	"/api/v1/connections",
 	"/api/v1/business/host-options",
 	"/api/v1/managed-hosts",
 	"/api/v1/managed-host-artifacts",

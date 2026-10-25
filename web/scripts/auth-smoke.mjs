@@ -133,7 +133,7 @@ try {
   check(true, "admin creates a Viewer account");
 
   await page.getByRole("button", { name: "Sign out" }).click();
-  await page.getByRole("heading", { name: "MetricsPanel233" }).waitFor();
+  await page.getByRole("heading", { name: "Metrics233", exact: true }).waitFor();
   await page.getByLabel("Login").fill("viewer");
   await page.getByLabel("Password").fill("viewer-password-233");
   await page.getByRole("button", { name: "Sign in" }).click();
@@ -142,12 +142,13 @@ try {
   check((await page.getByRole("button", { name: "Users", exact: true }).count()) === 0, "viewer cannot see Users navigation");
   check((await page.getByRole("button", { name: "Add panel", exact: true }).count()) === 0, "viewer cannot see Add panel");
 
-  const businessNavigation = page.getByRole("button", { name: "Business monitoring", exact: true });
-  check((await businessNavigation.count()) === 1, "viewer can access Business monitoring");
+  const businessNavigation = page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Dashboards", exact: true });
+  check((await businessNavigation.count()) === 1, "viewer can access business Dashboards");
   await businessNavigation.click();
-  await page.getByRole("heading", { name: "Business monitoring", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Dashboards", exact: true }).waitFor();
   check((await page.getByRole("button", { name: "Create business dashboard", exact: true }).count()) === 0, "viewer cannot see the business dashboard mutation");
   const businessRoleExplanation = page.getByText("Editor or Admin role is required to create dashboards or push metrics.", { exact: true });
+  await page.getByText("Connect metrics or create a template", { exact: true }).click();
   await businessRoleExplanation.waitFor();
   check(await businessRoleExplanation.isVisible(), "business monitoring explains the required editing role");
 

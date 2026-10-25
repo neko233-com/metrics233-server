@@ -8,21 +8,28 @@ import {
   parseLabels,
   timeAgo,
   type Target,
+  type Dashboard,
 } from "../api";
 import { Dialog } from "../components/Dialog";
 import { DataRetention } from "./DataRetention";
+import { useSession } from "../ui/session";
+import { ConnectionReview, LocalConnectionDiscovery, previewConnection, type ConnectionDraft } from "./ConnectionSetup";
 type Integration = { kind: string; name: string; endpoint: string; protocol: string; metrics: string; docs: string };
 type ExporterPreset = { id:string; name:string; endpoint:string; docs:string };
 export function Collectors({
   targets,
   reload,
   notify,
+  open,
 }: {
   targets: Target[];
   reload: () => Promise<void>;
   notify: (s: string, error?: boolean) => void;
+  open: (dashboard: Dashboard) => void;
 }) {
-  const [editor, setEditor] = useState<Target | "new" | null>(null),
+  const { canAdmin } = useSession();
+  const [draft,setDraft] = useState<ConnectionDraft | null>(null);
+  const [editor, setEditor] = useState<{ mode: "new" | "edit" | "quick"; target?: Target } | null>(null),
     [removing, setRemoving] = useState<Target | null>(null),
     [busy, setBusy] = useState<number | null>(null);
   return (
@@ -36,11 +43,15 @@ export function Collectors({
             )}
           </p>
         </div>
-        <button className="primary" onClick={() => setEditor("new")}>
+        <div className="form-actions">
+        {canAdmin && <button className="primary" onClick={() => setEditor({mode:"quick"})}><Plus size={18} />{tr("Quick connect")}</button>}
+        <button onClick={() => setEditor({mode:"new"})}>
           <Plus size={18} />
           {tr("Add collector")}
         </button>
+        </div>
       </div>
+      {canAdmin && <LocalConnectionDiscovery select={target=>setEditor({mode:"quick",target})} />}
       <div className="builtin-row">
         <div className="builtin-icon">
           <Check size={22} />
@@ -71,9 +82,9 @@ export function Collectors({
             <p>
               {tr("Choose a collector type and enter its connection address.")}
             </p>
-            <button onClick={() => setEditor("new")} className="primary">
+            <button onClick={() => setEditor({mode:canAdmin ? "quick" : "new"})} className="primary">
               <Plus size={18} />
-              {tr("Add collector")}
+              {tr(canAdmin ? "Quick connect" : "Add collector")}
             </button>
           </div>
         ) : (
@@ -156,7 +167,7 @@ export function Collectors({
                         <button
                           className="icon-button"
                           aria-label={`${tr("Edit")} ${t.name}`}
-                          onClick={() => setEditor(t)}
+                          onClick={() => setEditor({mode:"edit",target:t})}
                         >
                           <Pencil size={16} />
                         </button>
@@ -191,11 +202,17 @@ export function Collectors({
       </div>
       {editor && (
         <CollectorEditor
-          target={editor === "new" ? undefined : editor}
+          target={editor.target}
+          quick={editor.mode === "quick"}
           onClose={() => setEditor(null)}
-          onSave={async (target) => {
-            await api(editor === "new" ? "/targets" : `/targets/${editor.id}`, {
-              method: editor === "new" ? "POST" : "PUT",
+          onSave={async (target, options) => {
+            if (editor.mode === "quick") {
+              setDraft(await previewConnection(target,options));
+              setEditor(null);
+              return;
+            }
+            await api(editor.mode !== "edit" ? "/targets" : `/targets/${editor.target!.id}`, {
+              method: editor.mode !== "edit" ? "POST" : "PUT",
               body: jsonBody(target),
             });
             await reload();
@@ -204,6 +221,13 @@ export function Collectors({
           }}
         />
       )}
+      {draft && <ConnectionReview draft={draft} close={()=>setDraft(null)} saved={async receipt=>{
+        await reload();
+        const boards=await api<Dashboard[]>("/dashboards");
+        const board=boards.find(item=>item.id===receipt.dashboard_id);
+        if(!board)throw new Error(tr("Saved dashboard unavailable; refresh the resource list."));
+        setDraft(null);open(board);
+      }} />}
       {removing && (
         <Dialog
           title={tr("Delete collector")}
@@ -241,12 +265,14 @@ export function Collectors({
 }
 function CollectorEditor({
   target,
+  quick = false,
   onClose,
   onSave,
 }: {
   target?: Target;
+  quick?: boolean;
   onClose: () => void;
-  onSave: (t: Partial<Target>) => Promise<void>;
+  onSave: (t: Partial<Target>, options?: {alerts:boolean;receiver:string}) => Promise<void>;
 }) {
   const [name, setName] = useState(target?.name || ""),
     [url, setURL] = useState(target?.url || ""),
@@ -266,19 +292,23 @@ function CollectorEditor({
   const [bearer, setBearer] = useState("");
   const [clearPassword, setClearPassword] = useState(false);
   const [clearBearer, setClearBearer] = useState(false);
+  const [defaultAlerts,setDefaultAlerts]=useState(true);
+  const [receiver,setReceiver]=useState("");
+  const [points,setPoints]=useState<{uid:string;name:string;disabled?:boolean}[]>([]);
   useEffect(() => {
     const controller = new AbortController();
     void api<Integration[]>("/collectors/catalog", { signal: controller.signal })
       .then(setCatalog).catch((error) => { if (!controller.signal.aborted) setError(message(error)); });
     void api<ExporterPreset[]>("/collectors/exporters", {signal:controller.signal}).then(setExporters).catch((error)=>{ if(!controller.signal.aborted) setError(message(error)); });
+    if(quick) void api<{uid:string;name:string;disabled?:boolean}[]>("/alerting/contact-points",{signal:controller.signal}).then(setPoints).catch(cause=>{if(!controller.signal.aborted)setError(message(cause))});
     return () => controller.abort();
-  }, []);
+  }, [quick]);
   const integration = catalog.find((entry) => entry.kind === kind);
   const sql = kind === "mysql" || kind === "postgresql";
   const tcp = sql || kind === "redis";
   return (
     <Dialog
-      title={tr(target ? "Edit collector" : "Add collector")}
+      title={tr(quick ? "Quick connect" : target ? "Edit collector" : "Add collector")}
       onClose={saving ? () => {} : onClose}
     >
       <form
@@ -297,8 +327,8 @@ function CollectorEditor({
               url,
               interval_seconds: interval,
               labels: parseLabels(labels),
-              enabled,
-            });
+              enabled: quick ? true : enabled,
+            },{alerts:defaultAlerts,receiver:defaultAlerts ? receiver : ""});
           } catch (e) {
             setError(message(e));
             setSaving(false);
@@ -377,14 +407,14 @@ function CollectorEditor({
             rows={2}
           />
         </label>
-        <label className="checkbox-label">
+        {quick ? <><label className="checkbox-label"><input type="checkbox" checked={defaultAlerts} onChange={event=>setDefaultAlerts(event.target.checked)} />{tr("Create sustained alert rules")}</label>{defaultAlerts && <label>{tr("Notification receiver")}<select aria-label={tr("Notification receiver")} value={receiver} onChange={event=>setReceiver(event.target.value)}><option value="">{tr("Follow existing notification policy")}</option>{points.filter(point=>!point.disabled).map(point=><option key={point.uid} value={point.uid}>{point.name}</option>)}</select></label>}<p className="subtle">{tr("Test the connection first, then review the dashboard and sustained alert rules before saving.")}</p></> : <label className="checkbox-label">
           <input
             type="checkbox"
             checked={enabled}
             onChange={(e) => setEnabled(e.target.checked)}
           />
           {tr("Automatic collection enabled")}
-        </label>
+        </label>}
         {error && (
           <p className="form-error" role="alert">
             {error}
@@ -395,7 +425,7 @@ function CollectorEditor({
             {tr("Cancel")}
           </button>
           <button className="primary" disabled={saving}>
-            {tr(saving ? "Saving…" : "Save collector")}
+            {tr(saving ? quick ? "Testing…" : "Saving…" : quick ? "Test and preview" : "Save collector")}
           </button>
         </div>
         </fieldset>

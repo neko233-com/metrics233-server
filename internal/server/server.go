@@ -64,6 +64,7 @@ type Server struct {
 	hostDeploying      map[string]bool
 	hostDeploySlots    chan struct{}
 	hostAgentSlots     chan struct{}
+	connectionSlots    chan struct{}
 }
 
 func New(s *store.Store, token string, retention int) *Server {
@@ -73,6 +74,7 @@ func New(s *store.Store, token string, retention int) *Server {
 	server.hostDeploying = map[string]bool{}
 	server.hostDeploySlots = make(chan struct{}, 2)
 	server.hostAgentSlots = make(chan struct{}, 8)
+	server.connectionSlots = make(chan struct{}, 2)
 	if executable, err := os.Executable(); err == nil {
 		server.CollectorArtifacts = filepath.Join(filepath.Dir(executable), "collectors")
 	}
@@ -253,6 +255,7 @@ func (s *Server) handlerWithRouteManifest() (http.Handler, []ProtectedRoute) {
 		writeJSON(w, 200, v)
 	})
 	api.HandleFunc("POST /api/v1/targets", s.saveTarget)
+	s.connectionRoutes(api)
 	api.HandleFunc("GET /api/v1/collectors/catalog", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, collector.Catalog()) })
 	api.HandleFunc("GET /api/v1/collectors/exporters", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, 200, collector.Exporters()) })
 	api.HandleFunc("PUT /api/v1/targets/{id}", s.saveTarget)

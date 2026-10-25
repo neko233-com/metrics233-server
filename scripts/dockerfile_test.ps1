@@ -14,6 +14,15 @@ $originalSQLBrowser = [Environment]::GetEnvironmentVariable('METRICSPANEL_DOCKER
 
 Push-Location $rootPath
 try {
+  if ($Browser) {
+    Push-Location (Join-Path $rootPath 'web')
+    try {
+      node --input-type=module -e "import { chromium } from '@playwright/test'; import { existsSync } from 'node:fs'; if (!existsSync(chromium.executablePath())) process.exit(2);"
+      if ($LASTEXITCODE -ne 0) {
+        throw 'Browser prerequisites missing. In web, run npm ci and npx playwright install chromium before deep Docker validation.'
+      }
+    } finally { Pop-Location }
+  }
   $dockerOS = docker info --format '{{.OSType}}'
   if ($LASTEXITCODE -ne 0 -or $dockerOS -ne 'linux') {
     throw 'Deep Docker validation requires a running Linux Docker Engine.'

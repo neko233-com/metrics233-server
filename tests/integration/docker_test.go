@@ -130,6 +130,7 @@ func (e environment) verifyNativeCollectors(address string) {
 		assert.True(e.t, target.SecureFields["password"])
 		e.must(address, "POST", fmt.Sprintf("/api/v1/targets/%d/scrape", target.ID), nil)
 		require.Eventually(e.t, func() bool { value, ok := e.value(address, item.metric); return ok && value >= 0 }, 10*time.Second, 100*time.Millisecond, "native %s metrics not ingested", item.kind)
+		e.verifyQuickConnection(address, model.Target{Name: "quick-native-" + item.kind, Kind: item.kind, URL: item.address, Username: item.user, Database: item.database, IntervalSeconds: 86400, Enabled: true, SecureSettings: map[string]string{"password": item.password}}, item.metric)
 	}
 	e.t.Log("real MySQL-compatible MariaDB, Redis, PostgreSQL and ClickHouse native collection passed; credentials masked")
 	require.Eventually(e.t, func() bool {
@@ -152,6 +153,7 @@ func (e environment) verifyNativeCollectors(address string) {
 		}
 		e.must(address, "POST", fmt.Sprintf("/api/v1/targets/%d/scrape", target.ID), nil)
 		require.Eventually(e.t, func() bool { value, ok := e.value(address, fixture.metric); return ok && value == 233 }, 10*time.Second, 100*time.Millisecond, "%s protocol fixture did not reach storage", fixture.kind)
+		e.verifyQuickConnection(address, model.Target{Name: "quick-protocol-" + fixture.kind, Kind: fixture.kind, URL: "http://127.0.0.1:9099/" + fixture.kind, Username: "metrics", IntervalSeconds: 86400, Enabled: true, SecureSettings: map[string]string{"password": "integration-fixture-password"}}, fixture.metric)
 	}
 	e.t.Log("OpenMetrics, Hadoop, HDFS, Hive, Kafka, Spark, Elasticsearch and Flink protocol fixtures passed (not live clusters)")
 }

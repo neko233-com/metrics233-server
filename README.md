@@ -15,6 +15,10 @@ The [instance directory](docs/instance-directory.md) provides searchable service
 versioned freeform notes and separate business/host-interface traffic views. GitHub Dark console chrome is independent
 of Grafana-style time-series colors, threshold gauges and visualization behavior.
 
+[Quick connect](docs/quick-connect.md) tests a real database/exporter, previews its observed-metric dashboard and
+sustained alerts, then saves the collector, dashboard and rules atomically. Existing targets reuse protected
+credentials. Resource cards live under **Dashboards → Infrastructure**; agents use the same HTTP/CLI contract.
+
 Use the standalone [metrics233-lib-go SDK](https://github.com/neko233-com/metrics233-lib-go) for fluent business
 Counter/Gauge instrumentation and explicit push/shutdown. The [metrics233-all aggregate](https://github.com/neko233-com/metrics233-all)
 pins matching server and SDK commits as Git submodules. The repository and Go module are now `metrics233-server`;

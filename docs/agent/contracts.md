@@ -30,6 +30,11 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 
 ## Collection
 
+- Admin [quick connect](../quick-connect.md) previews actual observations without metric writes and atomically saves
+  a collector, scoped dashboard and sustained alerts under a durable operation UUID. Existing settings are fenced;
+  keyed plan proofs bind credentials without exposing them. Fixed-loopback discovery never scans subnets or guesses
+  credentials. Viewer may read redacted receipts.
+
 - Pull: Prometheus/OpenMetrics scrape with 10,000 samples / 4 MiB per scrape, eight concurrent scrapes.
 - Push: OTLP/HTTP `POST /v1/metrics` (alias `/otlp/v1/metrics`), protobuf or JSON, gzip, 16 MiB / 10,000 samples.
   Resource attributes become labels; histograms expand to `_bucket`/`_count`/`_sum`.

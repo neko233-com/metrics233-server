@@ -73,6 +73,7 @@ Usage: metricspanel <command> [flags]
   query        Query a metric (--metric NAME --range 30m --aggregation last)
   ingest       Push JSON samples (--file samples.json or --file - for stdin)
   targets      catalog | exporters | list | add | set | delete | scrape
+  connections  list | discover | preview | apply (--file FILE|-)
   hosts        list | save | fingerprint | deploy | deploy-local | events
   dashboards   list | save | export | delete | community | import-community
                preview-grafana | import-grafana | move | library-add | library-unlink
@@ -125,7 +126,7 @@ func run(args []string) error {
 	command := args[0]
 	rest := args[1:]
 	action := ""
-	if command == "hosts" || command == "targets" || command == "dashboards" || command == "patterns" || command == "alerts" || command == "contacts" || command == "notifications" || command == "silences" || command == "mute-timings" || command == "notification-templates" || command == "inhibition-rules" || command == "plugins" || command == "datasources" || command == "live" || command == "annotations" || command == "folders" || command == "library" || command == "users" {
+	if command == "connections" || command == "hosts" || command == "targets" || command == "dashboards" || command == "patterns" || command == "alerts" || command == "contacts" || command == "notifications" || command == "silences" || command == "mute-timings" || command == "notification-templates" || command == "inhibition-rules" || command == "plugins" || command == "datasources" || command == "live" || command == "annotations" || command == "folders" || command == "library" || command == "users" {
 		if len(rest) == 0 || strings.HasPrefix(rest[0], "-") {
 			return fmt.Errorf("%s requires an action (see --help)", command)
 		}
@@ -251,6 +252,28 @@ func run(args []string) error {
 		return fmt.Errorf("invalid --labels: %w", err)
 	}
 	switch command {
+	case "connections":
+		switch action {
+		case "list":
+			return request("GET", "/api/v1/connections", nil)
+		case "discover":
+			return request("POST", "/api/v1/connections/discover", nil)
+		case "preview", "apply":
+			if !fileProvided {
+				return errors.New("connections preview/apply requires --file FILE|-; use protected input for credentials")
+			}
+			data, err := readFile(*file)
+			if err != nil {
+				return errors.New("cannot read protected connection input")
+			}
+			defer clear(data)
+			if len(data) > 64<<10 || !json.Valid(data) {
+				return errors.New("connection input must be valid JSON under 64 KiB")
+			}
+			return request("POST", "/api/v1/connections/"+action, json.RawMessage(data))
+		default:
+			return errors.New("connections: list | discover | preview | apply")
+		}
 	case "hosts":
 		return managedHostsCommand(client, action, *id, *file, *hostVersion, *collectorArtifacts)
 	case "users":
@@ -1649,6 +1672,10 @@ func schema() any {
 	}
 	result["offline_bootstrap"] = map[string]any{"platform": "Linux root only", "input": "TTY --login: hidden password and confirmation; --file -: one JSON object {login,password,name?,email?}, at most 16 KiB", "identity_path": "explicit absolute path; existing non-symlink parent mode 0700, catalog/sidecars protected from group/other access", "output": "initialized,user_id,organization_id,role only; existing accounts are never overwritten", "secrets": "no password flags or environment variables; no HTTP server or control store"}
 	routes := result["api"].(map[string][]string)
+	result["commands"] = append(result["commands"].([]string), "connections list", "connections discover", "connections preview --file FILE|-", "connections apply --file FILE|-")
+	routes["GET"] = append(routes["GET"], "/api/v1/connections")
+	routes["POST"] = append(routes["POST"], "/api/v1/connections/discover", "/api/v1/connections/preview", "/api/v1/connections/apply")
+	result["quick_connect"] = map[string]any{"role": "Admin for preview/discover/apply; Viewer for catalog", "input": "{setup:{id:UUID,target:{name,kind,url,enabled:true,interval_seconds,...},language:en|zh,alerts:bool,receiver?:UID},plan_hash?:preview_hash}; existing_target_id reads stored settings instead of target", "apply": "review the preview hash; reuse identical setup/id for uncertain retries; collector, dashboard and rules commit atomically", "discovery": "fixed known exporter ports on server loopback only; no subnet scan or credential guesses"}
 	addDashboardResourceSchema(result, routes)
 	addDashboardHistorySchema(result, routes)
 	routes["GET"] = append(routes["GET"], "/api/v1/dashboard-exports/{id}?format=native|grafana")

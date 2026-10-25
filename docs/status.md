@@ -1,5 +1,33 @@
 # Project status and progress protocol
 
+### 2026-10-25 — Quick connect and infrastructure cards (in verification)
+
+Goal: actual connection → reviewed starter panels/sustained alerts → ordinary collection, with the same native
+HTTP/CLI contract for agents. Implemented read-only real-protocol probes, private-snapshot plan proofs, atomic
+collector/dashboard/rule/receipt transactions, concurrent idempotent retries, existing-secret reuse, fixed-loopback
+exporter discovery and separate Infrastructure cards. Recognized host/database profiles use curated observed-only
+panels; generic starters are bounded. GitHub Dark console tokens remain independent of chart/gauge palettes.
+
+Model, collector, role, store, server and CLI checks passed; frontend 169 units and production build passed.
+Full local Go tests and vet passed. Edge exercised real Node discovery and separate actual MariaDB connection,
+observed-only preview, plan-drift 409/review-again, atomic creation, populated CPU/memory/NIC and 19 MySQL panels.
+Final source, responsive and production checks remain separately gated below.
+An initial Docker baseline passed actual database and persistence suites twice but found an obsolete product-name
+locator in the browser authentication script. That locator is fixed with the role/security assertions retained,
+and current embedded-build auth smoke passed. New Docker cases now require real probe/apply/retry/dashboard and
+exact-scope ingestion for four databases plus eight protocol fixtures. Final immutable-source Docker/browser,
+worker and production deployment are still pending; earlier-source results do not establish these gates.
+
+Narrow dependency maintenance updates Zod 4.6.5 to 4.6.7 after
+[GHSA-mrhx-c7xc-m3w5](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5); npm audit reports zero known advisories.
+This does not establish exploitation of the application's Zod call sites or a general security certification.
+
+Next: finish rendered connection/resource interactions, run formal Docker twice with Browser/database coverage,
+publish exact reviewed source, then verify production Edge. The historical weighted roadmap stays 94% (see the
+existing eight workstream table); it is not a percentage for this broader continuing goal. Live vendor clusters,
+automatic arbitrary network discovery, every Grafana/Netdata panel and npm/NuGet registry uploads are not inferred.
+See [the quick-connect contract](quick-connect.md) for limits and per-layer evidence boundaries.
+
 ### 2026-10-23 — Final GitHub Dark cards and network acceptance
 
 - Runtime 0.2.24 fixes source `87258d928e3e270fddfaf76d243bd5571bfb2efb`. The native worker passed full Go

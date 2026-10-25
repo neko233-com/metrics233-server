@@ -2,6 +2,8 @@
 
 实例入口提供可搜索的服务卡片、环境与分类筛选、自由备注和上下行流量。控制台使用 GitHub Dark 背景与控件配色；Grafana 风格折线图、跑车仪表盘及预警线保持独立。指标口径、权限与版本冲突见[实例目录与网络观测](docs/instance-directory.md)。
 
+[快速接入](docs/quick-connect.md)：测试真实数据库或 Exporter，预览实际指标对应的面板和持续告警，再一起保存。在「仪表盘 → 基础设施」查看资源卡片；已有采集器可复用受保护凭据生成面板。Agent 使用相同 HTTP 预览/应用流程及 `metricspanel connections` 命令。
+
 ## 架构
 
 ```mermaid

@@ -1,24 +1,34 @@
 import { lazy, Suspense, useState, type FormEvent } from "react";
 import { Activity, ArrowRight, Copy } from "lucide-react";
-import { api, jsonBody, message, parseLabels, type Dashboard, type Metric, type Panel } from "../api";
+import { api, jsonBody, message, parseLabels, type Dashboard, type Metric, type Panel, type Target } from "../api";
 import { getLocale } from "../i18n";
 import { Alert, Button, Field, Input } from "../ui";
 import { useSession } from "../ui/session";
 import { nativePanelForSDK } from "../grafana/panel-queries";
 import "./business-monitoring.css";
+import "./connection-setup.css";
 
 const text = (en: string, zh: string) => getLocale() === "zh" ? zh : en;
 const BusinessInstances = lazy(() => import("./BusinessInstances"));
+const ConnectionResources = lazy(() => import("./ConnectionSetup"));
 
-export default function BusinessMonitoring({ metrics, dashboards, reload, open, navigate, tick = 0 }: {
+export default function BusinessMonitoring({ metrics, dashboards, targets, reload, open, navigate, tick = 0 }: {
   metrics: Metric[];
   dashboards: Dashboard[];
+  targets: Target[];
   tick?: number;
   reload: () => Promise<void>;
   open: (dashboard: Dashboard) => void;
   navigate: (view: "collectors" | "explore" | "alerts") => void;
 }) {
   const { canEdit } = useSession();
+  const [surface,setSurface]=useState<"services"|"resources">(() => {
+    try { return sessionStorage.getItem("metrics233-dashboard-category") === "resources" ? "resources" : "services"; } catch { return "services"; }
+  });
+  function selectSurface(value: "services" | "resources") {
+    setSurface(value);
+    try { sessionStorage.setItem("metrics233-dashboard-category", value); } catch { /* Session preference is optional. */ }
+  }
   const [selected, setSelected] = useState("");
   const [kind, setKind] = useState<"gauge" | "counter">("gauge");
   const [name, setName] = useState("");
@@ -66,6 +76,8 @@ export default function BusinessMonitoring({ metrics, dashboards, reload, open, 
   }
 
   return <>
+    <div className="connection-surfaces" role="group" aria-label={text("Dashboard categories","仪表盘分类")}><Button aria-pressed={surface==="services"} onClick={()=>selectSurface("services")}>{text("Business services","业务服务")}</Button><Button aria-pressed={surface==="resources"} onClick={()=>selectSurface("resources")}>{text("Infrastructure","基础设施")}</Button></div>
+    {surface==="resources" ? <Suspense fallback={<p role="status">{text("Loading resources…","正在加载资源…")}</p>}><ConnectionResources targets={targets} dashboards={dashboards} open={open} reload={reload} navigate={()=>navigate("collectors")} tick={tick}/></Suspense> : <>
     {error && <Alert severity="error" title={text("Request failed", "操作失败")}>{error}</Alert>}
     <Suspense fallback={<p role="status">{text("Loading instances…", "正在加载实例…")}</p>}><BusinessInstances dashboards={dashboards} open={open} reload={reload} tick={tick} /></Suspense>
     <details className="business-setup"><summary>{text("Connect metrics or create a template", "接入指标或创建模板")}</summary><div className="business-grid">
@@ -105,5 +117,6 @@ export default function BusinessMonitoring({ metrics, dashboards, reload, open, 
         <p className="subtle">{text("Keep labels bounded: service, environment, region. Avoid user IDs, order IDs or secrets. Revenue metrics should state currency and units. DAU and retention require upstream deduplication; gauges alone do not calculate them.", "标签使用有界的服务、环境、区域；避免用户 ID、订单 ID 和凭据。收入指标应注明币种与单位。DAU 与留存需上游去重计算，不能直接由在线人数推算。")}</p>
       </section>
     </div></details>
+    </>}
   </>;
 }

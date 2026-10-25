@@ -54,6 +54,18 @@ func (s *Store) SaveTarget(ctx context.Context, t model.Target) (model.Target, e
 		return t, err
 	}
 	defer tx.Rollback()
+	t, err = s.saveTargetTx(ctx, tx, t)
+	if err != nil {
+		return t, err
+	}
+	return t, tx.Commit()
+}
+
+func (s *Store) saveTargetTx(ctx context.Context, tx *sql.Tx, t model.Target) (model.Target, error) {
+	if err := t.Validate(); err != nil {
+		return t, err
+	}
+	var err error
 	secrets := map[string]string{}
 	if t.ID != 0 {
 		var sealed []byte
@@ -103,9 +115,6 @@ func (s *Store) SaveTarget(ctx context.Context, t model.Target) (model.Target, e
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO target_connections(id,kind,username,database_name,tls_mode,secrets) VALUES(?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET kind=excluded.kind,username=excluded.username,database_name=excluded.database_name,tls_mode=excluded.tls_mode,secrets=excluded.secrets`, t.ID, t.Kind, t.Username, t.Database, t.TLSMode, sealed)
 	if err != nil {
-		return t, err
-	}
-	if err = tx.Commit(); err != nil {
 		return t, err
 	}
 	t.SecureSettings = nil
