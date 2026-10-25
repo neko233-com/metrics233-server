@@ -479,6 +479,11 @@ func (e *productionRuntime) resources() {
 	// memory.current includes the cgroup's page cache, unlike process RSS.
 	current, err := strconv.ParseInt(e.mustDocker("exec", e.name, "cat", "/sys/fs/cgroup/memory.current"), 10, 64)
 	require.NoError(e.t, err)
+	for _, line := range strings.Split(e.mustDocker("exec", e.name, "cat", "/sys/fs/cgroup/memory.stat"), "\n") {
+		if strings.HasPrefix(line, "anon ") || strings.HasPrefix(line, "file ") || strings.HasPrefix(line, "kernel ") {
+			e.t.Logf("cgroup memory: %s", line)
+		}
+	}
 	require.Less(e.t, current, int64(230<<20), "service approached its 256 MiB limit after a modest batch")
 	stats := e.mustDocker("stats", "--no-stream", "--format", "{{.CPUPerc}} CPU, {{.MemUsage}}, {{.PIDs}} PIDs", e.name)
 	e.t.Logf("runtime after ingest/restart: memory.current=%d bytes; %s", current, stats)

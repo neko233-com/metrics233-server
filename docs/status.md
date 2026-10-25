@@ -16,6 +16,11 @@ The actual query/alert engine regression covers native MySQL/Redis/PostgreSQL pl
 `up=0` continues the two-minute pending timer after old backend `_up` expires, then fresh success must pass
 the full one-minute recovery confirmation. The original rule failed at 90 seconds; the independent fresh-failure
 branch fixes it and all four cases pass. Final deployment is pinned after this correction.
+On that corrected source, both database suites passed; browser/account flows also passed, but one repeated
+browser run reached 248086528 cgroup bytes, violating the unchanged 230 MiB headroom gate below its 256 MiB limit.
+The small Docker runtime now defaults to the standard Go `GOMEMLIMIT=128MiB` soft limit (operator-overridable);
+the explicit integration/database image is unchanged. Runtime revalidation retains the original memory assertion
+and logs anonymous/file/kernel memory separately. Final results are recorded after the new runtime checks.
 An initial Docker baseline passed actual database and persistence suites twice but found an obsolete product-name
 locator in the browser authentication script. That locator is fixed with the role/security assertions retained,
 and current embedded-build auth smoke passed. New Docker cases now require real probe/apply/retry/dashboard and

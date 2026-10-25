@@ -243,10 +243,14 @@ Prometheus text, OpenMetrics 1.0 and delimited protobuf support scalar samples a
 
 ## Storage and performance
 
-ClickHouse uses vectorized columnar execution, partitioned ReplacingMergeTree, compression, TTL and acknowledged durable batch inserts.
-It also persists 64-dimensional metric-window embeddings with an HNSW similarity index. SQLite WAL stores metric data and exact-search vectors in lightweight mode, and control data in both modes.
-Both modes survive application restarts; ClickHouse data survives database restarts. Persist both stores and back them up.
-Metric retention defaults to **15 days**. SQLite administrators can change 1–3650 days in Collectors → Data retention without a restart. Expired samples are removed at startup and hourly; account and monitoring configuration remain. Saved settings override the startup default. See [retention semantics](docs/data-retention.md).
+The default is embedded XOR/Zstd time-series storage plus a local Badger/HNSW metric-window vector database.
+SQLite WAL stores configuration and accounts separately; OLTP rows are not the default metric storage path.
+Persist and back up the metric/vector directories together with the control/identity catalogs and protected key.
+See [embedded storage](docs/embedded-storage.md) before changing an existing installation's backend.
+
+ClickHouse is optional: vectorized columnar queries, partitioned ReplacingMergeTree, TTL, acknowledged durable
+batch inserts and 64-dimensional HNSW windows. Explicit legacy SQLite metrics/exact vectors remain supported.
+Metric retention defaults to **15 days**. Embedded and SQLite administrators can change 1–3650 days in Collectors → Data retention without a restart. Expired samples are removed at startup and hourly; account and monitoring configuration remain. Saved settings override the startup default. See [retention semantics](docs/data-retention.md).
 Changing retention on an existing ClickHouse table requires an explicit `ALTER TABLE ... MODIFY TTL`.
 
 Native queries support last / avg / sum / min / max / reset-aware rate, label equality filters, a maximum 31-day range, 200 series and 2,000 buckets.
@@ -254,8 +258,12 @@ SQLite pushes bucket-last selection into SQL, with a 5,000,000 source-observatio
 PromQL uses the official engine with a controlled in-memory storage adapter (maximum one million samples / 10,000 selected series). It does not yet push PromQL into ClickHouse.
 Exporter scrapes are limited to 10,000 samples / 4 MiB; eight scrapes may run concurrently. Push protocols have their own request limits and failure semantics in the collection contract.
 This is a single-instance implementation, with no claimed distributed or production-scale throughput guarantee.
-SQLite is the zero-configuration default: exact in-process vector search is capped at 50,000 candidate patterns per
-request. Above that, add metric/label filters or move metrics and patterns to ClickHouse.
+The small production Docker image defaults to `GOMEMLIMIT=128MiB`, leaving headroom below its verified 256 MiB
+container budget. This is a [Go runtime soft limit](https://go.dev/doc/gc-guide#Memory_limit), not a cgroup hard
+limit; it excludes external/file-cache memory and may increase GC work. Operators with larger workloads can
+override it through the standard environment variable. Native binaries retain the standard Go default.
+Legacy SQLite exact vector search is capped at 50,000 candidate patterns per request; add metric/label filters
+within that backend. The embedded default uses its separately bounded local HNSW engine; ClickHouse is optional.
 See the [SQLite baseline](docs/performance-baseline.md) for the reproducible measurement commands, reference hardware,
 observed timings and sizing guidance for small teams.
 

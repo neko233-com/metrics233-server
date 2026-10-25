@@ -60,7 +60,11 @@ a separate SQLite file so metric retention and control-plane migrations never to
 
 ## Storage boundary
 
-SQLite is the zero-configuration default. ClickHouse is optional for metric storage; the SQLite control database still stores configuration and resources. Backups of a configured service must include the control database, the identity catalog (`identity.db` in local-account mode) and its adjacent encryption key, plus the ClickHouse data and plugin directory when those features are in use. See the [README storage section](../README.md#storage-and-performance) for operational details.
+Embedded XOR/Zstd time series and local Badger/HNSW vectors are the zero-configuration default; SQLite stores
+control metadata and the separate identity catalog. Explicit SQLite metrics remain a compatibility backend;
+ClickHouse is optional. Back up embedded metric/vector directories, control/identity catalogs, adjacent encryption
+key and plugins together; include the ClickHouse data when selected. Backend switches do not migrate data.
+See [embedded durability/migration](embedded-storage.md) and the [README storage section](../README.md#storage-and-performance).
 
 ## Compatibility claims
 

@@ -40,7 +40,7 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 
 - 替代 Grafana 面板：自有 UI、仪表盘、Explore、告警。
 - 数据抓取：Prometheus/OpenMetrics、OTLP/HTTP、MySQL/MariaDB、Redis、PostgreSQL、Linux/业务 exporter。
-- 本地时序 + 向量存储：SQLite 默认，ClickHouse 可选；64 维指标窗口向量检索。
+- 本地时序 + 向量存储：XOR/Zstd TSDB 与 Badger/HNSW 默认，SQLite 独立保存配置；ClickHouse 可选，支持64维指标窗口。
 
 默认交付单个原生二进制，`serve` 零配置可用；Docker/ClickHouse 可选。产品 UI 使用 `web/src/ui` 与
 `web/src/render`，不追求 Grafana 全量 parity；Grafana 导入/导出仅是可选迁移适配。
@@ -49,7 +49,7 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 
 - Go 1.27、Vite 7、React 19；`serve` 单二进制；Docker 可选。
 - 采集：Prometheus/OpenMetrics、OTLP/HTTP、MySQL/MariaDB、Redis、PostgreSQL、服务指标接口。
-- 存储：SQLite WAL 默认；ClickHouse 可选；保留期；64 维向量检索。
+- 存储：内置压缩 TSDB/向量库默认，SQLite 控制元数据；显式 SQLite 指标兼容与 ClickHouse 可选，默认15天保留。
 - 认证：`--auth=token` 与 `--auth=local`；Setup token、会话、Admin/Editor/Viewer、限流与安全头。
 - 渲染器：Table、TimeSeries、Stat、Gauge、BarGauge 已默认自有；TimeSeries 可用 `?renderer=compat` 回退。
 - 验证：前端单测 104 passed；完整浏览器套件 69 passed / 2 skipped；CI run 39436800402 的 test + docker 全绿。

@@ -59,6 +59,9 @@ HEALTHCHECK --interval=2s --timeout=5s --start-period=20s --retries=60 CMD testc
 # are available only through the explicitly requested integration target.
 FROM runtime-base AS runtime
 COPY --from=backend /out/metricspanel /usr/local/bin/metricspanel
+# Reserve headroom for executable/file caches and password hashing in the small
+# runtime profile. Operators can override this standard Go soft limit.
+ENV GOMEMLIMIT=128MiB
 USER metricspanel
 EXPOSE 7333
 VOLUME /data
