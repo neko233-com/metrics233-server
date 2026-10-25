@@ -1,7 +1,11 @@
-# SQLite single-node baseline
+# Storage and renderer performance baselines
 
-This page records one reproducible baseline for the default zero-configuration backend. It is a bounded measurement,
-not a production guarantee. Re-run it on the hardware and workload you intend to operate.
+The zero-configuration metric backend is now embedded XOR/Zstd TSDB with a separate Badger vector index and
+SQLite control catalog. Its reproducible million-point profile and actual disk/reopen measurements are in
+[embedded storage](embedded-storage.md#reproducible-profile). Production migration evidence is recorded separately
+in [status](status.md). The SQLite timings below describe the explicitly selected legacy metric backend; they are
+not measurements or sizing limits of the default embedded engine. The browser baseline is a separate workload.
+Every figure here is a bounded observation, not a production guarantee; rerun on the intended hardware/workload.
 
 ## Reference machine
 
@@ -49,7 +53,7 @@ ingestion test, 185 ms for the 24-hour aggregation benchmark and 12.4 ms for the
 single iterations on the CPU above (`go1.27.0`, no race detector), not controlled throughput comparisons. Background
 load materially affects this host; neither the older timings nor this rerun establish an operational SLO.
 
-## Vector search behavior
+## Legacy SQLite vector search behavior
 
 - SQLite always performs an exact scan: it loads candidate payloads, computes L2 distance and keeps a bounded top-K
   heap. There is no approximate index.
@@ -58,7 +62,7 @@ load materially affects this host; neither the older timings nor this rerun esta
   of silently returning partial results; add a metric or label filter, or use ClickHouse with its HNSW index.
 - ClickHouse uses approximate HNSW search and supports `--exact`; SQLite has no approximate mode to disable.
 
-## Sizing guidance
+## Legacy SQLite sizing guidance
 
 Use the measured workload and its limitations when sizing the service:
 
@@ -69,8 +73,10 @@ Use the measured workload and its limitations when sizing the service:
 | More than 50,000 saved patterns | Use ClickHouse for HNSW, or filter pattern searches by metric/label |
 | Multiple concurrent dashboard users | SQLite serializes writes; reads stay concurrent, but heavy ingest plus large queries compete for one disk |
 
-Back up the SQLite control database, its adjacent `secrets.key`, and the plugin directory together. See the
-[storage section](../README.md#storage-and-performance) for operation details.
+For this legacy backend, back up the SQLite catalogs, adjacent `secrets.key` and plugin directory together.
+The default embedded deployment additionally requires its complete stopped TSDB/vector directories; a control-only
+SQLite copy is insufficient. Follow [the embedded backup contract](embedded-storage.md#existing-sqlite-migration)
+and the [storage guide](../README.md#storage-and-performance).
 
 ## Browser TimeSeries baseline (2026-10-21)
 

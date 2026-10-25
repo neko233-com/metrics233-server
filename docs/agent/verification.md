@@ -35,6 +35,10 @@ dynamic panel height. Fix persistent failures; a single retry is configured for 
 
 ## Docker Linux
 
+The opt-in [sustained embedded profile](../embedded-sustained-profile.md) reuses the same confined runtime for
+4000 series, paced writes, concurrent PromQL, kernel resource readings and exact restart readback. It defaults
+to ten minutes and is explicitly excluded from ordinary CI; its smoke and long run have separate receipts.
+
 ```sh
 pwsh -File scripts/dockerfile_test.ps1 -Repeat 2 -Browser -IncludeDatabaseIntegration
 ```

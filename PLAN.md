@@ -173,6 +173,10 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
   - 验收：100k 点基准；峰值与断点保持；首帧预算写入 `docs/performance-baseline.md`。
   - 证据：17 项定向单测、6 项浏览器；最终 binary 的 100k×5 / 1m×1 各三次实测与已知长任务已记录。
 
+- [~] **P2 — 默认压缩存储持续运行实测**
+  - 范围：正式runtime的1CPU/256MiB配置，4000序列、500样本/秒与并发PromQL；读取实际cgroup峰值/CPU及完整活动目录占用，重启核对精确样本数与值。
+  - 验收：隔离自有容器/卷，持续10分钟；ACK、查询响应和重启数据一致，记录百分位与环境，不把单次测量当通用SLO。可与R2c托管CI等待并行，各自独立端口和资源；最终台账统一收口。
+
 ### P1 深度与交付
 
 - [x] **F1 — 稳定仪表盘变量解析时序**

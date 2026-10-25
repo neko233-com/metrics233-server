@@ -1,5 +1,14 @@
 # Project status and progress protocol
 
+### 2026-10-26 — Embedded runtime sustained profile: running
+
+The opt-in profile reuses formal 1 CPU/256m/GOMEMLIMIT=128MiB confinement and the actual verified 0.2.30 Linux
+release binary. Its 30-second smoke passes in 46.210s: 4000 series, 19000 ACKed observations, 30 concurrent PromQL
+queries, exact value/sample-count restart readback, kernel peak 77332480 bytes and full active directory 1728 KiB.
+A separate ten-minute 500-samples/s run is live; the smoke is not its acceptance. See [the profile](embedded-sustained-profile.md)
+for pacing, percentiles, engine/HTTP scope and cleanup. The performance index now separates default compressed
+storage from legacy SQLite and requires complete embedded data in backups. No runtime code or production data changes.
+
 ### 2026-10-26 — Real Tempo daemon and rendered workflow: local acceptance
 
 `TestTempoLiveDataSource` starts official Tempo 3.1.1 pinned by digest, posts actual OTLP spans, and queries
@@ -11,7 +20,10 @@ Existing deterministic trace boundaries pass in 6.038s; integration vet and Type
 and Windows temp-alias fixture failures remain attributed to the fixture. Checked cleanup removes owned containers.
 
 The normal browser suite explicitly skips this case without its fixture; the new hosted test-job step runs it twice
-against the real daemon. Docker integration separately covers its API path. Hosted verification is pending. No
+against the real daemon. Docker integration separately covers its API path. The initial hosted Docker job fails
+because cold-pull stderr progress was mixed into its stdout container ID; its second warm round passes the actual
+API contract. That known-failed run (40215466866) retains its Docker failure and an explicitly cancelled test job.
+The runner now separates streams, local API/browser passes again (9.831s), and new-source hosted verification is pending. No
 product runtime code, production data or configured datasources change: production remains v0.2.30/17791c5. This
 closes a real-service evidence gap without implying a local trace store, service graphs, partial traces or production
 Tempo installation. See [the reproducible contract](tempo-live-validation.md). Roadmap remains 95% pending hosted CI.

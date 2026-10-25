@@ -59,5 +59,8 @@ TypeScript and the original `TestTempoTrace*` regressions passed (6.038s). Owned
 
 An initial fixture omitted the dashboard aggregation field; a later receipt draft rejected Windows's short temp
 alias. Both failed attempts remain fixture failures and were corrected before the final repeated checks.
+The first hosted Docker job exposed another cold-cache fixture defect: successful image-pull progress on stderr
+was combined with the stdout container ID. Its second warm-daemon round passed. The runner now separates stdout
+identities from stderr progress, retaining both streams on failures and when collecting daemon logs.
 Only tests/CI/docs change. Production remains v0.2.30; this is not a production Tempo deployment or a new game/server
 binary rollout. Hosted results for the new verification source are recorded in [status](status.md).

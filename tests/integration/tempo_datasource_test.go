@@ -65,7 +65,14 @@ func TestTempoLiveDataSource(t *testing.T) {
 		defer cancel()
 		command := exec.CommandContext(ctx, "docker", args...)
 		command.Dir = root
-		output, err := command.CombinedOutput()
+		var diagnostics bytes.Buffer
+		command.Stderr = &diagnostics
+		output, err := command.Output()
+		if err != nil || (len(args) > 0 && args[0] == "logs") {
+			output = append(output, diagnostics.Bytes()...)
+		}
+		// Cold pulls print progress to stderr even when `run --detach` succeeds.
+		// Inspect/port/run identities must use stdout alone; retain both on error.
 		return strings.TrimSpace(string(output)), err
 	}
 	random := make([]byte, 16)
