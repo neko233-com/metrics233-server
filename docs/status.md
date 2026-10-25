@@ -1,5 +1,14 @@
 # Project status and progress protocol
 
+### 2026-10-25 — Public release closure (in progress)
+
+Production 0.2.26 has the acceptance recorded below, but public downloadable releases and full hosted tag CI
+remain at 0.2.6. The complete browser suite still contained nine obsolete MetricsPanel233 title assertions.
+Those locators now use the actual Metrics233 title, preserving their original flows and safety assertions.
+Full-suite, tag-CI, five-platform archive and same-input reproducibility results will be recorded only after they
+complete. The optional toolchain/animation proposals do not block this delivery; overall historical weighting
+remains 94% until the outstanding acceptance gates are established.
+
 ### 2026-10-25 — Quick connect, GitHub Dark and readable host instruments accepted
 
 Runtime 0.2.26 fixes source `1da41fefa8ea9412d58756d94cfd002be983262b`. The immutable native worker passed

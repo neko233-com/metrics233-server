@@ -195,6 +195,7 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 - [~] **O1 — 发布收口**
   - 范围：版本升级说明、备份恢复演练、release checklist、tag 验证。
   - 验收：`v*` tag 触发完整 CI 全绿；发布归档可复现。
+  - 2026-10-25：线上0.2.26已验收，但公开发行版/完整tag CI仍停在0.2.6。修正完整浏览器套件9处旧产品标题断言，保留原流程与安全断言；继续完整回归、精确源码tag及五平台发行包/重复构建校验。未以线上worker或局部浏览器代替这层验收。
 
 ### 可选评估
 

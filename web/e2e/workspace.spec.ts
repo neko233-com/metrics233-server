@@ -1573,7 +1573,7 @@ test("Panel query editors execute all expression operations, SDK callbacks and l
     await raw.fill(JSON.stringify(query));
     await preview(900);
     await expect(page.locator("vite-error-overlay")).toHaveCount(0);
-    expect(await page.title()).toContain("MetricsPanel233");
+    expect(await page.title()).toContain("Metrics233");
     await dialog.getByText("Advanced query JSON", { exact: true }).click();
     await dialog.evaluate((element) => {
       element.scrollTop = 0;
@@ -2002,7 +2002,7 @@ test("SQL comparisons isolate real backend windows, preserve variables and alias
     await expect(plot).toContainText("SQL business");
     await expect(sdk.getByRole("alert")).toHaveCount(0);
     await expect(plot.getByRole("alert")).toHaveCount(0);
-    expect(await page.title()).toContain("MetricsPanel233");
+    expect(await page.title()).toContain("Metrics233");
     await expect(page.locator("vite-error-overlay")).toHaveCount(0);
   };
   try {
@@ -3841,7 +3841,7 @@ test("Annotation query editors use public SDK components, preserve template reso
     }
     await importResource({ dashboard: source, meta: { unknownEnvelope: 233 } });
     await page.goto(endpoint + "/d/editor-proof/annotations");
-    expect(await page.title()).toContain("MetricsPanel233");
+    expect(await page.title()).toContain("Metrics233");
     await expect(
       page.getByRole("heading", { name: source.title, exact: true }),
     ).toBeVisible();
@@ -4509,7 +4509,7 @@ test("Plugin annotation SDK processors and legacy queries render isolated events
     expect(native.ok()).toBeTruthy();
     const nativeID = (await native.json()).id;
     await page.goto(endpoint + "/d/plugin-annotation-proof/annotations");
-    expect(await page.title()).toContain("MetricsPanel233");
+    expect(await page.title()).toContain("Metrics233");
     expect(new URL(page.url()).pathname).toBe(
       "/d/plugin-annotation-proof/annotations",
     );
@@ -7601,7 +7601,7 @@ test("Alert templates render per-instance summaries and warnings safely in both 
   };
   try {
     await page.goto(endpoint + "/#alerts");
-    await expect(page).toHaveTitle(/MetricsPanel233/);
+    await expect(page).toHaveTitle(/Metrics233/);
     await expect(
       page.getByRole("heading", { name: "Alerts", exact: true }),
     ).toBeVisible();
