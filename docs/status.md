@@ -1,15 +1,51 @@
 # Project status and progress protocol
 
-### 2026-10-25 — GitHub Dark palette completion (in progress)
+### 2026-10-25 — 0.2.28 GitHub Dark and public release accepted
 
-The console now separates inset navigation/header (`#010409`), page (`#0d1117`), panels (`#161b22`), controls
-(`#21262d`) and borders (`#30363d`). Blue links/focus, a coral current-location marker and green primary actions
-have separate roles. Forms, modals, tables, first-party theme consumers, connection cards and layout controls use
-the same semantic tokens instead of residual blue-gray or orange-tinted surfaces. Pending alerts remain amber.
-Visualization series, racing gauges, thresholds and query/refresh logic are unchanged. The 169 frontend units pass;
-build, browser and fixed-source production acceptance will be recorded separately. Historical weighting remains 94%.
+Runtime and public `v0.2.28` fix source `ebfd82cd9919974dfd21d969834c3c1011e17395`. The console separates
+inset navigation/header (`#010409`), page (`#0d1117`), panels (`#161b22`), controls (`#21262d`) and borders
+(`#30363d`). Blue links/focus, coral current-location indicators and green primary actions have separate roles.
+Forms, modals, tables, first-party theme consumers, connection cards and layout controls share those tokens.
+Pending alerts stay amber. Chart series, racing gauges, thresholds and refresh logic remain independent.
 
-### 2026-10-25 — Public release closure (in progress)
+The immutable native worker passed private tests/vet, reviewed target preflight, 169 frontend units/build,
+same-source token/account readiness, full Go tests, collector cross-builds, archive/download verification and
+dependency audit (zero known advisories), then deployed successfully. Actual running-binary/build identities,
+the deployment receipt and the reviewed mirror transport repair live in the private deployment repository.
+Post-deploy readiness again passed initialized-account, anonymous-query 401 and ingest-only-query 403 checks.
+
+Edge inspected seven real instances and actual CPU/memory/filesystem/service/NIC data. Formal environment
+selection returned two services; the gateway category returned one. Chinese multiline notes were saved,
+searched and reopened, then restored to their original contents. A same-scope refresh retained the original card
+node and search draft; the selected active NIC and canvas node also survived refresh. Desktop 1512px, tablet
+768px and mobile 390px views had no horizontal overflow; the tablet retained the full current clock and timezone.
+The browser captured no warnings/errors. No synthetic production samples, resource load or extra Feishu messages
+were introduced. Existing game binaries and dashboard/template/query/plugin behavior remain intact.
+
+Public delivery is now independently established:
+
+- Two five-platform builds produce identical seven-file delivery sets, including both README languages.
+  Independent ZIP CRC, executable architecture, source/provenance and binary-hash checks pass. The actual Windows
+  ZIP runs version 0.2.28 and its complete zero-retry browser suite passes 101 cases, with two external-SQL skips.
+- Real MariaDB/Redis/PostgreSQL/ClickHouse integration passes in 207.759 seconds. All three real MySQL/PostgreSQL
+  browser cases pass without retries. Other service integrations use protocol fixtures, not live external clusters.
+- The actual Linux amd64 ZIP binary passes two confined runtime/browser rounds in 152.120 seconds, preserving
+  token/local roles, reporting, restart, offline backup/restore, HTTPS-origin and the unchanged resource assertions.
+- [The exact-tag hosted workflow](https://github.com/neko233-com/metrics233-server/actions/runs/40198818834)
+  passes full frontend, release-script, Go vet/race, complete browser and repeated Docker jobs.
+- [Public v0.2.28](https://github.com/neko233-com/metrics233-server/releases/tag/v0.2.28) contains all seven
+  verified assets. A fresh anonymous HTTPS download of every asset matches the independent local hashes.
+  The preceding immutable v0.2.27 also passed its own hosted workflow, package checks and anonymous downloads.
+
+Darwin and Linux arm64 executable identity/architecture is verified; native execution there is not claimed.
+This acceptance preserves the previously supported Grafana workflows; the documented optional/unsupported
+catalog and live external-daemon/long-duration capacity boundaries remain. O1 is complete; weighted roadmap
+progress is now 95% under the supported single-node product scope, not full Grafana/Netdata parity.
+
+### 2026-10-25 — Public release closure: intermediate failure record
+
+The following paragraphs retain the intermediate state and failures; the final 0.2.28 receipt above supersedes
+their pending statements.
 
 Production 0.2.26 has the acceptance recorded below, but public downloadable releases and full hosted tag CI
 remain at 0.2.6. The complete browser suite still contained nine obsolete MetricsPanel233 title assertions.
@@ -494,13 +530,13 @@ Weights reflect product risk and user-visible value.
 | Collection | 15% | 95% | C1 enforces decoded/expanded budgets, identity validation and fail-before-write behavior for supported protocol subsets; sustained external exporters remain target-specific |
 | Storage and query | 15% | 95% | D1 SQL bucket-last planning, selected raw-sample budgets, real 1M ClickHouse corrections/EXPLAIN and 5M SQLite rejection/retention verified; sustained cardinality and disk growth remain target-specific |
 | Auth and security | 15% | 95% | A1 namespace authentication, shared password throttling, trusted-proxy chain and canonical Origin regressions passed; scoped review is not a general security certification or public TLS acceptance |
-| Ops and delivery | 10% | 90% | Repeated formal runtime/database recovery and new-module runtime passed; split-repository immutable CI/release and actual deployment remain separate gates |
+| Ops and delivery | 10% | 100% | Exact v0.2.28 full tag CI, reproducible five-platform archives, anonymous downloads, backup/recovery and actual native deployment/Edge acceptance passed as separate gates |
 | Docs and agent contract | 5% | 95% | Source contracts and measured boundaries synchronized |
 | Performance | 10% | 90% | Worker/min-max and measured SQL/ClickHouse query plans reduce bounded workloads; main-thread JSON parsing and long-duration operational SLOs remain |
 
-**Weighted overall: 94%** (weights total 100%, ±5 points). The estimate covers the supported single-node product
-scope and completed local evidence. Delivery now includes the server/SDK repository split, so its outstanding
-immutable-source CI/release gates remain visible. This is not availability, a release promise, a claim that every
+**Weighted overall: 95%** (weights total 100%, ±5 points). The estimate covers the supported single-node product
+scope and evidence recorded above. Immutable-source CI/release, anonymous distribution and actual deployment
+are separately established. This is not availability, a release promise, a claim that every
 exporter or Grafana feature is supported, or universal production certification.
 
 ## Definition of done by workstream
@@ -566,11 +602,10 @@ Business virtual dashboards and interactive Feishu cards/templates have targeted
 
 Execution order and acceptance criteria are maintained in [PLAN.md](../PLAN.md); this table only tracks progress.
 
-1. **Immutable-source CI and release** — finish the split-repository/tag workflow when authorized, run its CI and
-   validate published checksums, provenance and upgrade/rollback identities. Local artifacts and earlier CI runs
-   are not evidence that the new repository's tag has passed.
-2. **Target-environment acceptance** — real exporters, canonical HTTPS proxy, backup recovery and sustained
-   cardinality/disk/retention for the chosen workload; requires a specified target. No public deployment is claimed.
+1. **Operator-first host defaults** — select a fresh active NIC on first use, preserve an explicit choice and adapt
+   instruments to their actual content width. Verify idle/missing interfaces and container/mobile layouts.
+2. **Sustained target-environment acceptance** — established production exporters/HTTPS/recovery do not certify
+   long-duration cardinality, disk growth or retention for every workload. Live external-daemon coverage remains scoped.
 3. **Profile-led capacity work** — D1 range planning is delivered. Further persisted rollups, indexes or streaming
    parsing changes need measured benefit and correction/retention semantics; they are not automatic migrations.
 4. **Optional toolchain/motion** — Vite+ and ReactBits remain optional; no migration until parity is established.
