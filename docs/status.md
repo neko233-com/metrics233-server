@@ -1,28 +1,45 @@
 # Project status and progress protocol
 
-### 2026-10-25 — Production quick connect and instrument sizing
+### 2026-10-25 — Quick connect, GitHub Dark and readable host instruments accepted
 
-Runtime 0.2.25 (`1145cdd4d87c0b0bae641efe0413e8c2250282e1`) and private source
-`4e4fbdd9a03ec750692eb8edab9dccf1bd8dfd6a` passed full native preparation and deployed successfully.
-Edge verified seven real instances, formal/gateway filters, Chinese multiline note persistence/search/restoration,
-stable card DOM and search draft across refresh. Existing production Node collector preview/apply created a
-six-panel scoped dashboard without changing collector identity or adding duplicate alerts; actual CPU, memory,
-two writable filesystems and per-NIC traffic rendered. The same chart canvas survived refresh.
+Runtime 0.2.26 fixes source `1da41fefa8ea9412d58756d94cfd002be983262b`. The immutable native worker passed
+full Go tests, 169 frontend units/build, native token/account readiness, collector cross-builds, archive/download
+checks and dependency audit (zero known advisories), then deployed successfully. Full source vet also passed
+in the separate fixed checkout. Runtime health reports 0.2.26/database=ok and its actual build identity matches.
+Private source identity, deployment and binary/archive receipts remain in the private deployment repository.
 
-Final runtime Docker checks passed twice after the soft-limit correction (164.900 s total; browser cgroup memory
-135688192 / 132423680 bytes). The database integration target passed twice on `c787f3e` (209.69 / 202.08 s);
-subsequent Docker changes touched only the production runtime stage and diagnostic reporting. The complete earlier
-`cf61d28` pre-availability-fix baseline also passed (567.474 s), attributed separately. No memory assertion was relaxed.
+Edge verified the seven real instances, formal/gateway filters, IP search, Chinese multiline note
+save/search/reopen/restoration and retained card DOM/search draft across refresh. Existing production Node
+collector preview/apply created a six-panel scoped dashboard without changing collector identity or adding
+duplicate alerts. The versioned layout editor saved its larger CPU/memory first row, full-width filesystem view
+and paired NIC charts. After the 0.2.26 reload, actual CPU/memory, two writable filesystems and independent
+per-NIC traffic rendered. LAN interfaces returned distinct real rates; the same canvas and chosen NIC survived
+same-scope refresh. Idle business rates remain honest zero and the active SDK has actual HTTP-body traffic.
 
-Production visual inspection found the old 90px SVG gauge cap. The follow-up removes that ceiling and puts host
-CPU/memory first with larger instruments/network panels. Source tests for positioning and sustained alerts pass;
-169 frontend units/build and all six layout-browser regressions pass, including actual numeric/mouse/keyboard
-edits, Classic/V1/V2 fidelity, CAS conflicts and a 390px mobile fixture that preserves saved desktop positions.
-Edge locally measured 200px instruments, mobile single-column width 342.67px and matching client/scroll width 375px.
-The next immutable release and final production screenshots are being checked. Visualization
-colors/needle/trend behavior stay independent of GitHub Dark console chrome. Historical roadmap weighting stays 94%.
+The production Edge render confirms GitHub Dark canvas `#0d1117`, surface `#161b22`, border `#30363d` and
+text `#e6edf3`. Visualization palettes, threshold bands, needle and classic trend behavior remain independent.
+Production instruments measure 200px high instead of the old 90px ceiling. Desktop 1513px and mobile 390px
+were inspected; mobile instruments are 200px in a single 358px-wide column, with client/scroll width both 390px.
+Final production screenshots were saved and the validation tab had no captured warnings/errors. Existing
+custom boards are not automatically rearranged. Six formal layout-browser cases passed without retries,
+including numeric/mouse/keyboard editing, Classic/V1/V2 fidelity, CAS conflict and preserved mobile/desktop data.
 
-### 2026-10-25 — Quick connect and infrastructure cards (in verification)
+Exact-source runtime Docker checks passed twice (204.782 s total), retaining authentication, 10000-sample ingest,
+restart, offline backup/restore, HTTPS-origin and browser-role gates. Browser cgroup memory was
+131305472 / 131371008 bytes, below the unchanged 230 MiB gate in a 256 MiB container. The runtime defaults to
+the operator-overridable Go soft limit `GOMEMLIMIT=128MiB`; native binaries retain the normal Go default.
+Real database integration passed twice on `c787f3e` (209.69 / 202.08 s); later changes affect runtime headroom,
+diagnostic reporting and starter-panel geometry, not those database transports. The earlier complete
+`cf61d28` baseline passed separately (567.474 s), before the availability correction. No assertion was relaxed.
+
+This release does not redeploy game/SDK binaries or inject synthetic production metrics, high load or extra
+Feishu messages. Historical roadmap weighting remains 94%; this is not full Grafana/Netdata parity or a
+long-duration capacity certification. See [the quick-connect contract](quick-connect.md) for bounded provisioning.
+
+### 2026-10-25 — Implementation and intermediate verification record
+
+The following records explain the intermediate failures; the final acceptance receipt above supersedes pending
+statements in this historical snapshot.
 
 Goal: actual connection → reviewed starter panels/sustained alerts → ordinary collection, with the same native
 HTTP/CLI contract for agents. Implemented read-only real-protocol probes, private-snapshot plan proofs, atomic
