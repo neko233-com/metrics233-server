@@ -112,6 +112,19 @@ func TestConnectionPlanNodeWindowsFreshnessAndNoUnobservedPanels(t *testing.T) {
 		require.True(t, found["memory"])
 		require.False(t, found["disk"])
 		require.Len(t, plan.Dashboard.Panels, 3, "host health must not be buried under exporter runtime internals")
+		positions := map[string]struct{ X, Y, W, H int }{}
+		for _, panel := range plan.Dashboard.Panels {
+			var config struct {
+				Grid struct{ X, Y, W, H int } `json:"gridPos"`
+			}
+			require.NoError(t, json.Unmarshal(panel.Config, &config))
+			positions[panel.ID] = config.Grid
+		}
+		require.Equal(t, 0, positions["cpu"].Y)
+		require.Equal(t, 0, positions["memory"].Y)
+		require.Equal(t, 12, positions["memory"].X)
+		require.GreaterOrEqual(t, positions["cpu"].H, 12, "instrument scale must have readable space")
+		require.GreaterOrEqual(t, positions["availability"].Y, positions["cpu"].H)
 		require.Len(t, plan.Rules, 5)
 	}
 	input := setupInput("mysql")

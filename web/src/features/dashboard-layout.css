@@ -39,7 +39,15 @@
   min-height: 0;
 }
 .dashboard-panel-cell .grafana-gauge .grafana-value svg {
-  height: clamp(24px, calc(100cqh - 164px), 90px);
+  height: clamp(24px, calc(100cqh - 152px), 280px);
+}
+/* Stack the saved desktop cells without rewriting their authored positions. */
+@media (max-width: 700px) {
+  .chart-grid.dashboard-panel-grid { grid-template-columns: minmax(0, 1fr); }
+  .dashboard-panel-grid > .dashboard-panel-cell {
+    grid-column: 1 / -1 !important;
+    grid-row-start: auto !important;
+  }
 }
 .dashboard-collection-status {
   margin-top: 14px;

@@ -80,6 +80,32 @@ const test = base.extend<{}, { endpoint: string }>({
   ],
 });
 
+test("Native mobile instruments stack readably while preserving the desktop layout", async ({ page, endpoint }) => {
+  const response = await page.request.post(endpoint + "/api/v1/dashboards", { data: {
+    name: "Mobile instruments",
+    panels: ["CPU", "Memory"].map((title, i) => ({ id: `mobile-${i}`, title, expr: "vector(33)", unit: "percent", aggregation: "last", visualization: "gauge", config: {
+      type: "gauge", gridPos: { x: i * 12, y: 0, w: 12, h: 12 },
+      fieldConfig: { defaults: { min: 0, max: 100, unit: "percent" }, overrides: [] },
+      targets: [{ refId: "A", expr: "vector(33)", instant: true, datasource: { uid: "metricspanel", type: "prometheus" } }],
+    } })),
+  } });
+  expect(response.ok()).toBeTruthy();
+  const dashboard = await response.json();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await visit(page, endpoint, dashboard.id, dashboard.name);
+  await expect(page.getByRole("meter")).toHaveCount(2);
+  const cells = page.locator(".dashboard-panel-cell");
+  const first = await cells.nth(0).boundingBox(), second = await cells.nth(1).boundingBox();
+  expect(first).not.toBeNull(); expect(second).not.toBeNull();
+  expect(first!.width).toBeGreaterThan(300);
+  expect(Math.abs(first!.x - second!.x)).toBeLessThan(1);
+  expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height);
+  expect((await page.getByRole("meter").first().boundingBox())!.height).toBeGreaterThanOrEqual(180);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBeTruthy();
+  const saved = await (await page.request.get(endpoint + "/api/v1/dashboards")).json();
+  expect(saved.find((item: { id: string }) => item.id === dashboard.id).panels[1].config.gridPos).toEqual({ x: 12, y: 0, w: 12, h: 12 });
+});
+
 async function visit(page: Page, endpoint: string, uid: string, title: string) {
   await page.addInitScript(() =>
     localStorage.setItem("metricspanel-locale", "en"),
@@ -87,7 +113,7 @@ async function visit(page: Page, endpoint: string, uid: string, title: string) {
   await page.goto(
     `${endpoint}/d/${encodeURIComponent(uid)}/${encodeURIComponent(title)}`,
   );
-  await expect(page).toHaveTitle("MetricsPanel233");
+  await expect(page).toHaveTitle("Metrics233");
   await expect(
     page.getByRole("heading", { name: title, exact: true }),
   ).toBeVisible();

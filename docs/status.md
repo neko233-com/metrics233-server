@@ -1,5 +1,27 @@
 # Project status and progress protocol
 
+### 2026-10-25 — Production quick connect and instrument sizing
+
+Runtime 0.2.25 (`1145cdd4d87c0b0bae641efe0413e8c2250282e1`) and private source
+`4e4fbdd9a03ec750692eb8edab9dccf1bd8dfd6a` passed full native preparation and deployed successfully.
+Edge verified seven real instances, formal/gateway filters, Chinese multiline note persistence/search/restoration,
+stable card DOM and search draft across refresh. Existing production Node collector preview/apply created a
+six-panel scoped dashboard without changing collector identity or adding duplicate alerts; actual CPU, memory,
+two writable filesystems and per-NIC traffic rendered. The same chart canvas survived refresh.
+
+Final runtime Docker checks passed twice after the soft-limit correction (164.900 s total; browser cgroup memory
+135688192 / 132423680 bytes). The database integration target passed twice on `c787f3e` (209.69 / 202.08 s);
+subsequent Docker changes touched only the production runtime stage and diagnostic reporting. The complete earlier
+`cf61d28` pre-availability-fix baseline also passed (567.474 s), attributed separately. No memory assertion was relaxed.
+
+Production visual inspection found the old 90px SVG gauge cap. The follow-up removes that ceiling and puts host
+CPU/memory first with larger instruments/network panels. Source tests for positioning and sustained alerts pass;
+169 frontend units/build and all six layout-browser regressions pass, including actual numeric/mouse/keyboard
+edits, Classic/V1/V2 fidelity, CAS conflicts and a 390px mobile fixture that preserves saved desktop positions.
+Edge locally measured 200px instruments, mobile single-column width 342.67px and matching client/scroll width 375px.
+The next immutable release and final production screenshots are being checked. Visualization
+colors/needle/trend behavior stay independent of GitHub Dark console chrome. Historical roadmap weighting stays 94%.
+
 ### 2026-10-25 — Quick connect and infrastructure cards (in verification)
 
 Goal: actual connection → reviewed starter panels/sustained alerts → ordinary collection, with the same native

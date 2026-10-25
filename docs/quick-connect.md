@@ -17,6 +17,9 @@ Linux/Node, Windows, MySQL, Redis and PostgreSQL receive curated panels only whe
 observed. Exporter runtime internals stay in Explore instead of filling a host-health dashboard. Other implemented
 protocols receive a generic starter view bounded to 24 panels, without inferring arbitrary business semantics.
 All collected metrics remain queryable beyond this starter-panel limit.
+Host starters put CPU/memory instruments first, use a full-width filesystem view and larger paired network
+panels, and place collection status after resource data. Native gauges size with panel height rather than a
+90-pixel ceiling. Existing dashboards retain their authored positions; use the versioned layout editor to change them.
 
 Existing target cards can generate a dashboard using protected saved settings. Their connection, labels and
 credentials remain unchanged. Overlapping target identities are rejected. Retries never overwrite customized

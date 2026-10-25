@@ -339,6 +339,9 @@ func connectionDashboard(input ConnectionSetupInput, profile string, names map[s
 	// Recognized resources get a curated board. Exporter runtime internals and
 	// other observations remain in Explore, rather than burying host health.
 	if profile == "node" || profile == "windows" || profile == "redis" || profile == "postgresql" {
+		if profile == "node" || profile == "windows" {
+			layoutConnectionHostPanels(&d)
+		}
 		return d
 	}
 	for _, name := range slices.Sorted(maps.Keys(names)) {
@@ -365,6 +368,42 @@ func connectionDashboard(input ConnectionSetupInput, profile string, names map[s
 		add(fmt.Sprintf("metric-%d", len(d.Panels)), strings.ReplaceAll(name, "_", " "), strings.ReplaceAll(name, "_", " "), "timeseries", unit, expr, "")
 	}
 	return d
+}
+
+// Give health instruments the first row and keep collection status compact.
+// Existing saved dashboards are never reflowed by a later connection retry.
+func layoutConnectionHostPanels(d *Dashboard) {
+	y := 0
+	for _, row := range []struct {
+		ids    []string
+		height int
+	}{
+		{[]string{"cpu", "memory"}, 12},
+		{[]string{"disk"}, 8},
+		{[]string{"rx", "tx"}, 12},
+		{[]string{"disk-read", "disk-write"}, 12},
+		{[]string{"load", "uptime"}, 10},
+		{[]string{"availability"}, 6},
+	} {
+		indexes := []int{}
+		for _, id := range row.ids {
+			for i := range d.Panels {
+				if d.Panels[i].ID == id {
+					indexes = append(indexes, i)
+				}
+			}
+		}
+		if len(indexes) == 0 {
+			continue
+		}
+		for column, index := range indexes {
+			var config map[string]any
+			_ = json.Unmarshal(d.Panels[index].Config, &config)
+			config["gridPos"] = map[string]int{"x": column * (24 / len(indexes)), "y": y, "w": 24 / len(indexes), "h": row.height}
+			d.Panels[index].Config, _ = json.Marshal(config)
+		}
+		y += row.height
+	}
 }
 
 func connectionMetricsPresent(expr string, names map[string]bool) bool {
