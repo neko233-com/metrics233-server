@@ -4,16 +4,35 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"math"
 	"strconv"
 	"strings"
 
 	"github.com/neko233-com/metrics233-server/internal/model"
 )
 
-func defaultNetworkDevice(devices []string) string {
+func physicalNetworkDevice(device string) bool {
+	lower := strings.ToLower(device)
+	return strings.HasPrefix(lower, "eth") || strings.HasPrefix(lower, "en") || strings.HasPrefix(lower, "bond")
+}
+
+func defaultNetworkDevice(devices []string, activity map[string]float64) string {
+	selected, score := "", 0.0
 	for _, device := range devices {
-		lower := strings.ToLower(device)
-		if strings.HasPrefix(lower, "eth") || strings.HasPrefix(lower, "en") || strings.HasPrefix(lower, "bond") {
+		current := activity[device]
+		if current <= 0 || math.IsNaN(current) || math.IsInf(current, 0) {
+			continue
+		}
+		physical, previousPhysical := physicalNetworkDevice(device), physicalNetworkDevice(selected)
+		if selected == "" || physical && !previousPhysical || physical == previousPhysical && current > score {
+			selected, score = device, current
+		}
+	}
+	if selected != "" {
+		return selected
+	}
+	for _, device := range devices {
+		if physicalNetworkDevice(device) {
 			return device
 		}
 	}

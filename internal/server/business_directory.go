@@ -6,10 +6,13 @@ import (
 	"math"
 	"net/http"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/neko233-com/metrics233-server/internal/identity"
 	"github.com/neko233-com/metrics233-server/internal/model"
@@ -90,14 +93,21 @@ func (s *Server) businessDirectoryRoutes(api routeRegistrar) {
 			return
 		}
 		language := r.URL.Query().Get("language")
+		requested := r.URL.Query().Get("device")
+		if len(r.URL.Query()["device"]) > 1 || len(requested) > 128 || !utf8.ValidString(requested) || strings.TrimSpace(requested) != requested || strings.IndexFunc(requested, unicode.IsControl) >= 0 {
+			fail(w, 400, errors.New("device must be one bounded interface name"))
+			return
+		}
 		d := businessNetworkDashboard(item, language)
 		out := struct {
-			Business  model.Dashboard  `json:"business"`
-			Host      *model.Dashboard `json:"host,omitempty"`
-			Devices   []string         `json:"devices"`
-			Device    string           `json:"device"`
-			HostName  string           `json:"host_name"`
-			HostStale bool             `json:"host_stale"`
+			Business                 model.Dashboard  `json:"business"`
+			Host                     *model.Dashboard `json:"host,omitempty"`
+			Devices                  []string         `json:"devices"`
+			Device                   string           `json:"device"`
+			HostName                 string           `json:"host_name"`
+			HostStale                bool             `json:"host_stale"`
+			RecommendedDevice        string           `json:"recommended_device"`
+			RecommendationHasTraffic bool             `json:"recommendation_has_traffic"`
 		}{Business: d, Devices: []string{}}
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 		defer cancel()
@@ -107,6 +117,7 @@ func (s *Server) businessDirectoryRoutes(api routeRegistrar) {
 			return
 		}
 		var target *model.Target
+		activity := map[string]float64{}
 		if b.Kind == "managed_host" {
 			if h, _, e := s.Store.ManagedHost(ctx, b.ID); e == nil && h.HostCollectionEnabled() {
 				out.HostName = h.Name
@@ -114,6 +125,13 @@ func (s *Server) businessDirectoryRoutes(api routeRegistrar) {
 				if h.Resources != nil {
 					for _, n := range h.Resources.Network {
 						out.Devices = append(out.Devices, n.Device)
+						if !out.HostStale {
+							for _, rate := range []*float64{n.ReceivePerSecond, n.TransmitPerSecond} {
+								if rate != nil && *rate >= 0 && !math.IsNaN(*rate) && !math.IsInf(*rate, 0) {
+									activity[n.Device] += *rate / 2
+								}
+							}
+						}
 					}
 				}
 			}
@@ -137,28 +155,37 @@ func (s *Server) businessDirectoryRoutes(api routeRegistrar) {
 					instance = v
 				}
 				selector := `{job=` + strconv.Quote(job) + `,instance=` + strconv.Quote(instance) + `}`
-				s.cardVector(ctx, "node_network_receive_bytes_total"+selector, time.Now(), func(labels map[string]string, _ float64) {
+				freshness := strconv.Itoa(max(90, target.IntervalSeconds*3))
+				fresh := func(metric string) string {
+					return "((time() - timestamp(" + metric + selector + ")) < " + freshness + ")"
+				}
+				s.cardVector(ctx, "node_network_receive_bytes_total"+selector+" and "+fresh("node_network_receive_bytes_total"), time.Now(), func(labels map[string]string, _ float64) {
 					v := labels["device"]
 					if v != "" && v != "lo" && len(v) <= 128 && len(out.Devices) < 64 {
 						out.Devices = append(out.Devices, v)
 					}
 				})
+				if !out.HostStale {
+					for _, direction := range []string{"receive", "transmit"} {
+						metric := "node_network_" + direction + "_bytes_total"
+						s.cardVector(ctx, "max by (device) (rate("+metric+selector+"[2m]) and "+fresh(metric)+")", time.Now(), func(labels map[string]string, rate float64) {
+							activity[labels["device"]] += rate / 2
+						})
+					}
+				}
 			}
 		}
 		sort.Strings(out.Devices)
-		requested := r.URL.Query().Get("device")
-		for _, device := range out.Devices {
-			if device == requested {
-				out.Device = device
-				break
-			}
-		}
-		if out.Device == "" {
-			out.Device = defaultNetworkDevice(out.Devices)
+		out.Devices = slices.Compact(out.Devices)
+		out.RecommendedDevice = defaultNetworkDevice(out.Devices, activity)
+		out.RecommendationHasTraffic = activity[out.RecommendedDevice] > 0
+		out.Device = requested
+		if requested == "" {
+			out.Device = out.RecommendedDevice
 		}
 		if out.Device != "" {
 			host := hostNetworkDashboard(b.Kind, b.ID, out.Device, language, target)
-			if out.HostStale {
+			if out.HostStale || !slices.Contains(out.Devices, out.Device) {
 				host.Panels = host.Panels[2:]
 			}
 			out.Host = &host

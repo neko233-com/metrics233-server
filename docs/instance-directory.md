@@ -33,8 +33,26 @@ interface reappearance, read failure or nonpositive sampling interval establishe
 rates remain zero. `host_resource_collection_success{resource="network"}` records availability independently.
 Snapshots store only the latest bounded projection; history uses the compressed metric store.
 
-Exporter hosts require `netdev` and use `node_network_*_bytes_total`. A visible NIC selector defaults to a conventional
-physical NIC when one is available. Physical, bridge and tunnel interfaces remain separate and must not be summed.
+Exporter hosts require `netdev` and use `node_network_*_bytes_total`. Automatic selection prefers a fresh interface
+with positive observed receive/send traffic, then a conventional physical interface within that active set. With
+no useful rate yet, it falls back to a conventional physical interface, a nonvirtual name, then the first name.
+The first useful automatic choice stays pinned through idle/bursty refreshes while that interface remains present;
+an explicit manual choice never silently changes. The selector offers Automatic to discard that manual choice.
+Physical, bridge and tunnel interfaces remain separate and must not be summed. This name/rate heuristic does not
+claim to discover the operating system's default route or to identify the Internet uplink in every topology.
+
+The network response includes `recommended_device` and `recommendation_has_traffic` separately from the requested
+`device`. Exporter discovery and ranking exclude counter observations older than max(90 seconds, 3 scrape intervals).
+Stale/paused host rates cannot rank a recommendation. An explicit device is one UTF-8 name of at most 128 bytes,
+with no surrounding whitespace or control characters; duplicate query parameters are rejected with HTTP 400.
+If a manually selected interface disappears, its exact history remains selected and current rate panels are hidden.
+The UI labels the missing observation rather than showing a different NIC under the old choice. On a new NIC scope,
+the business view hides the prior NIC until the matching response arrives; service traffic and the chosen historical
+window remain separate. Same-scope refreshes preserve the existing chart node and choice.
+
+Host instruments use their content container's width: three columns when roomy, two below 900px (the third spans
+the row), and one below 600px. The user's Large setting remains one column. This also covers a tablet with an open
+sidebar; viewport width alone must not shrink three gauges into an unreadable narrow content area.
 Collectors and historical/custom host dashboards are upgraded separately; provisioning preserves customized boards.
 
 ## Rendered acceptance and design comparison

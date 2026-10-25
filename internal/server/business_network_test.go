@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/url"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,109 @@ import (
 	"github.com/neko233-com/metrics233-server/internal/store"
 	"github.com/stretchr/testify/require"
 )
+
+func TestBusinessNetworkObservedRecommendationAndMissingManualSelection(t *testing.T) {
+	db, handler := setup(t, "")
+	ctx := context.Background()
+	host, err := db.SaveManagedHost(ctx, model.ManagedHost{Name: "Network fixture", Address: "127.0.0.1", Port: 22, User: "fixture", Enabled: true, Target: model.Target{Name: "network", Kind: "mysql", URL: "mysql://127.0.0.1:3306", IntervalSeconds: 15, Enabled: true}}, "fixture")
+	require.NoError(t, err)
+	identity := model.BusinessIdentity{Service: "network-fixture", Role: "logic", ServerID: "7", Instance: "network-7", Environment: "test", Implementation: "go"}
+	require.NoError(t, db.Ingest(ctx, []model.Sample{{Name: "game_players_online", Labels: identity.Labels(), Value: 0}}))
+	id := store.BusinessInstanceID(identity)
+	_, err = db.BindBusinessHost(ctx, id, model.BusinessHostBinding{Kind: "managed_host", ID: host.ID})
+	require.NoError(t, err)
+	now := time.Now().Add(-time.Second).UnixMilli()
+	observations := []model.Sample{}
+	for device, rate := range map[string]float64{"anpi0": 0, "bridge0": 9000, "en0": 10, "en1": 20} {
+		observations = append(observations, model.Sample{Name: "host_network_receive_bytes_per_second", Labels: map[string]string{"device": device}, Value: rate, Timestamp: now})
+	}
+	require.NoError(t, db.RecordHostHeartbeat(ctx, host.ID, model.HostHeartbeat{Samples: observations}, len(observations)))
+	type response struct {
+		Device      string          `json:"device"`
+		Recommended string          `json:"recommended_device"`
+		Traffic     bool            `json:"recommendation_has_traffic"`
+		Stale       bool            `json:"host_stale"`
+		Host        model.Dashboard `json:"host"`
+	}
+	read := func(query string) response {
+		w := call(handler, "GET", "/api/v1/business/instances/"+id+"/network"+query, "", "", "")
+		require.Equal(t, 200, w.Code, w.Body.String())
+		var result response
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &result))
+		return result
+	}
+	auto := read("")
+	require.Equal(t, "en1", auto.Device)
+	require.Equal(t, "en1", auto.Recommended)
+	require.True(t, auto.Traffic)
+	require.Len(t, auto.Host.Panels, 3)
+	manual := read("?device=anpi0")
+	require.Equal(t, "anpi0", manual.Device)
+	missing := read("?device=removed0")
+	require.Equal(t, "removed0", missing.Device)
+	require.Equal(t, "en1", missing.Recommended)
+	require.False(t, missing.Stale)
+	require.Len(t, missing.Host.Panels, 1)
+	require.Equal(t, "timeseries", missing.Host.Panels[0].Visualization)
+	require.Contains(t, missing.Host.Panels[0].Expr, `device="removed0"`)
+	for _, bad := range []string{"a\n", "\x00", strings.Repeat("x", 129)} {
+		require.Equal(t, 400, call(handler, "GET", "/api/v1/business/instances/"+id+"/network?device="+url.QueryEscape(bad), "", "", "").Code)
+	}
+	require.Equal(t, 400, call(handler, "GET", "/api/v1/business/instances/"+id+"/network?device=en0&device=en1", "", "", "").Code)
+	for n := range observations {
+		observations[n].Timestamp = time.Now().Add(-3 * time.Minute).UnixMilli()
+	}
+	require.NoError(t, db.RecordHostHeartbeat(ctx, host.ID, model.HostHeartbeat{Samples: observations}, len(observations)))
+	stale := read("")
+	require.True(t, stale.Stale)
+	require.False(t, stale.Traffic)
+	require.Equal(t, "en0", stale.Device)
+	require.Len(t, stale.Host.Panels, 1)
+}
+
+func TestBusinessNetworkCollectorRecommendationExcludesOldAndForeignInterfaces(t *testing.T) {
+	db, handler := setup(t, "")
+	ctx := context.Background()
+	identity := model.BusinessIdentity{Service: "collector-fixture", Role: "logic", ServerID: "8", Instance: "collector-8", Environment: "test", Implementation: "go"}
+	require.NoError(t, db.Ingest(ctx, []model.Sample{{Name: "game_players_online", Labels: identity.Labels(), Value: 0}}))
+	id := store.BusinessInstanceID(identity)
+	target, err := db.SaveTarget(ctx, model.Target{Name: "nic-fixture", URL: "http://127.0.0.1:19090/metrics", IntervalSeconds: 15, Enabled: true, Labels: map[string]string{"instance": "nic-fixture"}})
+	require.NoError(t, err)
+	_, err = db.BindBusinessHost(ctx, id, model.BusinessHostBinding{Kind: "collector", ID: strconv.FormatInt(target.ID, 10)})
+	require.NoError(t, err)
+	now := time.Now().Add(-time.Second)
+	_, err = db.DB.ExecContext(ctx, `UPDATE targets SET last_scrape=? WHERE id=?`, now.UnixMilli(), target.ID)
+	require.NoError(t, err)
+	observations := []model.Sample{}
+	for _, device := range []string{"eth0", "eth1", "eth2", "foreign"} {
+		for n := 0; n < 4; n++ {
+			at, job := now.Add(time.Duration(n-3)*30*time.Second), "nic-fixture"
+			if device == "eth2" {
+				at = at.Add(-3 * time.Minute)
+			}
+			if device == "foreign" {
+				job = "another-host"
+			}
+			value := 0.0
+			if device != "eth0" {
+				value = float64(n * 300)
+			}
+			observations = append(observations, model.Sample{Name: "node_network_receive_bytes_total", Labels: map[string]string{"job": job, "instance": "nic-fixture", "device": device}, Value: value, Timestamp: at.UnixMilli()})
+		}
+	}
+	require.NoError(t, db.Ingest(ctx, observations))
+	w := call(handler, "GET", "/api/v1/business/instances/"+id+"/network", "", "", "")
+	require.Equal(t, 200, w.Code, w.Body.String())
+	var result struct {
+		Device  string   `json:"device"`
+		Devices []string `json:"devices"`
+		Traffic bool     `json:"recommendation_has_traffic"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &result))
+	require.Equal(t, []string{"eth0", "eth1"}, result.Devices)
+	require.Equal(t, "eth1", result.Device)
+	require.True(t, result.Traffic)
+}
 
 func TestBusinessDirectoryNetworkAliasesScopeAndCollectorQueries(t *testing.T) {
 	db, h := setup(t, "")

@@ -1,5 +1,25 @@
 # Project status and progress protocol
 
+### 2026-10-25 — Host default-view refinement: local candidate
+
+The GitHub Dark console and independent Grafana/racing visualization palettes remain intact. Automatic NIC
+selection now uses fresh positive observations, prefers active conventional physical NICs, and pins the first
+useful choice while it remains present. Manual idle/missing selections retain their identity and history; missing
+current rates stay hidden. Exporter freshness guards exclude old or foreign series. The business view separates
+pending NIC changes from service traffic and preserves its historical zoom window across those changes.
+Host instruments adapt to the content container (three/two/one columns); the explicit Large view stays one column.
+The API and heuristic limitations are documented in [instance directory](instance-directory.md).
+
+Local candidate validation: full `internal/server` tests (46.274 seconds) and vet pass; 174 frontend unit tests
+and TypeScript/production build pass. Two zero-retry browser cases over the embedded native UI pass (6.0 seconds),
+covering automatic/manual/missing NICs, same-scope canvas retention, delayed scope changes, actual historical
+zoom queries, and 1512/1100/768/390px layouts without horizontal overflow or page errors. Their bounded heartbeat
+and network projections are synthetic HTTP fixtures; chart queries use the real local metric store. Separate
+Go HTTP tests exercise actual managed-host/exporter recommendation, stale/foreign series and invalid requests.
+Initial browser attempts used an incorrect environment-label locator and an offscreen drag; those fixture issues
+were corrected, with no reduced assertions or retries. Immutable public artifacts, hosted CI and production/Edge
+acceptance for this candidate remain pending. Weighted progress stays 95%; no full Grafana/Netdata parity is claimed.
+
 ### 2026-10-25 — 0.2.28 GitHub Dark and public release accepted
 
 Runtime and public `v0.2.28` fix source `ebfd82cd9919974dfd21d969834c3c1011e17395`. The console separates

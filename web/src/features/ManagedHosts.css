@@ -15,7 +15,7 @@
 .host-view-nav > span { align-self: stretch; display: flex; align-items: center; border-bottom: 2px solid var(--accent); font-size: 13px; font-weight: 600; }
 .host-view-nav button { border: 0; background: transparent; padding: 8px 0; min-height: 36px; color: var(--muted); }
 .host-view-nav small { margin-left: auto; color: var(--muted); font-size: 11px; }
-.host-resources { padding: 12px; }
+.host-resources { padding: 12px; container: host-resources / inline-size; }
 .host-instruments, .host-trends { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .host-resources-large .host-instruments, .host-resources-large .host-trends { grid-template-columns: minmax(0, 1fr); }
 .business-instance-detail .host-resources-large .host-instrument .risk-gauge { max-width: 360px; }
@@ -68,6 +68,14 @@
 .host-more > summary { display: flex; align-items: center; gap: 8px; width: fit-content; min-height: 42px; cursor: pointer; color: var(--muted); font-size: 12px; }
 .host-more[open] { padding-bottom: 16px; }
 @media (max-width: 900px) { .host-resource-footer { grid-template-columns: 1fr; } .host-instrument .risk-gauge-value { font-size: 27px; } }
+@container host-resources (max-width: 899px) {
+  .host-instruments, .host-trends { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .host-instrument:last-child, .host-trend:last-child { grid-column: 1 / -1; }
+  .host-resource-footer { grid-template-columns: minmax(0, 1fr); }
+}
+@container host-resources (max-width: 599px) {
+  .host-instruments, .host-trends { grid-template-columns: minmax(0, 1fr); }
+}
 @media (max-width: 640px) {
   .host-instruments, .host-trends { grid-template-columns: 1fr; }
   .host-instrument .risk-gauge { max-width: 300px; }
