@@ -64,7 +64,7 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 | 工作流 | 权重 | 完成度 | 主要缺口 |
 | --- | ---: | ---: | --- |
 | 产品 Shell 与自有 UI | 15% | 95% | 业务接入页、按需加载、焦点竞态修复；可选动效不阻塞生产 |
-| 渲染器 | 15% | 95% | Tempo 详情、Loki 实际查询通过；真实 Tempo daemon 未验收 |
+| 渲染器 | 15% | 100% | 原生面板、Tempo详情、Loki固定HTTP契约及真实Tempo daemon两轮浏览器/完整CI验收；边界见兼容文档 |
 | 采集 | 15% | 95% | OTLP/remote-write 严格预检、上限、部分成功与真库采集已验收；协议支持子集有明确契约 |
 | 存储与查询 | 15% | 95% | SQLite bucket-last/选序列下推、PromQL 保真上限、真实 ClickHouse 大范围实测；不引入破坏覆盖语义的预聚合 |
 | 认证与安全 | 15% | 95% | API namespace、失败限流、代理来源和 HTTPS root 已修复；真实公网配置仍需目标验收 |
@@ -72,7 +72,7 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 | 文档与 agent 契约 | 5% | 95% | 契约与实测同步；持续维护 |
 | 性能 | 10% | 95% | Worker/min-max、100k/1m 与正式runtime持续HTTP/PromQL实测；JSON 解析、增量归一化及更长运行仍有边界 |
 
-**加权总进度：95%**（权重合计 100%，±5 个百分点）。
+**加权总进度：96%**（权重合计 100%，±5 个百分点）。
 这是路线图完成估算，不是生产可用率或“所有环境已验收”的声明。每完成一个执行项，更新本表与 `docs/status.md`。
 
 ## 执行队列
@@ -156,10 +156,10 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
   - 验收：真实 Tempo fixture；span 层级、耗时与错误状态；`?traceId=` 深链。
   - 证据：官方固定 SHA fixture、边界/取消 Go 测试、实际 HTTP→Go→UI 浏览器通过；非 live Tempo daemon 验收。
 
-- [~] **R2c — 真实 Tempo 服务接入闭环**
+- [x] **R2c — 真实 Tempo 服务接入闭环**
   - 范围：固定官方 Tempo 发行镜像；真实 OTLP 上报、TraceQL 搜索、trace-ID 详情、层级/耗时/错误状态与仪表盘浏览器，不替换已有 fixture 回归。
   - 验收：隔离的真实服务与监控 HTTP API；实际搜索后打开详情、深链/重载、缺失 trace 和响应式界面；普通账号边界保留。测试仅绑定 loopback，清理自有资源，不连接生产或伪造生产 trace。
-  - 当前：真实API/浏览器、Edge错误详情及既有负面边界通过。冷拉取stdout分流后完整CI的Go race、103浏览器与Docker两轮通过，但旧随机夹具撞到前导0长度假设，保留失败归属。最终15b917a固定验证完整/短ID及深链，本地两轮24.688秒、托管专项两轮21.222秒通过；最终组合提交完整复核待收口，见 docs/tempo-live-validation.md。
+  - 证据：真实API/浏览器、Edge错误详情及既有负面边界通过。旧冷拉取和随机ID夹具失败保留；最终b0c9045完整CI 40220691425全绿：vet/race 31分40秒、103浏览器通过/3环境跳过/零重试、Docker两轮8分52秒、实际Tempo API/浏览器两轮20.272秒。精确源码与历史归属见 docs/tempo-live-validation.md。
 
 - [x] **R3 — Heatmap / Histogram / Vector 渲染器**
   - 范围：按渲染器矩阵补齐常用分析视图；向量视图读取 64 维字段。

@@ -72,7 +72,11 @@ Full run 40216847324 passes Go vet/race, 103 browser cases and repeated Docker b
 32-character-ID assumption; that failed result remains. Final 15b917a instead tests leading-zero IDs and passes
 [focused hosted validation](https://github.com/neko233-com/metrics233-server/actions/runs/40219239682): two actual
 Linux/API/browser rounds in 21.222s without retries, plus negative regressions/vet; job 2m38s. Final combined-source
-full-workflow acceptance is separate and pending.
+b0c9045 passes [full workflow 40220691425](https://github.com/neko233-com/metrics233-server/actions/runs/40220691425):
+Go vet/race 31m40s, 103 default browser cases/three environment skips/8.1m without retries, repeated Docker 8m52s,
+and the separate actual Tempo/API/browser step twice in 20.272s, without retries. The live step executes the
+contract skipped when the default suite does not own a daemon. Full test job completes in 42m07s. R2c is accepted;
+the earlier failed source/workflows and focused success retain their original attribution.
 The R2c evidence commits through b0c9045 change only tests/CI/docs. At that checkpoint production remains v0.2.30;
 this is not a production Tempo deployment or a new game/server
 binary rollout. Full and focused results keep separate source identities in [status](status.md).

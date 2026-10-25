@@ -1,6 +1,6 @@
 # Project status and progress protocol
 
-### 2026-10-26 — Current snapshot expiry and suspended refresh: local candidate
+### 2026-10-26 — 0.2.31 archive and Edge acceptance; release CI/production pending
 
 A deterministic regression against the previous UI keeps CPU 25%, memory 50% and disk 20% after the host
 snapshot's expiry with refresh Off. Another regression against the old scheduler receives no catch-up request
@@ -16,9 +16,26 @@ survive, including recovery on a new sample. No UI palette, Grafana classic seri
 
 Five targeted native-server browser cases pass without retries in 9.6s; 174 frontend units and the production
 bundle build pass. The complete candidate browser suite passes 106 cases without retries in 7.5 minutes; two
-external-SQL cases and the separately owned live-Tempo case skip without their environments. Edge, immutable archives, release-tag CI and
-production are still separate pending gates for this candidate. Production remains v0.2.30 at this checkpoint;
-the earlier real-Tempo full workflow continues independently on source b0c9045. Weighted roadmap remains 95%.
+external-SQL cases and the separately owned live-Tempo case skip without their environments.
+Immutable source/tag 6270a48/v0.2.31 builds twice from a fresh official checkout: all seven delivery files match,
+ZIP CRC/architecture/provenance and the native Windows version pass. The actual Windows ZIP again passes all
+106 default browser cases without retries in 7.5m. The actual Linux ZIP, verified in-container by SHA-256 and
+version, passes two confined runtime/browser rounds in 158.247s; eight memory.current snapshots max at 134332416
+bytes (not a kernel peak). Its separate four-database integration/three real SQL browser cases pass in 210.734s;
+SQL browser alone takes 26.2s. Formal limits, permissions, restart and offline restore assertions stay intact.
+
+Edge inspects an independent, loopback-only instance of that exact Linux release binary. With refresh Off, real
+synthetic HTTP-body counters initially display nonzero receive/send; after the actual 90-second report deadline
+both become unknown and the report reads overdue while the open note and search drafts stay unchanged. No
+browser-clock replacement or response projection is used in this Edge check; CPU stays unknown because this
+fixture deliberately has no associated host. Native protocol fixture data is separate from production data.
+New ACKed samples and manual refresh recover nonzero rates while the search draft stays. A multiline note saves
+through the actual API and matches a combined note search/SDK-category query. Edge captures no warnings/errors.
+The temporary pages close and the ownership-checked Edge container, data volume and release verification image
+are removed; formal runtime and SQL fixtures also report their own cleanup. Shared images/caches are preserved.
+Seven draft GitHub asset digests match the verified local files. The new v0.2.31 complete tag workflow 40222966206
+is running (Docker passed); formal publication, anonymous downloads, production upgrade and production Edge
+remain pending. Production still runs v0.2.30. R2c's earlier full workflow is now accepted below; roadmap is 96%.
 
 ### 2026-10-26 — Production configuration readback and plan reconciliation
 
@@ -48,7 +65,7 @@ This is not a maximum-capacity, arbitrary-cardinality/compression or weeks-long 
 for pacing, percentiles, engine/HTTP scope and cleanup. The performance index now separates default compressed
 storage from legacy SQLite and requires complete embedded data in backups. No runtime code or production data changes.
 
-### 2026-10-26 — Real Tempo daemon: focused hosted acceptance; final full run pending
+### 2026-10-26 — Real Tempo daemon: final full workflow accepted
 
 `TestTempoLiveDataSource` starts official Tempo 3.1.1 pinned by digest, posts actual OTLP spans, and queries
 search/detail through an authenticated Metrics233 HTTP server. Two zero-retry API/browser rounds pass in 20.512s;
@@ -72,11 +89,15 @@ The final fixture deliberately supplies leading-zero OTLP IDs, verifies both ful
 IDs, and follows the actual short link in the browser. Two local rounds pass in 24.688s. Source 15b917a passes
 [focused hosted vet/negative/API/browser verification](https://github.com/neko233-com/metrics233-server/actions/runs/40219239682)
 in 2m38s: two real-service rounds 21.222s, zero retries, existing negative tests 1.178s. No runtime implementation
-changed to hide the fixture mistake; cmd/internal/web/src/dependencies/Dockerfile match v0.2.30. A final full
-workflow on the combined source is being requested; the focused result is not a full-workflow pass. No
-product runtime code, production data or configured datasources change: production remains v0.2.30/17791c5. This
+changed to hide the fixture mistake; these verification commits' cmd/internal/web/src/dependencies/Dockerfile
+match v0.2.30. Final full workflow [40220691425](https://github.com/neko233-com/metrics233-server/actions/runs/40220691425)
+on exact combined source b0c9045c880d682bae100cba6583656f9beccc9d passes: test job 42m07s, complete Go vet/race
+31m40s (store race 1528.903s), 103 default browser cases/three environment skips in 8.1m without retries,
+repeated Docker 8m52s and two actual Tempo/API/browser rounds in 20.272s (2.5/2.9s browser). The dedicated live
+step runs the case that the unowned default suite skips. The focused and full results retain their own identities.
+This evidence unit changes no product runtime or configured datasources; production remains v0.2.30/17791c5. It
 closes a real-service evidence gap without implying a local trace store, service graphs, partial traces or production
-Tempo installation. See [the reproducible contract](tempo-live-validation.md). Roadmap remains 95% pending the final full workflow.
+Tempo installation. See [the reproducible contract](tempo-live-validation.md). R2c closes and roadmap becomes 96%.
 
 ### 2026-10-26 — 0.2.30 production, public release and full tag CI accepted
 
@@ -716,15 +737,15 @@ Weights reflect product risk and user-visible value.
 | Workstream | Weight | Progress | Basis and remaining work |
 | --- | --- | --- | --- |
 | Product shell and first-party UI | 15% | 95% | Business onboarding, lazy features and deterministic modal focus; optional motion is not a production gate |
-| Renderers | 15% | 95% | Tempo detail and real Loki HTTP queries covered; no live Tempo daemon acceptance |
+| Renderers | 15% | 100% | Native panel matrix, Loki fixed HTTP contract and actual Tempo ingestion/API/browser plus final full CI accepted; supported scope is explicit |
 | Collection | 15% | 95% | C1 enforces decoded/expanded budgets, identity validation and fail-before-write behavior for supported protocol subsets; sustained external exporters remain target-specific |
 | Storage and query | 15% | 95% | D1 SQL bucket-last planning, selected raw-sample budgets, real 1M ClickHouse corrections/EXPLAIN and 5M SQLite rejection/retention verified; sustained cardinality and disk growth remain target-specific |
 | Auth and security | 15% | 95% | A1 namespace authentication, shared password throttling, trusted-proxy chain and canonical Origin regressions passed; scoped review is not a general security certification or public TLS acceptance |
 | Ops and delivery | 10% | 100% | Exact v0.2.28 full tag CI, reproducible five-platform archives, anonymous downloads, backup/recovery and actual native deployment/Edge acceptance passed as separate gates |
 | Docs and agent contract | 5% | 95% | Source contracts and measured boundaries synchronized |
-| Performance | 10% | 90% | Worker/min-max and measured SQL/ClickHouse query plans reduce bounded workloads; main-thread JSON parsing and long-duration operational SLOs remain |
+| Performance | 10% | 95% | Worker/min-max, SQL/ClickHouse plans and ten-minute confined embedded HTTP/PromQL profile measured; main-thread JSON parsing and longer operational SLOs remain |
 
-**Weighted overall: 95%** (weights total 100%, ±5 points). The estimate covers the supported single-node product
+**Weighted overall: 96%** (weights total 100%, ±5 points). The estimate covers the supported single-node product
 scope and evidence recorded above. Immutable-source CI/release, anonymous distribution and actual deployment
 are separately established. This is not availability, a release promise, a claim that every
 exporter or Grafana feature is supported, or universal production certification.
