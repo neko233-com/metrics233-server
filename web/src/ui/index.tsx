@@ -41,10 +41,10 @@ export type AppTheme = {
 
 export const appTheme: AppTheme = {
   colors: {
-    border: { weak: "#2a3542", medium: "#344351" },
-    background: { primary: "#101419", secondary: "#171e27" },
-    text: { secondary: "#99aabd", disabled: "#7d8c9d" },
-    success: { text: "#39c98a" },
+    border: { weak: "var(--border-subtle)", medium: "var(--border)" },
+    background: { primary: "var(--canvas)", secondary: "var(--surface)" },
+    text: { secondary: "var(--text-secondary)", disabled: "var(--muted)" },
+    success: { text: "var(--green)" },
   },
   spacing: (value) => `${value * 8}px`,
   shape: { radius: { default: "5px" } },

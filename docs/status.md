@@ -1,5 +1,14 @@
 # Project status and progress protocol
 
+### 2026-10-25 — GitHub Dark palette completion (in progress)
+
+The console now separates inset navigation/header (`#010409`), page (`#0d1117`), panels (`#161b22`), controls
+(`#21262d`) and borders (`#30363d`). Blue links/focus, a coral current-location marker and green primary actions
+have separate roles. Forms, modals, tables, first-party theme consumers, connection cards and layout controls use
+the same semantic tokens instead of residual blue-gray or orange-tinted surfaces. Pending alerts remain amber.
+Visualization series, racing gauges, thresholds and query/refresh logic are unchanged. The 169 frontend units pass;
+build, browser and fixed-source production acceptance will be recorded separately. Historical weighting remains 94%.
+
 ### 2026-10-25 — Public release closure (in progress)
 
 Production 0.2.26 has the acceptance recorded below, but public downloadable releases and full hosted tag CI

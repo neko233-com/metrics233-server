@@ -18,7 +18,7 @@
 .connection-preview-rules li > span { display:block; margin-top:4px; color:var(--muted); font-size:12px; }
 .connection-surfaces { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:24px; border-bottom:1px solid var(--border); }
 .connection-surfaces button,.connection-resource-tabs button { color:var(--muted); background:transparent; border:0; border-radius:0; border-bottom:2px solid transparent; }
-.connection-surfaces button[aria-pressed=true],.connection-resource-tabs button[aria-pressed=true] { color:#3fb950; border-bottom-color:#3fb950; }
+.connection-surfaces button[aria-pressed=true],.connection-resource-tabs button[aria-pressed=true] { color:var(--text); border-bottom-color:var(--active-indicator); }
 .connection-resource-tabs { display:flex; flex-wrap:wrap; gap:8px; margin:18px 0; }
 .connection-resource-tabs span { font-variant-numeric:tabular-nums; }
 .connection-resources > label { max-width:560px; }

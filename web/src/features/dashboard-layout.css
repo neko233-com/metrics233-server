@@ -81,15 +81,15 @@
   grid-auto-rows: 22px;
   gap: 6px;
   position: relative;
-  background-image: linear-gradient(to right, #30374450 1px, transparent 1px);
+  background-image: linear-gradient(to right, var(--border-subtle) 1px, transparent 1px);
   background-size: calc(100% / 24) 100%;
 }
 .layout-tile {
   min-width: 0;
   min-height: 0;
   position: relative;
-  background: #252d3b;
-  border: 1px solid #566479;
+  background: var(--elevated);
+  border: 1px solid var(--border);
   border-radius: 3px;
   overflow: hidden;
 }
@@ -141,7 +141,7 @@
   padding: 4px;
   border: 0;
   border-radius: 0;
-  background: #171d28;
+  background: var(--canvas);
   cursor: nwse-resize;
   touch-action: none;
 }

@@ -36,7 +36,7 @@
 }
 .sql-query-help pre {
   padding: 16px;
-  background: #121720;
+  background: var(--canvas);
   border: 1px solid var(--border);
   border-radius: 4px;
   white-space: pre-wrap;
@@ -65,8 +65,8 @@
 }
 .explore-source-results .row-actions button[aria-pressed="true"] {
   color: var(--orange);
-  border-color: #ff945760;
-  background: #ff945715;
+  border-color: var(--selection-border);
+  background: var(--selection);
 }
 .explore-source-empty {
   padding: 22px;

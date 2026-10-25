@@ -6,9 +6,9 @@
   padding-bottom: 12px;
 }
 .alert-workspace-tabs button[aria-selected="true"] {
-  border-color: #ff945760;
-  background: #ff945715;
-  color: var(--orange);
+  border-color: var(--selection-border);
+  background: var(--selection);
+  color: var(--accent);
 }
 .notification-settings {
   display: grid;
@@ -64,7 +64,7 @@
 }
 .notification-status.pending,
 .notification-status.sending {
-  color: var(--orange);
+  color: var(--warning);
 }
 .notification-policy-form {
   border-top: 1px solid var(--border);

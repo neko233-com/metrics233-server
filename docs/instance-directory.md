@@ -39,6 +39,11 @@ Collectors and historical/custom host dashboards are upgraded separately; provis
 
 ## Rendered acceptance and design comparison
 
+The console palette uses a darker `#010409` navigation/header against the `#0d1117` page, `#161b22` cards,
+`#21262d` controls and `#30363d` borders. Current locations use a neutral selection with a coral indicator;
+links and keyboard focus are blue, primary actions green. These UI tokens do not set chart-series, gauge
+needle or threshold-band colors. Semantic pending/warning states keep their own amber color.
+
 The directory and network-view concepts were generated before implementation, then compared directly with the
 final 0.2.24 production Edge render. The review covered five points:
 

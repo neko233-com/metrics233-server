@@ -9,7 +9,7 @@
 .business-directory-environment { margin-left: auto; }
 .business-instance-directory .business-role-tabs { margin-bottom: 18px; gap: 20px; }
 .business-instance-directory .business-role-tabs > button { min-height: 48px; padding-inline: 12px; }
-.business-instance-directory .business-role-tabs > button[aria-pressed=true] { color: var(--accent); border-bottom-color: var(--accent); }
+.business-instance-directory .business-role-tabs > button[aria-pressed=true] { color: var(--text); border-bottom-color: var(--active-indicator); }
 .business-instance-directory .business-role-tabs > button:hover { color: #e6edf3; background: var(--surface); }
 .business-role-tabs > button > span { border-radius: 10px; background: var(--elevated); padding: 1px 6px; color: var(--text-secondary); min-width: 18px; text-align: center; }
 .business-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
