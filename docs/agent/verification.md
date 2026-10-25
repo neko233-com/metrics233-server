@@ -55,6 +55,10 @@ TraceQL and trace-ID detail. `METRICSPANEL_TEMPO_BROWSER_TEST=1` with the `webui
 without retries. The test job runs it twice after browser setup; Docker integration separately covers the API path.
 No production datasource or credentials are needed.
 
+For a change isolated to this live-service fixture, the manual `Tempo interoperability` workflow also runs its
+own integration vet, deterministic trace regressions and two actual Linux/browser rounds. Its results have their
+own immutable source/run identity; they do not replace full release-tag CI or certify unrelated runtime changes.
+
 `.github/workflows/ci.yml` runs only on `v*` tags or manual dispatch. Push/PR events do not start the expensive race,
 browser and Docker jobs. Tag releases still run the full matrix.
 

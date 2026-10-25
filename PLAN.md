@@ -70,14 +70,14 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 | 认证与安全 | 15% | 95% | API namespace、失败限流、代理来源和 HTTPS root 已修复；真实公网配置仍需目标验收 |
 | 运维与交付 | 10% | 100% | v0.2.30完整tag CI、五平台可复现归档、匿名下载、备份恢复、固定原生发布与Edge已分层验收 |
 | 文档与 agent 契约 | 5% | 95% | 契约与实测同步；持续维护 |
-| 性能 | 10% | 90% | Worker/min-max、100k/1m 基准与大范围存储实测；JSON 解析与增量归一化仍有边界 |
+| 性能 | 10% | 95% | Worker/min-max、100k/1m 与正式runtime持续HTTP/PromQL实测；JSON 解析、增量归一化及更长运行仍有边界 |
 
 **加权总进度：95%**（权重合计 100%，±5 个百分点）。
 这是路线图完成估算，不是生产可用率或“所有环境已验收”的声明。每完成一个执行项，更新本表与 `docs/status.md`。
 
 ## 执行队列
 
-- [~] **G2 — 游戏运维与账户边界**：账户登录与仅上报凭据分离、可配置 15 天留存、实例虚拟仪表盘、全量地区/SQL 虚拟列表、风险预警线/中文/数字运行时、飞书卡片与 agent HTTP discovery。源码与针对性测试已落地，最终冻结、完整回归、不可变发布与真实目标验收分层记录于 docs/status.md。
+- [x] **G2 — 游戏运维与账户边界**：账户登录与仅上报凭据分离、可配置15天留存、实例虚拟仪表盘、全量地区/SQL虚拟列表、风险预警线/中文/数字运行时、飞书卡片与agent HTTP discovery已分层验收。0.2.17原生存储/通知、0.2.19实际实例资源和SQL排序、后续0.2.30完整发布/Edge均有独立回执，见 docs/status.md。用户明确免除游戏测试账号登录，不据此声称非零玩家生命周期已验。
 
 状态：`[ ]` 未开始，`[~]` 进行中，`[x]` 完成。按顺序执行；未完成当前项前不并行开启下一项，除非明确标注可并行。
 
@@ -104,21 +104,21 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
   - 证据：`TestFixedTokenGuardsEveryMetricIngestTransport` 使用真实本地 HTTP 与有效协议载荷，缺少/错误 Token 均 401 且无落库；正确 Token 成功写入。URL 参数/cookie 不能替代 Bearer 头。SDK 全包通过，独立 server binary 可选测试本轮未启用。
   - 边界：公开代理前必须配置固定 `METRICSPANEL_TOKEN`；未配置 Token 的 loopback 开发兼容行为不变，不能将该模式暴露到公网。
 
-- [~] **A3 — 安全分发上报专用凭据与来源策略**
-  - 范围：`METRICSPANEL_INGEST_TOKEN` 与管理 Token 分离，仅 token 模式，环境输入、32–8192 非空白 ASCII、独立管理 Token；五条精确 POST ingest 允许，管理/查询/解封/Live/未知路径拒绝。
+- [x] **A3 — 安全分发上报专用凭据与来源策略**
+  - 范围：`METRICSPANEL_INGEST_TOKEN` 与管理账号/Token分离，支持token和local模式；环境输入、32–8192非空白ASCII。五条精确POST ingest允许，管理/查询/解封/Live/未知路径拒绝，来源策略仍生效。
   - 已验：真实 HTTP 五协议成功、管理拒绝、错误/重复/混合头及 query/cookie 拒绝；来源封禁后专用凭据不能自解封。独立 review 覆盖策略 DB 失败读体/写库前拒绝、辅助观测失败保留原 ACK、partial RW 只计已完成批次、mapped IP/多字段代理链、组织隔离、32 并发计数、16 同版 CAS 及满策略容量事务回滚。
-  - 最终浏览器已验：两份独立随机凭据、来源一键策略及冲突刷新；完整套件 86 passed / 2 SQL 环境跳过。发布和线上第二个专用 Token 私有配置仍单独验收。契约见 `docs/reporting-access.md`，不给上报方管理 Token。
+  - 最终浏览器已验：两份独立随机凭据、来源一键策略及冲突刷新；早期完整套件86通过/2 SQL环境跳过。后续原生0.2.17实际401/403隔离与0.2.30账号初始化/匿名401/仅上报查询403官方healthcheck通过，私有配置回执独立保存。契约见 `docs/reporting-access.md`，不给上报方管理Token。
 
-- [~] **N1 — 飞书群机器人通知（可与部署代理工作并行）**
+- [x] **N1 — 飞书群机器人通知（可与部署代理工作并行）**
   - 范围：在既有联系点/策略/持久化队列中支持 Feishu v2 Webhook、可选签名、凭据加密脱敏、API 角色和 UI 配置。
   - 已验：官方空消息 HMAC、20 KiB 编码体、显式 code=0 ACK；本地真实 TLS firing/resolved/队列重试、非法 ACK/302/超时取消；数据库密文、API 保留/清除/CAS；local Viewer/Editor 不能创建/修改/测试/重试，Admin 可用。相关 Go 全包/vet、CLI 全包、前端 typecheck/build/118 unit 通过。
-  - 最终浏览器配置流程通过；版本发布、生产私有配置与真实机器人送达另由主任务验收。不得把 202 入队或 HTTP 200 当作飞书成功。
-  - 契约：`docs/feishu-notifications.md`；本轮没有向用户实际 Webhook 发送消息，也不在公开文件保存真实地址/签名。
+  - 浏览器配置流程通过；后续固定版本已发布并完成真实签名机器人firing/resolved ACK及可读卡片验收，见 docs/status.md 的原生通知与卡片回执。不得把202入队或只有HTTP 200当作飞书成功。
+  - 契约：`docs/feishu-notifications.md`。早期本地阶段未外发，后续真实送达有独立回执；公开文件不保存真实地址/签名，本次计划核对不补发消息。
 
-- [~] **N2 — 告警通知冷却与防抖（与 N1 并行收口）**
+- [x] **N2 — 告警通知冷却与防抖（与 N1 并行收口）**
   - 范围：规则 `notification_cooldown_seconds` 为 0–604800 秒；旧 API/旧规则默认 0，新建 UI 默认 3600 秒。保持持续 Firing 默认不重复，显式 repeat、for、恢复等待与失败重试分别控制。
   - 已验：成功 ACK 与 sent 同事务持久化，分组/非分组恢复后延迟、跨重启、首次/新实例/新接收者/severity 不受阻；未 ACK 周期提前恢复不发孤立恢复；失败保留原 ID 按退避重试；规则编辑、暂停和联系点停启不清锚点；历史清理后恢复回执保留。同周期提醒取至少 max(CD,repeat)，repeat10s/CD300s 红→绿；CD0 保留 10s，repeat0 不被 CD 唤醒成隐式提醒，静默恢复提醒及正常恢复分别验证。
-  - 最新 owning 验证：alerting/server/localauth/model/CLI 全包通过（18.485/34.672/4.625/0.068/5.093 秒），相关七包 vet 与 diff check 通过。真实 UI 字段/默认值/旧值保留已通过最终浏览器；生产规则配置由对应交付任务完成。
+  - Owning全包/vet及真实UI字段/默认值/旧值保留通过；后续实际CPU/内存/磁盘持续/恢复/1h CD规则完成配置。原生引擎实时时钟两轮共24次转换、一次触发与一次恢复ACK、第二周期冷却抑制和自有规则清理通过，归属与早期局部测试分开记录。
   - 契约：`docs/alert-notification-cooldown.md`。CD 是所有成功 firing 的最低间隔，更短 repeat 不能绕过；本地传入调度时间验证不等于线上已连续运行一小时。
 
 - [x] **C0 — 推 + 拉双模式**
@@ -173,9 +173,10 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
   - 验收：100k 点基准；峰值与断点保持；首帧预算写入 `docs/performance-baseline.md`。
   - 证据：17 项定向单测、6 项浏览器；最终 binary 的 100k×5 / 1m×1 各三次实测与已知长任务已记录。
 
-- [~] **P2 — 默认压缩存储持续运行实测**
+- [x] **P2 — 默认压缩存储持续运行实测**
   - 范围：正式runtime的1CPU/256MiB配置，4000序列、500样本/秒与并发PromQL；读取实际cgroup峰值/CPU及完整活动目录占用，重启核对精确样本数与值。
   - 验收：隔离自有容器/卷，持续10分钟；ACK、查询响应和重启数据一致，记录百分位与环境，不把单次测量当通用SLO。可与R2c托管CI等待并行，各自独立端口和资源；最终台账统一收口。
+  - 证据：实际0.2.30 Linux归档、正式runtime限制通过616.148秒；304000样本与600并发查询成功，重启后精确读回。cgroup峰值87.6MB、重启前完整活动数据5.45MB，写入/查询p95为17.534/13.223ms，无OOM/CPU节流；见 docs/embedded-sustained-profile.md。
 
 ### P1 深度与交付
 
@@ -242,10 +243,10 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 
 - [x] **通知超时诊断竞态**：客户端/传输层 deadline 先于 request context 时，仍返回固定去敏超时信息；取消和普通网络错误保持通用失败。新增四项确定性用例，保留真实 TLS 超时用例；Windows alerting 测试与 vet 通过，最终 Linux race、不可变发布和生产验收独立记录。
 
-- [~] **飞书卡片与自定义通知模板（2026-10-21）**：默认状态色卡片、文本兼容、主机/资源/评估值/for/恢复/CD、可信工作台详情按钮；复用有界单次模板和持久化快照，Admin-only 示例预览不外发。定向 Go/TLS/权限/ACK/CD、Linux vet/race 两轮 80 项、最终统一 UI 通知浏览器 4 项和业务 3 项已通过。真实 DB 两轮及最终源码 runtime/browser 两轮通过，分层输入与资源证据见 `docs/docker-validation.md`；完整 Docker race target 本轮未重跑。不可变发布和真实群卡片由主任务独立收口，不降低正式资源规则的持续触发时间。契约见 `docs/feishu-notifications.md`。
+- [x] **飞书卡片与自定义通知模板（2026-10-21局部阶段，后续已收口）**：默认状态色卡片、文本兼容、主机/资源/评估值/for/恢复/CD、可信工作台详情按钮；有界单次模板与Admin-only不外发预览。早期定向Go/TLS/权限/ACK/CD、两轮Linux vet/race、通知/业务浏览器及真库/runtime证据保持原归属；后续不可变发布、真实签名触发/恢复ACK与可读卡片回执已收口，见 docs/status.md。正式规则持续时间未为验收而降低。契约见 `docs/feishu-notifications.md`。
 
-- [~] **A3 — 上报来源与来源访问限制**：主导航、协议/接收计数/最近时间、Admin 一键拉黑/解除/允许、可选白名单模式。
-  五协议拒写、可信代理/伪造头、IPv4-mapped、版本冲突、重启与容量/封禁独立保留已通过；浏览器最终版、独立仅上报 Token 和发布仍单独验收。
+- [x] **A3 — 上报来源与来源访问限制（早期局部阶段，后续已收口）**：主导航、协议/接收计数/最近时间、Admin一键拉黑/解除/允许、可选白名单模式。
+  五协议拒写、可信代理/伪造头、IPv4-mapped、版本冲突、重启与容量/封禁独立保留通过；后续浏览器、独立仅上报Token和正式发布回执见上方A3及 docs/status.md。
   契约见 `docs/reporting-sources.md`。
 
 2026-10-13 之前的 Grafana 全量 parity 计划、资源 ACL、通知队列和身份隔离工程笔记已由 git 历史保存，不再作为

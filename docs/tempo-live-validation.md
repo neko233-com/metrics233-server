@@ -28,6 +28,8 @@ The fixture pins official `grafana/tempo:3.1.1` to
 The minimal configuration follows the [upstream v3.1.1 example](https://github.com/grafana/tempo/blob/v3.1.1/example/docker-compose/single-binary/tempo.yaml)
 and [Tempo HTTP API](https://grafana.com/docs/tempo/latest/api_docs/).
 `METRICSPANEL_TEST_TEMPO_IMAGE` permits an operator-controlled mirror of the same immutable image.
+The separate manual `Tempo interoperability` workflow runs the focused Linux/API/browser contract; release tags
+still run the complete existing workflow, including this same real-service contract. No push/PR trigger was added.
 
 ## Contract and isolation
 
@@ -35,6 +37,10 @@ and [Tempo HTTP API](https://grafana.com/docs/tempo/latest/api_docs/).
   TraceQL search and trace-ID lookup go through Metrics233; no recorded query response replaces the daemon.
 - Parent/child IDs, service names, 120.5/25.25/5 ms durations, database error/status message and missing-trace empty
   result are verified. Anonymous datasource queries return HTTP 401.
+- The generated OTLP ID deliberately begins with zero. Tempo search trims that prefix while detail preserves the
+  canonical 16-byte ID; both full and search IDs resolve to identical spans, and the browser follows the actual
+  short search link. This matches the [pinned upstream ID formatter](https://github.com/grafana/tempo/blob/v3.1.1/pkg/util/traceid.go)
+  and avoids a random-fixture false failure. The final leading-zero API/browser rounds pass locally in 24.688s.
 - The browser opens the search result, error attributes and waterfall, collapses/restores descendants, reloads
   the deep link and traverses history. Containment at 390/768/1280 px passes without retries.
 - Existing deterministic tests retain malformed/oversized response, cancellation and 10,000-span-bound coverage.

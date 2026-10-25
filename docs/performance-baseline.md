@@ -7,6 +7,10 @@ in [status](status.md). The SQLite timings below describe the explicitly selecte
 not measurements or sizing limits of the default embedded engine. The browser baseline is a separate workload.
 Every figure here is a bounded observation, not a production guarantee; rerun on the intended hardware/workload.
 
+The [sustained formal-runtime profile](embedded-sustained-profile.md) separately measures actual HTTP/PromQL
+concurrency: ten minutes, 4000 series, 500 samples/s, 304000 accepted observations and exact restart readback.
+Its 87.6 MB cgroup peak and 5.45 MB active data are tied to that workload, not generic per-sample ratios.
+
 ## Reference machine
 
 | Item | Value |

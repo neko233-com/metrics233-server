@@ -1,11 +1,29 @@
 # Project status and progress protocol
 
-### 2026-10-26 — Embedded runtime sustained profile: running
+### 2026-10-26 — Production configuration readback and plan reconciliation
+
+Edge still authenticates the actual root account and displays seven reporting identities with real host resources.
+The overview explicitly identifies self-monitoring; the business directory remains separate. After navigation,
+last-report timestamps advance under the visible 5s refresh setting. The alerts page shows 14 unpaused rules,
+zero firing/pending instances and current evaluations. Expanding the actual LAN CPU warning rule confirms
+30s evaluation / 600s sustained trigger / 300s recovery confirmation / 3600s cooldown. This read-only inspection
+does not evaluate rules manually, change thresholds or send messages, and the business page is restored.
+
+G2/A3/N1/N2 and their historical local-stage checklist entries now reference the later actual production, browser
+and provider receipts rather than continuing to claim rollout is pending. Earlier failed/intermediate results and
+the user-waived game-account/nonzero-player exercise keep their original boundaries. This is plan reconciliation,
+not a new binary rollout or an additional provider ACK.
+
+### 2026-10-26 — Embedded runtime sustained profile: accepted
 
 The opt-in profile reuses formal 1 CPU/256m/GOMEMLIMIT=128MiB confinement and the actual verified 0.2.30 Linux
 release binary. Its 30-second smoke passes in 46.210s: 4000 series, 19000 ACKed observations, 30 concurrent PromQL
 queries, exact value/sample-count restart readback, kernel peak 77332480 bytes and full active directory 1728 KiB.
-A separate ten-minute 500-samples/s run is live; the smoke is not its acceptance. See [the profile](embedded-sustained-profile.md)
+A separate ten-minute run passes in 616.148s including startup/restart: 304000 ACKed observations, 600 concurrent
+queries, 87609344-byte kernel cgroup peak, 5320 KiB complete active data before restart, no OOM or throttled periods.
+Latest-value sum and sample count remain exact after restart. The paced phase lasts 600.023s with 4000 series and
+500 samples/s; write/query p95 are 17.534/13.223ms (write timings include seeds), cumulative cgroup CPU 19.903s.
+This is not a maximum-capacity, arbitrary-cardinality/compression or weeks-long soak claim. See [the profile](embedded-sustained-profile.md)
 for pacing, percentiles, engine/HTTP scope and cleanup. The performance index now separates default compressed
 storage from legacy SQLite and requires complete embedded data in backups. No runtime code or production data changes.
 

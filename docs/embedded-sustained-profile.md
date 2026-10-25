@@ -49,3 +49,17 @@ exact restart readback, kernel peak 77332480 bytes (77.3 MB), full active direct
 p50/p95/p99/max: 11.889/109.730/109.844/109.844 ms; query: 6.013/10.484/11.020/11.020 ms.
 Cumulative cgroup CPU: 1.452s, no throttled periods. These are preliminary short-run observations. The separate
 ten-minute result is recorded in [status](status.md); it must not be inferred from the smoke.
+
+The independent ten-minute run passes in 616.148s including startup/restart. Its 600.023s paced phase acknowledges
+304000 observations and completes 600 concurrent queries. Both exact checks pass again after restart. Kernel
+cgroup peak: 87609344 bytes (87.6 MB). Complete active data before restart: 5320 KiB (5447680 bytes, 5.45 MB).
+Cumulative cgroup CPU: 19.903s; no throttled periods or OOM.
+
+| HTTP observation | p50 ms | p95 ms | p99 ms | max ms |
+| --- | ---: | ---: | ---: | ---: |
+| Synced 500-sample write, including seed | 10.476 | 17.534 | 20.673 | 110.290 |
+| Concurrent instant PromQL sum | 8.078 | 13.223 | 17.737 | 19.661 |
+
+This covers the declared single-gauge/4000-series/500-samples-per-second shape; it does not establish random-float
+compression, cardinality churn, multi-user queries, maximum ingest capacity or a weeks-long soak. Backups and
+Docker image/cache space are excluded from the active `/data` directory.

@@ -10,14 +10,16 @@ test.use({ extraHTTPHeaders: token ? { Authorization: `Bearer ${token}` } : {} }
 test("Real Tempo ingested spans render search, errors, waterfall and durable deep links", async ({ page }) => {
   test.skip(!endpoint, "Requires the owned real Tempo integration fixture");
   expect(traceID).toMatch(/^[a-f0-9]{32}$/);
+  expect(traceID.startsWith("0")).toBe(true);
+  const searchID = traceID.replace(/^0+/, "");
   expect(dashboard).not.toBe("");
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
   await page.goto(`${endpoint}/d/${dashboard}/live-tempo-verification?from=now-1h&to=now`);
   const panel = page.getByRole("region", { name: "Live Tempo traces", exact: true });
-  await panel.getByRole("link", { name: traceID, exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`traceId=${traceID}`));
+  await panel.getByRole("link", { name: searchID, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`traceId=${searchID}`));
   const detail = panel.getByRole("region", { name: "Trace details", exact: true });
   await expect(detail).toHaveAttribute("data-span-count", "3");
   const timeline = detail.getByRole("table", { name: "Trace span timeline", exact: true });

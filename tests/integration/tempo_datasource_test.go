@@ -78,7 +78,12 @@ func TestTempoLiveDataSource(t *testing.T) {
 	random := make([]byte, 16)
 	_, err := rand.Read(random)
 	require.NoError(t, err)
+	// Tempo search intentionally trims leading zeroes while OTLP/detail IDs use
+	// all 16 bytes. Exercise that valid shape deterministically, not by chance.
+	random[0] &= 0x0f
+	random[len(random)-1] |= 1
 	traceID := hex.EncodeToString(random)
+	searchID := strings.TrimLeft(traceID, "0")
 	owner := traceID[:12]
 	config := filepath.Join(t.TempDir(), "tempo.yaml")
 	// Derived from the upstream v3.1.1 single-binary example. No metrics-generator,
@@ -205,7 +210,7 @@ usage_report:
 		return search.Error == "" && len(search.Frames) == 1 && len(search.Frames[0].Data.Values) > 0 && len(search.Frames[0].Data.Values[0]) == 1
 	}, 90*time.Second, time.Second, "TraceQL could not find the actually ingested trace")
 	fields := liveTempoFields(t, search)
-	require.Equal(t, []any{traceID}, fields["traceID"])
+	require.Equal(t, []any{searchID}, fields["traceID"])
 	require.Equal(t, []any{"metrics233-live-check"}, fields["rootServiceName"])
 	fields = liveTempoFields(t, query(map[string]any{"queryType": "traceId", "traceId": traceID}))
 	require.Equal(t, []any{"0000000000000001", "0000000000000002", "0000000000000003"}, fields["spanID"])
@@ -214,6 +219,9 @@ usage_report:
 	require.Equal(t, []any{"ok", "error", "ok"}, fields["status"])
 	require.Equal(t, "database deadline exceeded", fields["statusMessage"][1])
 	require.Equal(t, []any{"metrics233-live-check", "orders-db", "orders-db"}, fields["serviceName"])
+	require.Equal(t, []any{traceID, traceID, traceID}, fields["traceID"])
+	short := liveTempoFields(t, query(map[string]any{"queryType": "traceId", "traceId": searchID}))
+	require.Equal(t, fields["spanID"], short["spanID"], "the search ID must resolve to the same canonical spans")
 	missing := liveTempoFields(t, query(map[string]any{"queryType": "traceId", "traceId": strings.Repeat("0", 32)}))
 	require.Empty(t, missing["spanID"])
 	unauthenticated, err := e.client.Post(app.URL+"/api/ds/query", "application/json", strings.NewReader(`{}`))
