@@ -12,6 +12,10 @@ Model, collector, role, store, server and CLI checks passed; frontend 169 units 
 Full local Go tests and vet passed. Edge exercised real Node discovery and separate actual MariaDB connection,
 observed-only preview, plan-drift 409/review-again, atomic creation, populated CPU/memory/NIC and 19 MySQL panels.
 Final source, responsive and production checks remain separately gated below.
+The actual query/alert engine regression covers native MySQL/Redis/PostgreSQL plus an HTTP exporter: fresh
+`up=0` continues the two-minute pending timer after old backend `_up` expires, then fresh success must pass
+the full one-minute recovery confirmation. The original rule failed at 90 seconds; the independent fresh-failure
+branch fixes it and all four cases pass. Final deployment is pinned after this correction.
 An initial Docker baseline passed actual database and persistence suites twice but found an obsolete product-name
 locator in the browser authentication script. That locator is fixed with the role/security assertions retained,
 and current embedded-build auth smoke passed. New Docker cases now require real probe/apply/retry/dashboard and

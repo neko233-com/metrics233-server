@@ -428,13 +428,20 @@ func connectionAlertRules(input ConnectionSetupInput, d Dashboard, profile strin
 		r := AlertRule{UID: "conn-" + strings.ReplaceAll(input.ID, "-", "") + "-" + id, Title: input.Target.Name + " · " + title, Execution: "grafana", Condition: "nonzero", Grafana: graph, IntervalSeconds: 30, ForSeconds: pending, KeepFiringForSeconds: 60, NotificationCooldownSeconds: 3600, NotificationReceiver: input.Receiver, NoDataState: "KeepLast", ErrorState: "KeepLast", MissingSeriesEvaluations: 2, FolderUID: "general", Group: "connection-health", Labels: map[string]string{"managed_by": "metrics233-quick-connect", ConnectionLabel: input.ID, "severity": severity, "profile": profile}, Annotations: map[string]string{"summary": title, "value_ref": "A", "value_label": title, "unit": unit, "__dashboardUid__": d.ID, "__panelId__": fmt.Sprint(panelID), "action": tr("Inspect collection status and the resource dashboard before changing capacity.", "先检查采集状态和资源仪表盘，再决定是否调整容量。")}}
 		return r
 	}
-	available := "up" + selector
+	up := "up" + selector
+	backend := up
 	for _, name := range []string{"mysql_up", "redis_up", "pg_up"} {
 		if names[name] {
-			available += " * " + name + selector
+			backend += " * " + name + selector
 		}
 	}
-	out := []AlertRule{makeRule("unavailable", tr("Collection unavailable for 2 minutes", "采集连续2分钟失败"), connectionFreshExpression(available, input), "lt", 0.5, 0.5, 120, "critical", "")}
+	available := connectionFreshExpression(up, input)
+	if backend != up {
+		// A failed scrape still publishes fresh up=0. Its old backend _up
+		// must not turn a continuous failure into no-data before pending ends.
+		available = "((" + available + ") == 0) or (" + connectionFreshExpression(backend, input) + ")"
+	}
+	out := []AlertRule{makeRule("unavailable", tr("Collection unavailable for 2 minutes", "采集连续2分钟失败"), available, "lt", 0.5, 0.5, 120, "critical", "")}
 	for _, p := range d.Panels {
 		resource := ""
 		warning, recovery, pending := 85.0, 80.0, 600

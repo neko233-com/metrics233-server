@@ -12,12 +12,67 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/neko233-com/metrics233-server/internal/identity"
 	"github.com/neko233-com/metrics233-server/internal/model"
 	"github.com/neko233-com/metrics233-server/internal/store"
 	"github.com/stretchr/testify/require"
 )
+
+func TestConnectionAvailabilityOutlastsStaleBackendAndConfirmsRecovery(t *testing.T) {
+	for _, fixture := range []struct{ kind, backend, address string }{
+		{"mysql", "mysql_up", "mysql://127.0.0.1:3306"},
+		{"redis", "redis_up", "redis://127.0.0.1:6379"},
+		{"postgresql", "pg_up", "postgresql://127.0.0.1:5432"},
+		{"prometheus", "redis_up", "http://127.0.0.1:9999/metrics"},
+	} {
+		t.Run(fixture.kind, func(t *testing.T) {
+			s, _ := connectionTestServer(t)
+			ctx := context.Background()
+			input := model.ConnectionSetupInput{ID: "23300000-0000-4000-8000-000000000009", Language: "zh", Alerts: true, Target: model.Target{Name: "availability-fixture", Kind: fixture.kind, URL: fixture.address, Enabled: true, IntervalSeconds: 15}}
+			plan, err := model.BuildConnectionPlan(input, []model.Sample{{Name: fixture.backend, Value: 1}})
+			require.NoError(t, err)
+			rule, err := s.Store.SaveAlertRule(ctx, plan.Rules[0])
+			require.NoError(t, err)
+			base := time.Now().Add(-10 * time.Minute).Truncate(time.Second)
+			labels := map[string]string{"job": input.Target.Name, "instance": fixture.address, model.ConnectionLabel: input.ID}
+			// Failed scrapes keep publishing up=0, but their last successful
+			// backend-specific _up series eventually exceeds the freshness window.
+			require.NoError(t, s.Store.Ingest(ctx, []model.Sample{{Name: fixture.backend, Labels: labels, Value: 1, Timestamp: base.Add(-15 * time.Second).UnixMilli()}}))
+			for _, offset := range []int{0, 30, 60, 90, 120} {
+				at := base.Add(time.Duration(offset) * time.Second)
+				require.NoError(t, s.Store.Ingest(ctx, []model.Sample{{Name: "up", Labels: labels, Value: 0, Timestamp: at.UnixMilli()}}))
+				view, err := s.Alerts.Evaluate(ctx, rule.UID, at)
+				require.NoError(t, err)
+				if view.Runtime.Health != "ok" {
+					values, queryErr := s.Alerts.Query(ctx, "up"+model.ConnectionSelector(input), at)
+					t.Logf("offset=%d up=%v error=%v graph=%s", offset, values, queryErr, rule.Grafana)
+				}
+				require.Equal(t, "ok", view.Runtime.Health, "fresh failure cannot become no-data while its pending timer runs at %d: %s", offset, view.Runtime.Error)
+				require.Len(t, view.Runtime.Instances, 1)
+				want := "Pending"
+				if offset == 120 {
+					want = "Firing"
+				}
+				require.Equal(t, want, view.Runtime.Instances[0].State)
+			}
+			for _, offset := range []int{150, 180, 210} {
+				at := base.Add(time.Duration(offset) * time.Second)
+				require.NoError(t, s.Store.Ingest(ctx, []model.Sample{{Name: "up", Labels: labels, Value: 1, Timestamp: at.UnixMilli()}, {Name: fixture.backend, Labels: labels, Value: 1, Timestamp: at.UnixMilli()}}))
+				view, err := s.Alerts.Evaluate(ctx, rule.UID, at)
+				require.NoError(t, err)
+				require.Equal(t, "ok", view.Runtime.Health, view.Runtime.Error)
+				require.Len(t, view.Runtime.Instances, 1)
+				want := "Recovering"
+				if offset == 210 {
+					want = "Normal"
+				}
+				require.Equal(t, want, view.Runtime.Instances[0].State)
+			}
+		})
+	}
+}
 
 func connectionTestServer(t *testing.T) (*Server, http.Handler) {
 	t.Helper()

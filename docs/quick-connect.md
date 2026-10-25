@@ -40,6 +40,8 @@ machines need a reachable collector address or the separately authenticated [out
 
 Resource rules use recovery hysteresis and fresh source observations. Missing data does not mean zero or recovery;
 no-data and evaluation errors keep the previous state. Per-volume and per-interface identities are preserved.
+A fresh failed scrape continues the availability timer even after an older backend-specific `_up` series expires;
+missing backend observations with successful scraping still do not imply recovery.
 Monitoring process self Overview is separate from these sources. Preview/apply sends no test notification;
 without a contact point, events remain in Alerts. Provider delivery is a separate acceptance layer.
 
