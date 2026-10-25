@@ -42,6 +42,8 @@ flowchart LR
   Ingest --> TSDB["Embedded TSDB<br/>XOR chunks · Zstd WAL · indexes"]
   TSDB --> Query["PromQL / metric queries"]
   Query --> UI["Native UI<br/>host gauges · instance dashboards · templates"]
+  External["Optional Prometheus / SQL<br/>Loki / Tempo services"] --> Adapters["Authenticated datasource adapters"]
+  Adapters --> UI
   Query --> Alerts["Sustained trigger · confirmed recovery<br/>grouping · notification cooldown"]
   Alerts --> Feishu["Feishu cards / other receivers"]
   Query -. "explicit metric windows" .-> Vectors["Embedded Badger + HNSW<br/>64-dimensional windows"]
@@ -55,6 +57,13 @@ All three embedded engines run in the same process; no separate Prometheus, vect
 is required. Time-series retention defaults to 15 days. Vector windows are explicit and bounded, rather than
 automatically embedding every observation. See [storage contracts and measured profiles](docs/embedded-storage.md),
 [host resources](docs/host-resources.md) and the [acceptance ledger](docs/status.md).
+
+Isolated formal-runtime evidence: a ten-minute 4000-series/500-samples-per-second workload accepted 304000 observations
+and 600 queries from one reader concurrent with writes, with exact restart readback, an 87.6 MB cgroup peak and
+5.45 MB active data before restart.
+See the [declared workload and limits](docs/embedded-sustained-profile.md), rather than extrapolating a capacity SLO.
+Optional Tempo search/detail has a [real-daemon OTLP and browser contract](docs/tempo-live-validation.md); logs/traces
+stay in their configured upstream service instead of being implied as local metric-store ingestion.
 
 ## Run locally
 

@@ -159,7 +159,7 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 - [~] **R2c — 真实 Tempo 服务接入闭环**
   - 范围：固定官方 Tempo 发行镜像；真实 OTLP 上报、TraceQL 搜索、trace-ID 详情、层级/耗时/错误状态与仪表盘浏览器，不替换已有 fixture 回归。
   - 验收：隔离的真实服务与监控 HTTP API；实际搜索后打开详情、深链/重载、缺失 trace 和响应式界面；普通账号边界保留。测试仅绑定 loopback，清理自有资源，不连接生产或伪造生产 trace。
-  - 当前：官方3.1.1固定镜像、真实API及无重试浏览器连续两轮20.512秒通过，另有同数据Edge检索/错误详情截图；原Tempo边界回归、vet与TypeScript通过。已加入tag/手动CI的独立真实服务浏览器步骤，托管验证待收口；见 docs/tempo-live-validation.md。
+  - 当前：真实API/浏览器、Edge错误详情及既有负面边界通过。冷拉取stdout分流后完整CI的Go race、103浏览器与Docker两轮通过，但旧随机夹具撞到前导0长度假设，保留失败归属。最终15b917a固定验证完整/短ID及深链，本地两轮24.688秒、托管专项两轮21.222秒通过；最终组合提交完整复核待收口，见 docs/tempo-live-validation.md。
 
 - [x] **R3 — Heatmap / Histogram / Vector 渲染器**
   - 范围：按渲染器矩阵补齐常用分析视图；向量视图读取 64 维字段。
@@ -176,7 +176,7 @@ Native slow SQL counters now feed an exact-instance read API with redacted templ
 - [x] **P2 — 默认压缩存储持续运行实测**
   - 范围：正式runtime的1CPU/256MiB配置，4000序列、500样本/秒与并发PromQL；读取实际cgroup峰值/CPU及完整活动目录占用，重启核对精确样本数与值。
   - 验收：隔离自有容器/卷，持续10分钟；ACK、查询响应和重启数据一致，记录百分位与环境，不把单次测量当通用SLO。可与R2c托管CI等待并行，各自独立端口和资源；最终台账统一收口。
-  - 证据：实际0.2.30 Linux归档、正式runtime限制通过616.148秒；304000样本与600并发查询成功，重启后精确读回。cgroup峰值87.6MB、重启前完整活动数据5.45MB，写入/查询p95为17.534/13.223ms，无OOM/CPU节流；见 docs/embedded-sustained-profile.md。
+  - 证据：实际0.2.30 Linux归档、正式runtime限制通过616.148秒；304000样本与伴随写入的600次查询成功（单查询客户端），重启后精确读回。cgroup峰值87.6MB、重启前完整活动数据5.45MB，写入/查询p95为17.534/13.223ms，无OOM/CPU节流；见 docs/embedded-sustained-profile.md。
 
 ### P1 深度与交付
 

@@ -32,6 +32,8 @@ flowchart LR
   Ingest --> TSDB["内置时序引擎<br/>XOR 压缩块 · Zstd WAL · 索引"]
   TSDB --> Query["PromQL / 指标查询"]
   Query --> UI["原生界面<br/>主机仪表 · 实例仪表盘 · 模板中心"]
+  External["可选 Prometheus / SQL<br/>Loki / Tempo 服务"] --> Adapters["已认证数据源查询适配"]
+  Adapters --> UI
   Query --> Alerts["持续超线 · 恢复确认<br/>分组 · 冷却去重"]
   Alerts --> Feishu["飞书卡片 / 其他通知渠道"]
   Query -. "显式构建指标窗口" .-> Vectors["内置 Badger + HNSW<br/>64 维窗口向量"]
@@ -44,6 +46,12 @@ flowchart LR
 三个存储引擎都在同一进程内，不需要额外部署 Prometheus 或向量服务。海量指标不再写入 OLTP 行表；
 默认保留 15 天，向量窗口按需构建并受容量限制。运行时边界、压缩实测与迁移验收见
 [内置存储](docs/embedded-storage.md)、[主机资源](docs/host-resources.md) 和 [状态记录](docs/status.md)。
+
+使用正式Docker runtime配置的隔离10分钟实测：4000序列、500样本/秒，304000样本全部成功；单查询客户端
+伴随写入完成600次查询，重启后数量和值一致。
+cgroup内存峰值87.6MB，重启前完整活动数据5.45MB。见[工作负载与测量边界](docs/embedded-sustained-profile.md)，
+不将该结果外推为通用容量承诺。可选Tempo搜索与详情另有[真实服务上报及浏览器验收](docs/tempo-live-validation.md)；
+日志与链路保留在所配置的外部服务中，不混同于本机指标入库。
 
 [English (primary)](README.md) · **简体中文**
 

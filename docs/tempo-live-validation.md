@@ -68,5 +68,10 @@ alias. Both failed attempts remain fixture failures and were corrected before th
 The first hosted Docker job exposed another cold-cache fixture defect: successful image-pull progress on stderr
 was combined with the stdout container ID. Its second warm-daemon round passed. The runner now separates stdout
 identities from stderr progress, retaining both streams on failures and when collecting daemon logs.
+Full run 40216847324 passes Go vet/race, 103 browser cases and repeated Docker but fails the old fixture's
+32-character-ID assumption; that failed result remains. Final 15b917a instead tests leading-zero IDs and passes
+[focused hosted validation](https://github.com/neko233-com/metrics233-server/actions/runs/40219239682): two actual
+Linux/API/browser rounds in 21.222s without retries, plus negative regressions/vet; job 2m38s. Final combined-source
+full-workflow acceptance is separate and pending.
 Only tests/CI/docs change. Production remains v0.2.30; this is not a production Tempo deployment or a new game/server
-binary rollout. Hosted results for the new verification source are recorded in [status](status.md).
+binary rollout. Full and focused results keep separate source identities in [status](status.md).

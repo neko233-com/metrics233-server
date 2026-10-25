@@ -19,15 +19,16 @@ not a new binary rollout or an additional provider ACK.
 The opt-in profile reuses formal 1 CPU/256m/GOMEMLIMIT=128MiB confinement and the actual verified 0.2.30 Linux
 release binary. Its 30-second smoke passes in 46.210s: 4000 series, 19000 ACKed observations, 30 concurrent PromQL
 queries, exact value/sample-count restart readback, kernel peak 77332480 bytes and full active directory 1728 KiB.
-A separate ten-minute run passes in 616.148s including startup/restart: 304000 ACKed observations, 600 concurrent
-queries, 87609344-byte kernel cgroup peak, 5320 KiB complete active data before restart, no OOM or throttled periods.
+A separate ten-minute run passes in 616.148s including startup/restart: 304000 ACKed observations, 600 queries from
+one reader concurrent with writes, 87609344-byte kernel cgroup peak, 5320 KiB complete active data before restart,
+no OOM or throttled periods.
 Latest-value sum and sample count remain exact after restart. The paced phase lasts 600.023s with 4000 series and
 500 samples/s; write/query p95 are 17.534/13.223ms (write timings include seeds), cumulative cgroup CPU 19.903s.
 This is not a maximum-capacity, arbitrary-cardinality/compression or weeks-long soak claim. See [the profile](embedded-sustained-profile.md)
 for pacing, percentiles, engine/HTTP scope and cleanup. The performance index now separates default compressed
 storage from legacy SQLite and requires complete embedded data in backups. No runtime code or production data changes.
 
-### 2026-10-26 — Real Tempo daemon and rendered workflow: local acceptance
+### 2026-10-26 — Real Tempo daemon: focused hosted acceptance; final full run pending
 
 `TestTempoLiveDataSource` starts official Tempo 3.1.1 pinned by digest, posts actual OTLP spans, and queries
 search/detail through an authenticated Metrics233 HTTP server. Two zero-retry API/browser rounds pass in 20.512s;
@@ -41,10 +42,21 @@ The normal browser suite explicitly skips this case without its fixture; the new
 against the real daemon. Docker integration separately covers its API path. The initial hosted Docker job fails
 because cold-pull stderr progress was mixed into its stdout container ID; its second warm round passes the actual
 API contract. That known-failed run (40215466866) retains its Docker failure and an explicitly cancelled test job.
-The runner now separates streams, local API/browser passes again (9.831s), and new-source hosted verification is pending. No
+The runner now separates streams and local API/browser passes again (9.831s). Full run
+[40216847324](https://github.com/neko233-com/metrics233-server/actions/runs/40216847324) on 86f1081 passes complete
+Go vet/race (33m28s), 103 browser cases/three environment skips (8.3m, no retries), and repeated Docker (11m25s).
+Its final old-fixture Tempo step fails because random ID `01b67a925514db79c59669c69b986e1f` is correctly shortened
+by upstream search; the second round passes. That workflow remains failed, not relabelled as green.
+
+The final fixture deliberately supplies leading-zero OTLP IDs, verifies both full/short lookup and canonical span
+IDs, and follows the actual short link in the browser. Two local rounds pass in 24.688s. Source 15b917a passes
+[focused hosted vet/negative/API/browser verification](https://github.com/neko233-com/metrics233-server/actions/runs/40219239682)
+in 2m38s: two real-service rounds 21.222s, zero retries, existing negative tests 1.178s. No runtime implementation
+changed to hide the fixture mistake; cmd/internal/web/src/dependencies/Dockerfile match v0.2.30. A final full
+workflow on the combined source is being requested; the focused result is not a full-workflow pass. No
 product runtime code, production data or configured datasources change: production remains v0.2.30/17791c5. This
 closes a real-service evidence gap without implying a local trace store, service graphs, partial traces or production
-Tempo installation. See [the reproducible contract](tempo-live-validation.md). Roadmap remains 95% pending hosted CI.
+Tempo installation. See [the reproducible contract](tempo-live-validation.md). Roadmap remains 95% pending the final full workflow.
 
 ### 2026-10-26 — 0.2.30 production, public release and full tag CI accepted
 
