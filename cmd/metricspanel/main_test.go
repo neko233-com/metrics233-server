@@ -264,9 +264,18 @@ func TestNativeCollectorCLIFileAndMaskedSecrets(t *testing.T) {
 	assert.True(t, target.SecureFields["password"])
 	data, err = capture(t, "targets", "catalog", "--server", httpServer.URL)
 	require.NoError(t, err)
-	var integrations []any
+	var integrations []struct {
+		Kind string `json:"kind"`
+	}
 	require.NoError(t, json.Unmarshal(data, &integrations))
-	assert.Len(t, integrations, 12)
+	kinds := make([]string, 0, len(integrations))
+	for _, integration := range integrations {
+		kinds = append(kinds, integration.Kind)
+	}
+	require.ElementsMatch(t, []string{
+		"prometheus", "mydb", "mysql", "redis", "postgresql", "clickhouse",
+		"elasticsearch", "hadoop", "hdfs", "hive", "kafka", "spark", "flink",
+	}, kinds)
 	data, err = capture(t, "targets", "exporters", "--server", httpServer.URL)
 	require.NoError(t, err)
 	var presets []any

@@ -255,7 +255,7 @@ writes use the same role policy as `/api/v1/ingest`; non-loopback deployments re
 Timestamp is Unix milliseconds; omitted / zero uses server time. Duplicate series/timestamp writes replace the prior value.
 The [Go example](examples/go-service/main.go) demonstrates both exporter and push integration. MySQL can use the official `mysqld_exporter` with `.my.cnf` credentials or the native SQL collector.
 
-Use `targets catalog` for twelve implemented collection paths and `targets exporters` for eighteen exporter presets. `targets add --file FILE|-` accepts native connections and encrypted `secure_settings.password` / `bearer_token`. Responses contain `secure_fields` only; omitted credentials are retained, empty values clear them. Preserve both the database and `secrets.key` in backups. URL credentials are rejected. Examples under `examples/collectors` start with automatic collection disabled.
+Use `targets catalog` for thirteen implemented collection paths, including native MyDB, and `targets exporters` for eighteen exporter presets. `targets add --file FILE|-` accepts native connections and encrypted `secure_settings.password` / `bearer_token`. Responses contain `secure_fields` only; omitted credentials are retained, empty values clear them. Preserve both the database and `secrets.key` in backups. URL credentials are rejected. Examples under `examples/collectors` start with automatic collection disabled.
 
 | Integration | Implemented metrics interface |
 | --- | --- |

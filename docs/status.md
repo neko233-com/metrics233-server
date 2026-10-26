@@ -42,9 +42,14 @@ including SHA-256-checked offline restore of metrics, encrypted settings and ide
 Eight memory.current observations top out at 134758400 bytes under 1 CPU / 256 MiB;
 this is not a kernel peak. The Windows ZIP's first browser run lacked Go on PATH;
 after fixing the invocation, 105 cases pass and the stale catalog-count case fails.
-The corrected thirteen-kind/Bearer-only form case then passes independently without
-retries against the same actual archive. Three default environment-dependent skips
-remain separate from real Docker SQL/Tempo coverage. Final-source complete CI,
+The corrected thirteen-kind/Bearer-only form case passes independently, then the final
+`bb151e9` Windows archive passes all 106 default cases without retries in 7.7 minutes.
+Its hosted CI completes all other Go/race packages and Docker, but fails the CLI's
+remaining twelve-kind catalog assertion. That CLI test now checks the full expected
+thirteen-kind set, and the English README count is corrected. The relevant API,
+browser and CLI catalog contracts have been inspected together. Three default
+environment-dependent skips remain separate from real Docker SQL/Tempo coverage.
+Next-source complete CI,
 public release and production monitoring deployment remain pending; roadmap weighting
 stays 96% under the existing scope.
 
