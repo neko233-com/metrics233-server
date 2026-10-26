@@ -32,8 +32,21 @@ remains missing data. Public DNS/HTTPS and external notification delivery are se
 Source commit `f149269` and its aggregate gitlink were published. The first complete
 candidate CI exposed the stale twelve-kind Docker catalog assertion after MyDB made
 the catalog thirteen kinds; it now checks the full expected kind set, including MyDB.
-The same run's production runtime and real Tempo checks passed twice. Full candidate
-CI, public release and production monitoring deployment remain pending.
+Actual Windows archive validation found the same stale count in the browser form
+case; it now checks all thirteen kinds and MyDB's Bearer-only credential form.
+The same run's production runtime and real Tempo checks passed twice. The corrected
+`040a0c9` Docker CI passes twice, including the full catalog and database integration.
+Two clean five-platform `0.2.32` builds at that source produce seven identical delivery
+files. The actual Linux ZIP passes two confined runtime/browser rounds in 159.094s,
+including SHA-256-checked offline restore of metrics, encrypted settings and identities.
+Eight memory.current observations top out at 134758400 bytes under 1 CPU / 256 MiB;
+this is not a kernel peak. The Windows ZIP's first browser run lacked Go on PATH;
+after fixing the invocation, 105 cases pass and the stale catalog-count case fails.
+The corrected thirteen-kind/Bearer-only form case then passes independently without
+retries against the same actual archive. Three default environment-dependent skips
+remain separate from real Docker SQL/Tempo coverage. Final-source complete CI,
+public release and production monitoring deployment remain pending; roadmap weighting
+stays 96% under the existing scope.
 
 ### 2026-10-26 — 0.2.31 public release, complete CI and production Edge accepted
 

@@ -687,9 +687,15 @@ test("Native collector forms preserve credentials, scrape Redis, and use plain C
     await page.getByRole("button",{name:"Add collector",exact:true}).first().click();
     let dialog=page.getByRole("dialog",{name:"Add collector",exact:true});
     const type=dialog.getByLabel("Collector type",{exact:true});
-    await expect(type.locator("option")).toHaveCount(12);
-    for (const kind of ["mysql","redis","postgresql","clickhouse","elasticsearch","hadoop","hdfs","hive","kafka","spark","flink","prometheus"]) {
+    await expect(type.locator("option")).toHaveCount(13);
+    for (const kind of ["mydb","mysql","redis","postgresql","clickhouse","elasticsearch","hadoop","hdfs","hive","kafka","spark","flink","prometheus"]) {
       await type.selectOption(kind); await expect(dialog.getByLabel("Metrics endpoint",{exact:true})).not.toHaveValue("");
+      if (kind === "mydb") {
+        await expect(dialog.getByLabel("Username", { exact: true })).toHaveCount(0);
+        await expect(dialog.getByLabel("Password", { exact: true })).toHaveCount(0);
+        await expect(dialog.getByLabel("Bearer token", { exact: true })).toBeVisible();
+        await expect(dialog.getByText("Use the dedicated read-only MyDB metrics token.", { exact: true })).toBeVisible();
+      }
     }
     const preset=dialog.getByLabel("Exporter preset",{exact:true});
     await expect(preset.locator("option")).toHaveCount(19);
