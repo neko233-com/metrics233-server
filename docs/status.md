@@ -1,6 +1,6 @@
 # Project status and progress protocol
 
-### 2026-10-27 — Native MyDB monitoring and Grafana interoperability candidate
+### 2026-10-27 — 0.2.32 native MyDB monitoring released and deployed
 
 The new `mydb` collector uses a dedicated authenticated HTTP `/metrics` endpoint and
 rejects responses without a valid `mydb_up`. Quick connect creates only observed
@@ -49,9 +49,46 @@ remaining twelve-kind catalog assertion. That CLI test now checks the full expec
 thirteen-kind set, and the English README count is corrected. The relevant API,
 browser and CLI catalog contracts have been inspected together. Three default
 environment-dependent skips remain separate from real Docker SQL/Tempo coverage.
-Next-source complete CI,
-public release and production monitoring deployment remain pending; roadmap weighting
-stays 96% under the existing scope.
+The final immutable source is `7043b6bc5b5be4f478e21988e19cf1f2e3c4dd2c`.
+[Complete fixed-source CI](https://github.com/neko233-com/metrics233-server/actions/runs/40405214660)
+passes Go vet/race, 174 frontend unit tests/build, 106 default browser cases without
+retries (three environment-dependent skips), repeated Docker/database integration and
+two actual Tempo/browser rounds. Two clean final five-platform builds match all seven
+files; the runtime binaries match the preceding accepted archives. The formal
+[0.2.32 release](https://github.com/neko233-com/metrics233-server/releases/tag/v0.2.32)
+contains those seven files. All seven anonymous official downloads match the verified
+hashes, and the downloaded Windows executable reports the expected version.
+
+Final real-database validation passes twice, with all three real MySQL/PostgreSQL SQL
+browser cases passing in each round without retries. The first combined invocation's
+runtime cases fail because the isolated BuildKit result was not loaded into Docker;
+its database/browser successes and failure logs remain separate. After explicit image
+loading, the actual final Linux ZIP passes both confined runtime/browser rounds in
+159.248s, including token/local/HTTPS-proxy boundaries and SHA-256-checked offline
+restore of metrics, encrypted settings and identities. The builder stays below its
+10 GiB cache budget (10683641856 bytes observed); owned builders/images/volumes are
+removed and original Docker resources remain intact. Runtime limits are 1 CPU/256 MiB.
+
+An isolated real MyDB `0.1.37` failure/restart exercises the unmodified automatic
+availability rule: Normal → Pending → Firing → Recovering → Normal. With the default
+30s interval, 120s pending and 60s recovery, failure-to-firing takes 150.57s and
+restart-to-normal 90.89s. Persisted history is verified; total fixture data peaks at
+3950634 bytes. No external receiver is used and no manual evaluation shortens timing.
+
+The existing production pipeline deploys the same fixed source as `0.2.32` after its
+private tool checks, frontend/full Go tests, same-source native readiness and approved
+backup/target preflight. Its worker-built Linux artifact has separate provenance from
+the public cross-build; identical binary bytes are not claimed. Standard HTTPS checks
+verify the exact three-field public health schema/version and anonymous 401 on four
+protected routes. Actual Edge preserves the existing administrator session, renders
+all 18 existing MySQL panels with fresh data, observes a fresh managed-host heartbeat
+and 14 unpaused rules evaluating after the switch, and records no console warning/error.
+The live collector form contains all thirteen kinds; selecting MyDB exposes one Bearer
+input and no database username/password inputs. The empty form is canceled without
+creating a production target. MyDB/Grafana fixture acceptance does not imply a new
+production MyDB endpoint, a production Grafana installation or external notification
+delivery. The tag-triggered repeat CI is tracked separately from the successful complete
+manual run. Roadmap weighting stays 96% under the existing single-node scope.
 
 ### 2026-10-26 — 0.2.31 public release, complete CI and production Edge accepted
 
