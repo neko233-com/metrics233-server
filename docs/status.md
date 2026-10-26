@@ -29,7 +29,11 @@ image. The corrected fixture passes without those update errors. Actual Edge ren
 the native MyDB database filter and 24 panels, and all 14 Grafana panels with
 availability/audit-health values of 1 and no console errors. An idle WAL/latency window
 remains missing data. Public DNS/HTTPS and external notification delivery are separate.
-No public release, aggregate gitlink update or production monitoring deployment occurred.
+Source commit `f149269` and its aggregate gitlink were published. The first complete
+candidate CI exposed the stale twelve-kind Docker catalog assertion after MyDB made
+the catalog thirteen kinds; it now checks the full expected kind set, including MyDB.
+The same run's production runtime and real Tempo checks passed twice. Full candidate
+CI, public release and production monitoring deployment remain pending.
 
 ### 2026-10-26 — 0.2.31 public release, complete CI and production Edge accepted
 

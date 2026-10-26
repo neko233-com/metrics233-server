@@ -105,7 +105,14 @@ func (e environment) verifyNativeCollectors(address string) {
 		Kind string `json:"kind"`
 	}
 	require.NoError(e.t, json.Unmarshal(e.must(address, "GET", "/api/v1/collectors/catalog", nil), &catalog))
-	require.Len(e.t, catalog, 12)
+	kinds := make([]string, 0, len(catalog))
+	for _, item := range catalog {
+		kinds = append(kinds, item.Kind)
+	}
+	require.ElementsMatch(e.t, []string{
+		"prometheus", "mydb", "mysql", "redis", "postgresql", "clickhouse",
+		"elasticsearch", "hadoop", "hdfs", "hive", "kafka", "spark", "flink",
+	}, kinds)
 	var existing []model.Target
 	require.NoError(e.t, json.Unmarshal(e.must(address, "GET", "/api/v1/targets", nil), &existing))
 	for _, item := range []struct{ kind, address, user, database, password, metric string }{
