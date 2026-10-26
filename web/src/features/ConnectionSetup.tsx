@@ -87,7 +87,7 @@ export default function ConnectionResources({ targets, dashboards, open, reload,
   const byTarget = new Map(items.map(item => [item.target_id, item]));
   const categoryOf = (target: Target) => {
     const profile = byTarget.get(target.id)?.profile || target.kind || "prometheus";
-    return ["node", "windows"].includes(profile) ? "host" : ["mysql", "redis", "postgresql", "clickhouse", "elasticsearch"].includes(profile) ? "database" : "service";
+    return ["node", "windows"].includes(profile) ? "host" : ["mydb", "mysql", "redis", "postgresql", "clickhouse", "elasticsearch"].includes(profile) ? "database" : "service";
   };
   const matches = targets.filter(target => `${target.name} ${target.url} ${target.kind}`.toLowerCase().includes(search.trim().toLowerCase()));
   const filtered = matches.filter(target => category === "all" || categoryOf(target) === category);

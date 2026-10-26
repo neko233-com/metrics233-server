@@ -318,9 +318,9 @@ function CollectorEditor({
           setError("");
           try {
             await onSave({
-              kind, username, database, tls_mode: sql ? tlsMode : undefined,
+              kind, username: kind === "mydb" ? "" : username, database, tls_mode: sql ? tlsMode : undefined,
               secure_settings: {
-                ...(password || clearPassword ? { password: clearPassword ? "" : password } : {}),
+                ...(kind === "mydb" ? { password: "" } : password || clearPassword ? { password: clearPassword ? "" : password } : {}),
                 ...(bearer || clearBearer ? { bearer_token: clearBearer ? "" : bearer } : {}),
               },
               name,
@@ -374,11 +374,12 @@ function CollectorEditor({
             required
           />
         </label>
-        <div className="form-row">
+        {kind !== "mydb" ? <><div className="form-row">
           <label>{tr("Username")}<input aria-label={tr("Username")} value={username} autoComplete="off" onChange={(event)=>setUsername(event.target.value)} /></label>
           <label>{tr("Password")}<input type="password" aria-label={tr("Password")} value={password} autoComplete="new-password" placeholder={target?.secure_fields?.password ? tr("Configured; leave blank to keep") : ""} disabled={clearPassword} onChange={(event)=>setPassword(event.target.value)} /></label>
         </div>
         {target?.secure_fields?.password ? <label className="checkbox-label"><input type="checkbox" checked={clearPassword} onChange={(event)=>setClearPassword(event.target.checked)} />{tr("Clear saved password")}</label> : null}
+        </> : <p className="subtle">{tr("Use the dedicated read-only MyDB metrics token.")}</p>}
         {sql ? <div className="form-row">
           <label>{tr("Database")}<input aria-label={tr("Database")} value={database} placeholder={kind === "postgresql" ? "postgres" : ""} onChange={(event)=>setDatabase(event.target.value)} /></label>
           <label>{tr("TLS mode")}<select aria-label={tr("TLS mode")} value={tlsMode} onChange={(event)=>setTLSMode(event.target.value)}><option value="disable">{tr("Disabled")}</option><option value="require">{tr("Encrypt connection")}</option><option value="verify-full">{tr("Verify certificate and hostname")}</option></select></label>

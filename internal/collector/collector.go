@@ -70,6 +70,9 @@ func (c *Collector) Scrape(ctx context.Context, t model.Target) (int, error) {
 	if err != nil && t.Kind == "mysql" {
 		health = append(health, model.Sample{Name: "mysql_up", Labels: labels, Value: 0})
 	}
+	if err != nil && t.Kind == "mydb" {
+		health = append(health, model.Sample{Name: "mydb_up", Labels: labels, Value: 0})
+	}
 	if saveErr := c.Store.Ingest(upCtx, health); saveErr != nil {
 		slog.Error("save scrape health", "error", saveErr)
 	}

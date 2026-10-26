@@ -13,6 +13,7 @@ type Integration struct {
 func Catalog() []Integration {
 	return []Integration{
 		{"prometheus", "Prometheus / OpenMetrics", "http://localhost:9100/metrics", "HTTP exposition", "Gauges, counters, classic histograms and summaries; any compatible exporter", "https://prometheus.io/docs/instrumenting/exporters/"},
+		{"mydb", "MyDB", "http://127.0.0.1:4306/metrics", "Authenticated HTTP exposition", "Native connections, queries, latency, WAL, audit health and security configuration; read-only metrics token", "https://github.com/neko233-com/mydb"},
 		{"mysql", "MySQL / MariaDB", "mysql://localhost:3306", "SQL", "SHOW GLOBAL STATUS: connections, queries, InnoDB, replication counters", "https://dev.mysql.com/doc/refman/8.4/en/show-status.html"},
 		{"redis", "Redis", "redis://localhost:6379", "RESP / TLS", "INFO ALL: memory, clients, commands, persistence, replication and keyspaces", "https://redis.io/docs/latest/commands/info/"},
 		{"postgresql", "PostgreSQL", "postgresql://localhost:5432", "SQL", "pg_stat_database: connections, transactions, blocks, tuples, conflicts and deadlocks", "https://www.postgresql.org/docs/current/monitoring-stats.html"},

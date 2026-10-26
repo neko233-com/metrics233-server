@@ -54,6 +54,24 @@ func nativeSample(t model.Target, name string, value float64, labels map[string]
 
 func (c *Collector) collect(ctx context.Context, t model.Target, secrets map[string]string) ([]model.Sample, error) {
 	switch t.Kind {
+	case "mydb":
+		if t.Username != "" || secrets["password"] != "" {
+			return nil, errors.New("MyDB metrics support Bearer tokens only")
+		}
+		body, header, err := c.readHTTP(ctx, t, secrets, http.MethodGet, t.URL, "")
+		if err != nil {
+			return nil, err
+		}
+		samples, err := ParseExposition(bytes.NewReader(body), header.Get("Content-Type"), t)
+		if err != nil {
+			return nil, err
+		}
+		for _, sample := range samples {
+			if sample.Name == "mydb_up" && (sample.Value == 0 || sample.Value == 1) {
+				return samples, nil
+			}
+		}
+		return nil, errors.New("MyDB endpoint did not expose a valid mydb_up metric")
 	case "mysql":
 		return collectMySQL(ctx, t, secrets)
 	case "postgresql":
@@ -135,7 +153,7 @@ func collectMySQL(ctx context.Context, t model.Target, secrets map[string]string
 	}
 	// Capacity is configuration, not a status counter. Keep the two namespaces
 	// distinct and read only a fixed allowlist; never enumerate application data.
-	capacity, err := mysqlNumericMetrics(ctx, db, t, "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('max_connections','innodb_buffer_pool_size','table_open_cache','thread_cache_size','tmp_table_size','max_heap_table_size','innodb_log_buffer_size','key_buffer_size')", "mysql_global_variables_")
+	capacity, err := mysqlNumericMetrics(ctx, db, t, "SHOW GLOBAL VARIABLES WHERE Variable_name IN ('max_connections','innodb_buffer_pool_size','table_open_cache','thread_cache_size','tmp_table_size','max_heap_table_size','innodb_log_buffer_size','key_buffer_size','require_secure_transport','local_infile','read_only','super_read_only')", "mysql_global_variables_")
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +173,13 @@ func mysqlNumericMetrics(ctx context.Context, db *sql.DB, t model.Target, query,
 		var key, value string
 		if err := rows.Scan(&key, &value); err != nil {
 			return nil, err
+		}
+		// MySQL exposes security switches as ON/OFF rather than numbers.
+		switch strings.ToUpper(value) {
+		case "ON":
+			value = "1"
+		case "OFF":
+			value = "0"
 		}
 		if number, err := strconv.ParseFloat(value, 64); err == nil && !math.IsNaN(number) && !math.IsInf(number, 0) {
 			out = append(out, nativeSample(t, prefix+metricKey(key), number, nil))

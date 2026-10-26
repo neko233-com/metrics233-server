@@ -185,6 +185,8 @@ func connectionProfile(kind string, names map[string]bool) string {
 		return "node"
 	case names["windows_cpu_time_total"]:
 		return "windows"
+	case kind == "mydb" || names["mydb_up"]:
+		return "mydb"
 	case kind == "mysql" || names["mysql_up"]:
 		return "mysql"
 	case kind == "redis" || names["redis_up"]:
@@ -277,6 +279,24 @@ func connectionDashboard(input ConnectionSetupInput, profile string, names map[s
 			}
 			add(id, en, cn, kind, unit, expr, legend)
 		}
+	}
+	if profile == "mydb" {
+		known("mydb-up", "MyDB available", "MyDB 可用", "count", false, "mydb_up")
+		if names["mydb_connections_active"] && names["mydb_max_connections"] {
+			add("mydb-capacity", "MyDB connection capacity", "MyDB 连接占用", "gauge", "percent", "(100 * mydb_connections_active"+selector+" / mydb_max_connections"+selector+") and (mydb_max_connections"+selector+" > 0)", tr("Connections", "连接占用"))
+		}
+		for _, spec := range myDBPanels {
+			known(spec.id, spec.en, spec.zh, spec.unit, spec.counter, spec.metric)
+		}
+		if names["mydb_query_latency_microseconds_bucket"] {
+			for _, quantile := range []struct{ id, q string }{{"95", "0.95"}, {"99", "0.99"}} {
+				add("mydb-p"+quantile.id, "MyDB query latency P"+quantile.id, "MyDB 查询延迟 P"+quantile.id, "timeseries", "seconds", "histogram_quantile("+quantile.q+", sum by (le) (rate(mydb_query_latency_microseconds_bucket"+selector+"[2m]))) / 1000000", "P"+quantile.id)
+			}
+		}
+		if names["mydb_wal_sync_microseconds_total"] && names["mydb_group_commits_total"] {
+			add("mydb-wal-sync", "MyDB average WAL sync time", "MyDB 平均 WAL 刷盘耗时", "timeseries", "seconds", "(rate(mydb_wal_sync_microseconds_total"+selector+"[2m]) / rate(mydb_group_commits_total"+selector+"[2m]) / 1000000) and (rate(mydb_group_commits_total"+selector+"[2m]) > 0)", "WAL sync")
+		}
+		return d
 	}
 	if profile == "node" {
 		cpu := metric("node_cpu_seconds_total")
@@ -469,7 +489,7 @@ func connectionAlertRules(input ConnectionSetupInput, d Dashboard, profile strin
 	}
 	up := "up" + selector
 	backend := up
-	for _, name := range []string{"mysql_up", "redis_up", "pg_up"} {
+	for _, name := range []string{"mysql_up", "mydb_up", "redis_up", "pg_up"} {
 		if names[name] {
 			backend += " * " + name + selector
 		}
@@ -493,17 +513,35 @@ func connectionAlertRules(input ConnectionSetupInput, d Dashboard, profile strin
 		case "disk":
 			resource = tr("Disk remains full", "磁盘占用持续偏高")
 			pending = 900
-		case "mysql-3":
+		case "mysql-3", "mydb-capacity":
 			resource = tr("MySQL connections remain high", "MySQL 连接占用持续偏高")
+			if p.ID == "mydb-capacity" {
+				resource = tr("MyDB connections remain high", "MyDB 连接占用持续偏高")
+			}
 			pending = 300
 		}
 		if resource != "" {
 			out = append(out, makeRule(p.ID, resource, p.Expr, "gt", warning, recovery, pending, "warning", "%"))
 			criticalPending := 300
-			if p.ID == "mysql-3" {
+			if p.ID == "mysql-3" || p.ID == "mydb-capacity" {
 				criticalPending = 120
 			}
 			out = append(out, makeRule(p.ID+"-critical", resource+tr(" · critical", " · 严重"), p.Expr, "gt", 95, 90, criticalPending, "critical", "%"))
+		}
+	}
+	if profile == "mydb" {
+		for _, spec := range myDBAlerts {
+			if names[spec.metric] {
+				expr := spec.metric + selector
+				if spec.counter {
+					expr = "rate(" + expr + "[2m])"
+				}
+				recovery := spec.threshold
+				if spec.counter {
+					recovery = 0.000001 // Zero rates must satisfy the strict recovery comparator.
+				}
+				out = append(out, makeRule(spec.id, tr(spec.en, spec.zh), connectionFreshExpression(expr, input), spec.compare, spec.threshold, recovery, 120, spec.severity, ""))
+			}
 		}
 	}
 	return out

@@ -1,5 +1,36 @@
 # Project status and progress protocol
 
+### 2026-10-27 — Native MyDB monitoring and Grafana interoperability candidate
+
+The new `mydb` collector uses a dedicated authenticated HTTP `/metrics` endpoint and
+rejects responses without a valid `mydb_up`. Quick connect creates only observed
+panels, up to 24 performance/security panels and 11 optional sustained rules. Missing
+data preserves alert state; counter rules can recover at a zero rate. Native MySQL
+collection also exports its fixed security-switch variables as numeric ON/OFF values.
+MyDB collection accepts only Bearer credentials, requires HTTPS outside loopback and
+rejects query parameters so URL credentials cannot enter exported instance labels.
+The UI clears database credentials when saving a MyDB target; actual Edge verifies
+the Bearer-only form and saving with the configured token left blank.
+
+Real isolated MyDB `0.1.37-dev.1` verifies anonymous/wrong-token rejection, read-only
+token isolation from SQL/config/status/backup APIs, SQL/credential privacy, failed
+authentication signals, ordinary scraping and Prometheus query readback. The final
+candidate repeats that chain with 24 panels and 11 rules. The owning Go model,
+collector, server and telemetry packages and vet pass. Infrastructure includes MyDB in
+the database filter, and the frontend type check and Vite build pass. The pre-existing
+BusinessInstances edit remains independently owned.
+
+Actual Grafana `13.2.3` queries installed MyDB through MetricsPanel233 with a local
+Viewer's HTTP Basic identity, imports and reads back all 14 supplied dashboard panels,
+and verifies that the Viewer cannot manage monitoring connections. The fixture pins
+the bundled Prometheus plugin and disables automatic plugin installation/update;
+earlier attempts exposed a registration race during background updates on the read-only
+image. The corrected fixture passes without those update errors. Actual Edge renders
+the native MyDB database filter and 24 panels, and all 14 Grafana panels with
+availability/audit-health values of 1 and no console errors. An idle WAL/latency window
+remains missing data. Public DNS/HTTPS and external notification delivery are separate.
+No public release, aggregate gitlink update or production monitoring deployment occurred.
+
 ### 2026-10-26 — 0.2.31 public release, complete CI and production Edge accepted
 
 A deterministic regression against the previous UI keeps CPU 25%, memory 50% and disk 20% after the host

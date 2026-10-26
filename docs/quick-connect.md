@@ -13,7 +13,7 @@ templates. GitHub Dark console tokens stay independent of time-series and gauge 
 3. Apply once and open the dashboard. Ordinary collection supplies its data; preview observations are never ingested.
    Rate panels require at least two source observations.
 
-Linux/Node, Windows, MySQL, Redis and PostgreSQL receive curated panels only when their required metrics were
+Linux/Node, Windows, MyDB, MySQL, Redis and PostgreSQL receive curated panels only when their required metrics were
 observed. Exporter runtime internals stay in Explore instead of filling a host-health dashboard. Other implemented
 protocols receive a generic starter view bounded to 24 panels, without inferring arbitrary business semantics.
 All collected metrics remain queryable beyond this starter-panel limit.

@@ -1,0 +1,9 @@
+{
+  "name": "mydb",
+  "kind": "mydb",
+  "url": "http://127.0.0.1:4306/metrics",
+  "secure_settings": { "bearer_token": "REPLACE_WITH_READ_ONLY_METRICS_TOKEN" },
+  "interval_seconds": 15,
+  "enabled": false,
+  "labels": { "environment": "production" }
+}

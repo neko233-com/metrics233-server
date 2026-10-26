@@ -45,6 +45,9 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 - Business onboarding (`/#business`) creates native dashboards from received metrics with explicit Gauge/Counter
   semantics and exact label filters. It never injects samples or chooses business alert thresholds.
 - Native MySQL/MariaDB, Redis, PostgreSQL and supported service/database metrics APIs.
+- Native MyDB authenticated HTTP collection creates observed-only performance/security panels and sustained
+  rules through Quick connect. Its dedicated scrape credential cannot access MyDB management/SQL APIs.
+  See [MyDB monitoring](../mydb-monitoring.md).
 - Collector secrets are encrypted; responses expose presence flags only.
 - Managed-host SSH and credentials are Admin-only. Independent outbound host credentials grant only own-configuration
   reads and own-metric/heartbeat writes. Installation, applied settings, heartbeat and source data are separate gates.

@@ -74,7 +74,7 @@ func (t Target) Validate() error {
 	}
 	scheme := "http"
 	switch t.Kind {
-	case "", "prometheus", "clickhouse", "elasticsearch", "hadoop", "hdfs", "hive", "kafka", "spark", "flink":
+	case "", "prometheus", "mydb", "clickhouse", "elasticsearch", "hadoop", "hdfs", "hive", "kafka", "spark", "flink":
 		if u.Scheme != "http" && u.Scheme != "https" {
 			return errors.New("HTTP collector URL must use http or https")
 		}
@@ -89,6 +89,16 @@ func (t Target) Validate() error {
 		}
 	default:
 		return errors.New("unknown collector kind")
+	}
+	if t.Kind == "mydb" && (u.RawQuery != "" || u.ForceQuery) {
+		return errors.New("MyDB collector URLs must omit query parameters; keep credentials in secure_settings")
+	}
+	if t.Kind == "mydb" && u.Scheme == "http" {
+		host := strings.ToLower(u.Hostname())
+		address := net.ParseIP(host)
+		if host != "localhost" && (address == nil || !address.IsLoopback()) {
+			return errors.New("MyDB collection requires HTTPS outside loopback; keep credentials in secure_settings")
+		}
 	}
 	if t.TLSMode != "" && t.TLSMode != "disable" && t.TLSMode != "require" && t.TLSMode != "verify-full" {
 		return errors.New("tls_mode must be disable, require or verify-full")

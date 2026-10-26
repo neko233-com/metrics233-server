@@ -26,6 +26,7 @@ func TestConnectionAvailabilityOutlastsStaleBackendAndConfirmsRecovery(t *testin
 		{"redis", "redis_up", "redis://127.0.0.1:6379"},
 		{"postgresql", "pg_up", "postgresql://127.0.0.1:5432"},
 		{"prometheus", "redis_up", "http://127.0.0.1:9999/metrics"},
+		{"mydb", "mydb_up", "http://127.0.0.1:4306/metrics"},
 	} {
 		t.Run(fixture.kind, func(t *testing.T) {
 			s, _ := connectionTestServer(t)

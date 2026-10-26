@@ -216,6 +216,8 @@ const zh: Record<string, string> = {
   "Encrypt connection": "加密连接",
   "Verify certificate and hostname": "验证证书和主机名",
   "Bearer token": "Bearer 令牌",
+  "Use the dedicated read-only MyDB metrics token.": "使用 MyDB 的专用只读指标令牌。",
+  "MyDB metrics support Bearer tokens only": "MyDB 指标仅接受 Bearer 令牌。",
   "Configured; leave blank to keep": "已配置，留空保留",
   "Clear saved password": "清除已保存密码",
   "Clear saved token": "清除已保存令牌",
