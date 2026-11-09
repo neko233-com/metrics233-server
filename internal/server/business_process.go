@@ -53,6 +53,10 @@ func businessProcessPanels(item model.BusinessInstance) []model.Panel {
 		add("process-sdk-rpc-pending", "SDK pending RPC", "stat", "short", current("sdk_rpc_pending"), "Bounded requests currently awaiting authoritative replies.")
 		return panels
 	}
+	if item.Identity.Role == "center" {
+		// Center 不产生玩家流量计数器，避免展示恒为零的误导面板。
+		return panels
+	}
 	prefix := "game_"
 	if item.Identity.Role == "gateway" {
 		prefix = "gateway_"

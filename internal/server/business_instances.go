@@ -124,7 +124,7 @@ func businessDefaultDashboard(item model.BusinessInstance) model.Dashboard {
 	d.Panels[2].Expr = d.Panels[0].Expr
 	sessions := businessAtSnapshot("game_player_sessions_started_total", "${business_scope:raw}", "scalar(max(timestamp("+population+")))")
 	d.Panels[1].Expr = "sum(" + sessions + ") and (count(" + current + ") == 1)" + fresh
-	if item.Identity.Role == "gateway" || item.Identity.Role == "sdk" {
+	if item.Identity.Role == "gateway" || item.Identity.Role == "sdk" || item.Identity.Role == "center" {
 		d.Panels = []model.Panel{}
 	}
 	d.Panels = append(d.Panels, businessProcessPanels(item)...)

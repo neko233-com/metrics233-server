@@ -34,7 +34,7 @@ type BusinessDirectoryPage struct {
 // BusinessDirectory filters the bounded catalog before paging. The legacy
 // template-scoped cursor API remains unchanged.
 func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter) (BusinessDirectoryPage, error) {
-	page := BusinessDirectoryPage{BusinessInstancePage: BusinessInstancePage{Items: []model.BusinessInstance{}, Capacity: BusinessInstanceLimit}, Counts: map[string]int{"all": 0, "game": 0, "gateway": 0, "sdk": 0}, Environments: []string{}}
+	page := BusinessDirectoryPage{BusinessInstancePage: BusinessInstancePage{Items: []model.BusinessInstance{}, Capacity: BusinessInstanceLimit}, Counts: map[string]int{"all": 0, "game": 0, "gateway": 0, "sdk": 0, "center": 0}, Environments: []string{}}
 	if f.Limit < 1 || f.Limit > 100 || len(f.Query) > 128 || len(f.Environment) > 128 || !utf8.ValidString(f.Query+f.Environment) || strings.ContainsAny(f.Query+f.Environment, "\x00\r\n") {
 		return page, errors.New("invalid directory filter")
 	}
@@ -44,7 +44,7 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 	if f.Sort == "" {
 		f.Sort = "server"
 	}
-	if f.Role != "all" && f.Role != "game" && f.Role != "gateway" && f.Role != "sdk" {
+	if f.Role != "all" && f.Role != "game" && f.Role != "gateway" && f.Role != "sdk" && f.Role != "center" {
 		return page, errors.New("invalid directory role")
 	}
 	if f.Sort != "server" && f.Sort != "recent" && f.Sort != "host" {

@@ -243,6 +243,11 @@ func businessTrafficMetric(role, direction string) []string {
 		suffix = "sent_bytes_total"
 		old = "sent_total"
 	}
+	if role == "center" {
+		// Center has no legacy game/gateway byte counters; only the unified
+		// service payload counters are authoritative for it.
+		return []string{"service_payload_" + suffix}
+	}
 	return []string{"service_payload_" + suffix, legacy + old}
 }
 
@@ -372,7 +377,7 @@ func (s *Server) businessCardSummaries(ctx context.Context, items []model.Busine
 	// At most two bounded queries cover every service role on the visible page.
 	for _, direction := range []string{"receive", "transmit"} {
 		parts := []string{}
-		for _, role := range []string{"logic", "game", "gateway", "sdk"} {
+		for _, role := range []string{"logic", "game", "gateway", "sdk", "center"} {
 			parts = append(parts, businessTrafficExpr(role, direction, `{role=`+strconv.Quote(role)+`}`, "2m", "rate"))
 		}
 		s.cardVector(ctx, strings.Join(parts, " or "), at, func(labels map[string]string, v float64) {
