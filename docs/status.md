@@ -1,5 +1,24 @@
 # Project status and progress protocol
 
+### 2026-11-11 — Template center browser smoke
+
+The headless UI smoke now selects Template center by its accessible English or
+Chinese name instead of a navigation position. The old positional selector
+opened the business dashboard after the navigation changed and timed out
+before reaching the import dialog. Against the actual Windows `webui` binary,
+the corrected smoke opens the named import dialog, closes it with Escape, and
+reports nine navigation items with no non-ignored console or HTTP errors. The same-source
+API-only binary is separately rejected by the deployment frontend gate.
+
+Production BuildWorld project 50 build 1757 published deployment 853 as 0.2.34
+from application source `5fb80e960596cf714c7d6fe29319996104e5d80d`. Public
+HTTPS health reported 0.2.34 and database OK; the root and its script returned
+200. A real headless browser signed in, searched for the shared SDK instance,
+rendered its card and reported zero page/console errors. The five observed SDK
+heartbeat series remained up. This test-script and status-only change does not
+alter the deployed application. The prior 96% weighted roadmap remains
+unchanged; this unit does not establish capacity or external delivery.
+
 ### 2026-10-27 — 0.2.32 native MyDB monitoring released and deployed
 
 The new `mydb` collector uses a dedicated authenticated HTTP `/metrics` endpoint and

@@ -71,7 +71,7 @@ try {
   await page.waitForSelector(".app-shell", { timeout: 15000 });
   await page.waitForSelector("#getting-started-title", { timeout: 10000 });
   const nav = await page.locator("aside nav button").count();
-  await page.locator("aside nav button").nth(1).click();
+  await page.locator("aside nav").getByRole("button", { name: /^(Template center|模板中心)$/ }).click();
   await page.getByRole("button", { name: /Import dashboard|导入仪表盘/ }).click();
   const dialog = page.getByRole("dialog").first();
   await dialog.waitFor({ state: "visible", timeout: 10000 });
