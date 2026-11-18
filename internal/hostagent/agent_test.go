@@ -2,6 +2,7 @@ package hostagent
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,8 +11,55 @@ import (
 	"testing"
 
 	"github.com/neko233-com/metrics233-server/internal/model"
+	"github.com/neko233-com/metrics233-server/internal/telemetry"
 	"github.com/stretchr/testify/require"
 )
+
+func TestHostOnlyReportsLocalResourcesWithoutScraping(t *testing.T) {
+	target := model.Target{Kind: telemetry.HostOnlyTargetKind, Name: "fixture-host", IntervalSeconds: 15}
+	require.NoError(t, target.ValidateManagedHostTarget())
+	require.Error(t, target.Validate())
+	external := target
+	external.URL = "http://127.0.0.1:9100/metrics"
+	require.Error(t, external.ValidateManagedHostTarget())
+
+	reports := make(chan model.HostHeartbeat, 1)
+	control := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && strings.HasSuffix(r.URL.Path, "/configuration"):
+			_ = json.NewEncoder(w).Encode(model.HostAgentConfig{
+				Version: 1, Enabled: true, Target: target, CollectHost: true,
+			})
+		case r.Method == http.MethodPost && strings.HasSuffix(r.URL.Path, "/heartbeat"):
+			var report model.HostHeartbeat
+			if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
+				http.Error(w, "bad heartbeat", http.StatusBadRequest)
+				return
+			}
+			reports <- report
+			_, _ = w.Write([]byte("{}"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer control.Close()
+
+	agent, err := New(model.HostBootstrap{
+		Server: control.URL, HostID: "123e4567-e89b-12d3-a456-426614174000", Token: strings.Repeat("x", 43),
+	}, "fixture")
+	require.NoError(t, err)
+	require.NoError(t, agent.Run(context.Background(), true, func(string) {}))
+	select {
+	case report := <-reports:
+		require.NotEmpty(t, report.Samples)
+		for _, sample := range report.Samples {
+			require.True(t, strings.HasPrefix(sample.Name, "host_"), sample.Name)
+		}
+	default:
+		t.Fatal("expected a host heartbeat")
+	}
+}
 
 func TestBootstrapOriginsAndProtectedFile(t *testing.T) {
 	cfg := model.HostBootstrap{Server: "https://example.com", HostID: "123e4567-e89b-12d3-a456-426614174000", Token: strings.Repeat("x", 43)}

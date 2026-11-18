@@ -169,16 +169,24 @@ func (a *Agent) Step(ctx context.Context) (time.Duration, string, error) {
 		started := time.Now()
 		secrets := cfg.Target.SecureSettings
 		cfg.Target.SecureSettings = nil
-		if err := cfg.Target.Validate(); err != nil {
+		if err := cfg.Target.ValidateManagedHostTarget(); err != nil {
 			return interval, "invalid_config", errors.New("invalid collection configuration")
 		}
-		samples, err := collector.CollectOnce(ctx, cfg.Target, secrets)
+		hostOnly := cfg.Target.Kind == model.HostOnlyTargetKind
+		if hostOnly && !cfg.CollectHost {
+			return interval, "invalid_config", errors.New("host-only configuration requires local resources")
+		}
+		var samples []model.Sample
 		up := 1.0
 		report.State = "collecting"
-		if err != nil {
-			up = 0
-			report.State = "collection_error"
-			samples = nil
+		if !hostOnly {
+			collected, err := collector.CollectOnce(ctx, cfg.Target, secrets)
+			if err != nil {
+				up = 0
+				report.State = "collection_error"
+			} else {
+				samples = collected
+			}
 		}
 		if cfg.CollectHost {
 			if a.resources == nil {
@@ -192,13 +200,15 @@ func (a *Agent) Step(ctx context.Context) (time.Duration, string, error) {
 		} else {
 			a.resources = nil
 		}
-		labels := map[string]string{"job": cfg.Target.Name, "instance": cfg.Target.URL}
-		for k, v := range cfg.Target.Labels {
-			labels[k] = v
-		}
-		samples = append(samples, model.Sample{Name: "up", Value: up, Labels: labels}, model.Sample{Name: "scrape_duration_seconds", Value: time.Since(started).Seconds(), Labels: labels}, model.Sample{Name: "scrape_samples_scraped", Value: float64(len(samples)), Labels: labels})
-		if up == 0 && cfg.Target.Kind == "mysql" {
-			samples = append(samples, model.Sample{Name: "mysql_up", Value: 0, Labels: labels})
+		if !hostOnly {
+			labels := map[string]string{"job": cfg.Target.Name, "instance": cfg.Target.URL}
+			for k, v := range cfg.Target.Labels {
+				labels[k] = v
+			}
+			samples = append(samples, model.Sample{Name: "up", Value: up, Labels: labels}, model.Sample{Name: "scrape_duration_seconds", Value: time.Since(started).Seconds(), Labels: labels}, model.Sample{Name: "scrape_samples_scraped", Value: float64(len(samples)), Labels: labels})
+			if up == 0 && cfg.Target.Kind == "mysql" {
+				samples = append(samples, model.Sample{Name: "mysql_up", Value: 0, Labels: labels})
+			}
 		}
 		report.Samples = samples
 		a.nextScrape = started.Add(interval)

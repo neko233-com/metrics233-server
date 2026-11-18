@@ -8,6 +8,10 @@ the collector binary does not link the control-plane store, query engine or web 
 Updated agents also collect local host resources in the same process. See [native host resources](host-resources.md)
 for CPU/memory/disk definitions, the separate host dashboard, missing/stale values and sustained alert defaults.
 
+Select **Direct host reporting** for a host that only needs OS metrics. The agent reads local resources and sends
+them over the authenticated HTTPS heartbeat. The target has `kind: "host"`, an empty URL, and host collection
+enabled. This mode requires an updated agent and uses the host address as the series instance label.
+
 ## Workflow
 
 1. Add a host and a collector in **Metadata → Host management**. The collector URL is resolved on the target.

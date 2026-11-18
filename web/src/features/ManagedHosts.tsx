@@ -185,6 +185,7 @@ export default function ManagedHosts({
           }
         : current,
     );
+  const hostOnly = draft?.host.target.kind === "host";
   const save = async (event: FormEvent) => {
     event.preventDefault();
     if (!draft || busy) return;
@@ -192,9 +193,9 @@ export default function ManagedHosts({
     const secrets: Record<string, string> = {};
     if (draft.password) secrets.ssh_password = draft.password;
     if (draft.privateKey) secrets.ssh_private_key = draft.privateKey;
-    if (draft.collectorPassword)
+    if (!hostOnly && draft.collectorPassword)
       secrets.collector_password = draft.collectorPassword;
-    if (draft.collectorBearer)
+    if (!hostOnly && draft.collectorBearer)
       secrets.collector_bearer_token = draft.collectorBearer;
     try {
       const h = draft.host;
@@ -378,7 +379,9 @@ export default function ManagedHosts({
                 </dd>
                 <dt>{text("Source", "采集源")}</dt>
                 <dd>
-                  {host.target.kind} · {host.target.url}
+                  {host.target.kind === "host"
+                    ? text("Direct host reporting", "整机资源直报")
+                    : `${host.target.kind} · ${host.target.url}`}
                 </dd>
                 <dt>{text("Last heartbeat", "最近心跳")}</dt>
                 <dd>{host.last_seen ? timeAgo(host.last_seen) : "—"}</dd>
@@ -574,7 +577,7 @@ export default function ManagedHosts({
               )}
             </label>
             <h3>{text("Read-only collector", "只读采集")}</h3>
-            <label className="checkbox-field"><input type="checkbox" checked={draft.host.collect_host !== false} onChange={event => field("collect_host",event.target.checked)} />{text("Collect host CPU, memory and writable disks", "同时采集主机 CPU、内存与可写磁盘")}</label>
+            {!hostOnly && <label className="checkbox-field"><input type="checkbox" checked={draft.host.collect_host !== false} onChange={event => field("collect_host",event.target.checked)} />{text("Collect host CPU, memory and writable disks", "同时采集主机 CPU、内存与可写磁盘")}</label>}
             <div className="form-grid">
               <Field label={text("Type", "类型")}>
                 <select
@@ -585,12 +588,17 @@ export default function ManagedHosts({
                       ...draft,
                       host: {
                         ...draft.host,
+                        collect_host: kind === "host" ? true : draft.host.collect_host,
                         target: {
                           ...draft.host.target,
                           kind,
                           name: kind,
+                          username: kind === "host" ? "" : draft.host.target.username,
+                          database: kind === "host" ? "" : draft.host.target.database,
                           url:
-                            kind === "mysql"
+                            kind === "host"
+                              ? ""
+                              : kind === "mysql"
                               ? "mysql://localhost:3306"
                               : kind === "postgresql"
                                 ? "postgresql://localhost:5432"
@@ -607,9 +615,10 @@ export default function ManagedHosts({
                   <option value="postgresql">PostgreSQL</option>
                   <option value="redis">Redis</option>
                   <option value="prometheus">Prometheus exporter</option>
+                  <option value="host">{text("Direct host reporting", "整机资源直报")}</option>
                 </select>
               </Field>
-              <Field
+              {!hostOnly && <><Field
                 label={text(
                   "Collector address on target host",
                   "目标主机可访问的采集地址",
@@ -642,7 +651,7 @@ export default function ManagedHosts({
                     setDraft({ ...draft, collectorPassword: e.target.value })
                   }
                 />
-              </Field>
+              </Field></>}
               <Field label={text("Interval in seconds", "采集间隔（秒）")}>
                 <Input
                   type="number"
@@ -688,7 +697,7 @@ export default function ManagedHosts({
                   }
                 />
               </Field>
-              <Field label={text("Database name", "数据库名")}>
+              {!hostOnly && <><Field label={text("Database name", "数据库名")}>
                 <Input
                   value={draft.host.target.database || ""}
                   onChange={(e) => target("database", e.target.value)}
@@ -729,7 +738,7 @@ export default function ManagedHosts({
                     setDraft({ ...draft, collectorBearer: e.target.value })
                   }
                 />
-              </Field>
+              </Field></>}
             </details>
             <p className="subtle">
               {text(

@@ -245,7 +245,7 @@ func (s *Server) managedHostRoutes(api routeRegistrar, mux *http.ServeMux) {
 			return
 		}
 		target := h.Target
-		if h.Enabled {
+		if h.Enabled && target.Kind != telemetry.HostOnlyTargetKind {
 			target.SecureSettings = map[string]string{"password": secrets["collector_password"], "bearer_token": secrets["collector_bearer_token"]}
 		}
 		writeJSON(w, 200, model.HostAgentConfig{Version: h.Version, Enabled: h.Enabled, Target: target, CollectHost: h.HostCollectionEnabled()})
@@ -357,6 +357,10 @@ func (s *Server) hostHeartbeat(w http.ResponseWriter, r *http.Request) {
 	}
 	for index := range report.Samples {
 		sample := &report.Samples[index]
+		if h.Target.Kind == telemetry.HostOnlyTargetKind && !strings.HasPrefix(sample.Name, "host_") {
+			fail(w, 400, errors.New("host-only collectors may only report host observations"))
+			return
+		}
 		if strings.HasPrefix(sample.Name, "host_") && (!h.HostCollectionEnabled() || telemetry.ValidateHostObservation(*sample) != nil) {
 			fail(w, 400, errors.New("invalid or disabled host observation"))
 			return
@@ -384,6 +388,9 @@ func (s *Server) hostHeartbeat(w http.ResponseWriter, r *http.Request) {
 		sample.Labels["host"] = h.Name
 		sample.Labels["job"] = h.Target.Name
 		sample.Labels["instance"] = h.Target.URL
+		if h.Target.Kind == telemetry.HostOnlyTargetKind {
+			sample.Labels["instance"] = h.Address
+		}
 		if err := sample.Validate(); err != nil {
 			fail(w, 400, errors.New("invalid host metric sample"))
 			return

@@ -114,6 +114,24 @@ func (t Target) Validate() error {
 			return errors.New("secure_settings supports password and bearer_token, at most 8192 bytes each")
 		}
 	}
+	return t.validateCollectionMetadata()
+}
+
+// HostOnlyTargetKind denotes a managed collector that reads local OS resources.
+const HostOnlyTargetKind = "host"
+
+// ValidateManagedHostTarget additionally accepts the managed host-only mode.
+func (t Target) ValidateManagedHostTarget() error {
+	if t.Kind != HostOnlyTargetKind {
+		return t.Validate()
+	}
+	if t.URL != "" || t.Username != "" || t.Database != "" || t.TLSMode != "" || len(t.SecureSettings) != 0 {
+		return errors.New("host-only collection does not accept a scrape endpoint or service credentials")
+	}
+	return t.validateCollectionMetadata()
+}
+
+func (t Target) validateCollectionMetadata() error {
 	if len(t.Name) == 0 || len(t.Name) > 100 {
 		return errors.New("name must contain 1–100 bytes")
 	}
@@ -173,8 +191,11 @@ func (h ManagedHost) Validate() error {
 	if h.Target.SecureSettings != nil || h.Target.ID != 0 {
 		return errors.New("collector credentials belong in host secure_settings")
 	}
-	if err := h.Target.Validate(); err != nil {
+	if err := h.Target.ValidateManagedHostTarget(); err != nil {
 		return err
+	}
+	if h.Target.Kind == HostOnlyTargetKind && !h.HostCollectionEnabled() {
+		return errors.New("host-only collectors require host resource collection")
 	}
 	if len(h.Target.Labels) > 28 {
 		return errors.New("managed collectors allow at most 28 configured labels")
@@ -185,6 +206,9 @@ func (h ManagedHost) Validate() error {
 		}
 		if strings.HasPrefix(k, "collector_") && len(v) > 8192 {
 			return errors.New("collector secret exceeds 8192 bytes")
+		}
+		if h.Target.Kind == HostOnlyTargetKind && strings.HasPrefix(k, "collector_") && v != "" {
+			return errors.New("host-only collection does not accept service credentials")
 		}
 	}
 	return nil

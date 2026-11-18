@@ -51,6 +51,7 @@ distributed multi-tenant platform. Grafana import/export is optional migration s
 - Collector secrets are encrypted; responses expose presence flags only.
 - Managed-host SSH and credentials are Admin-only. Independent outbound host credentials grant only own-configuration
   reads and own-metric/heartbeat writes. Installation, applied settings, heartbeat and source data are separate gates.
+  Managed host-only targets send local OS observations through the heartbeat without opening a scrape listener.
   See [managed hosts](../managed-hosts.md); private networks need a reachable LAN installation executor.
 - `/#reporting-sources` observes actual accepted push batches, independently of scrape targets and internal self-metrics.
   All five ingest paths use canonical client-IP policy before parsing or writing; labels never authorize a source.
