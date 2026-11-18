@@ -17,6 +17,8 @@ test("daily gauges are scoped and bounded to a fresh Beijing-day report snapshot
   assert.match(daily, /scalar\(floor\(vector\(\(time\(\) \+ 28800\) \/ 86400\)\)\)/);
   assert.match(daily, /sdk_today_population_observed_at_seconds.* <= 90/);
   assert.doesNotMatch(model.signalExpression("connections", scope, true), /channel=|environment=/);
+  assert.match(model.scopesExpression, /game_players_online.*sdk_today_population_observed_at_seconds/);
+  assert.match(model.scopesExpression, /"environment", "\$1", "target_environment"/);
 });
 
 test("snapshot preserves observed zero and ignores invalid percentile results", () => {

@@ -6,14 +6,13 @@ import { getLocale } from "../i18n";
 import { Alert, Button } from "../ui";
 import {
   detailCharts, gameSignals, headlineSignals, makeGrafanaGameDashboard, primaryCharts, readSnapshot,
-  sampleFreshnessSeconds, servicePath, signalExpression, snapshotExpression,
+  sampleFreshnessSeconds, scopesExpression, servicePath, signalExpression, snapshotExpression,
   type GameScope, type InstantSample, type SignalID, type Snapshot,
 } from "./game-overview-model";
 
 type PrometheusVector = { data: { result: InstantSample[] } };
 type Measurement = Snapshot[SignalID];
 const emptyScope = { channel: "", environment: "" };
-const scopesExpression = 'count by (channel, environment) (game_players_online{role="logic",channel!="",environment!=""})';
 const timeRanges = [
   { id: "15m", title: ["Last 15 minutes", "最近 15 分钟"] },
   { id: "1h", title: ["Last hour", "最近 1 小时"] },

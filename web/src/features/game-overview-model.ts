@@ -18,6 +18,12 @@ export type GameScope = { channel: string; environment: string };
 export type InstantSample = { metric: Labels; value: [seconds: number, value: string] };
 export const sampleFreshnessSeconds = 90;
 
+const logicScopes = 'game_players_online{role="logic",channel!="",environment!=""}';
+const sdkScopes = 'sdk_today_population_observed_at_seconds{role="sdk",target_channel!="",target_environment!=""}';
+const dailyScopeLabels = 'label_replace(label_replace(' + sdkScopes +
+  ', "channel", "$1", "target_channel", "(.+)"), "environment", "$1", "target_environment", "(.+)")';
+export const scopesExpression = "count by (channel, environment) (" + logicScopes + " or " + dailyScopeLabels + ")";
+
 export const gameSignals = {
   todayLogins: { metric: "sdk_today_login_unique_players", role: "sdk", caption: ["Unique logins today", "今日去重登录"], unit: "count", daily: true },
   todayRegistrations: { metric: "sdk_today_registered_unique_players", role: "sdk", caption: ["New registrations today", "今日新增注册"], unit: "count", daily: true },
