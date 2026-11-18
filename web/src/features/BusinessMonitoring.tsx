@@ -7,8 +7,10 @@ import { useSession } from "../ui/session";
 import { nativePanelForSDK } from "../grafana/panel-queries";
 import "./business-monitoring.css";
 import "./connection-setup.css";
+import "./game-overview.css";
 
 const text = (en: string, zh: string) => getLocale() === "zh" ? zh : en;
+const GameOverview = lazy(() => import("./GameOverview"));
 const BusinessInstances = lazy(() => import("./BusinessInstances"));
 const ConnectionResources = lazy(() => import("./ConnectionSetup"));
 
@@ -22,10 +24,15 @@ export default function BusinessMonitoring({ metrics, dashboards, targets, reloa
   navigate: (view: "collectors" | "explore" | "alerts") => void;
 }) {
   const { canEdit } = useSession();
-  const [surface,setSurface]=useState<"services"|"resources">(() => {
-    try { return sessionStorage.getItem("metrics233-dashboard-category") === "resources" ? "resources" : "services"; } catch { return "services"; }
+  type Surface = "game" | "services" | "resources";
+  const [surface, setSurface] = useState<Surface>(() => {
+    try {
+      const saved = sessionStorage.getItem("metrics233-dashboard-category");
+      if (saved === "resources" || saved === "services" || saved === "game") return saved;
+    } catch { /* Session preference is optional. */ }
+    return "services";
   });
-  function selectSurface(value: "services" | "resources") {
+  function selectSurface(value: Surface) {
     setSurface(value);
     try { sessionStorage.setItem("metrics233-dashboard-category", value); } catch { /* Session preference is optional. */ }
   }
@@ -76,8 +83,14 @@ export default function BusinessMonitoring({ metrics, dashboards, targets, reloa
   }
 
   return <>
-    <div className="connection-surfaces" role="group" aria-label={text("Dashboard categories","仪表盘分类")}><Button aria-pressed={surface==="services"} onClick={()=>selectSurface("services")}>{text("Business services","业务服务")}</Button><Button aria-pressed={surface==="resources"} onClick={()=>selectSurface("resources")}>{text("Infrastructure","基础设施")}</Button></div>
-    {surface==="resources" ? <Suspense fallback={<p role="status">{text("Loading resources…","正在加载资源…")}</p>}><ConnectionResources targets={targets} dashboards={dashboards} open={open} reload={reload} navigate={()=>navigate("collectors")} tick={tick}/></Suspense> : <>
+    <div className="game-monitoring-tabs" role="group" aria-label={text("Dashboard categories", "仪表盘分类")}>
+      <Button aria-pressed={surface === "game"} onClick={() => selectSurface("game")}>{text("Game overview", "游戏监控总览")}</Button>
+      <Button aria-pressed={surface === "services"} onClick={() => selectSurface("services")}>{text("Business services", "业务服务")}</Button>
+      <Button aria-pressed={surface === "resources"} onClick={() => selectSurface("resources")}>{text("Infrastructure", "基础设施")}</Button>
+    </div>
+    {surface === "game" ? <Suspense fallback={<p role="status">{text("Loading game overview…", "正在加载游戏监控…")}</p>}>
+      <GameOverview tick={tick} openExplore={() => navigate("explore")} />
+    </Suspense> : surface==="resources" ? <Suspense fallback={<p role="status">{text("Loading resources…","正在加载资源…")}</p>}><ConnectionResources targets={targets} dashboards={dashboards} open={open} reload={reload} navigate={()=>navigate("collectors")} tick={tick}/></Suspense> : <>
     {error && <Alert severity="error" title={text("Request failed", "操作失败")}>{error}</Alert>}
     <Suspense fallback={<p role="status">{text("Loading instances…", "正在加载实例…")}</p>}><BusinessInstances dashboards={dashboards} open={open} reload={reload} tick={tick} /></Suspense>
     <details className="business-setup"><summary>{text("Connect metrics or create a template", "接入指标或创建模板")}</summary><div className="business-grid">

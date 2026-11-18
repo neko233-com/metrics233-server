@@ -8,6 +8,24 @@ Business metrics use the same durable store, PromQL engine, dashboard and alert 
 Open **Business monitoring** in the left navigation (`/#business`) to connect an application and build a dashboard
 from metrics actually received by the workspace. The page never inserts demonstration samples.
 
+## Game overview
+
+Open Dashboards → Game overview to inspect gateway, SDK, logic, center and event delivery signals in one view.
+Channel and environment filter logic, event delivery and daily SDK account figures. Physical shared service metrics
+stay global. The time selector changes the trend charts. Current values require a source sample within 90 seconds.
+
+Daily login and registration totals use the current Beijing calendar day. Each configured account namespace is
+deduplicated by its authoritative report store; combined scopes sum independent namespaces. An unavailable, stale,
+or previous-day sample stays empty. A current zero remains zero.
+
+Open service trends for Link paths, RPC, database and event reports. Go counter queries select cumulative OpenTelemetry
+series. P95 uses the explicit histogram buckets supplied by the backend. A reporting status identifies fresh telemetry;
+service availability follows independent application checks.
+
+Download the Grafana dashboard and bind its Prometheus input to the Metrics233 application URL ending in
+`/prometheus`. Grafana queries from its server using a workspace identity with read permission and HTTPS in production.
+Use the existing Tempo or Loki integrations in Explore after configuring the corresponding live data source.
+
 ## Connect
 
 Choose the protocol already supported by the application:
