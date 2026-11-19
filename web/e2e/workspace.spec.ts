@@ -730,19 +730,19 @@ test("Native collector forms preserve credentials, scrape Redis, and use plain C
     await dialog.getByRole("button",{name:"Save collector",exact:true}).click();
     await expect(dialog).not.toBeVisible();
     await scrapeCache(); await expect.poll(()=>authenticated).toBe(2);
-    await page.getByRole("button",{name:"Command line",exact:true}).click();
+    await page.getByRole("button",{name:"CLI guide",exact:true}).click();
     await expect(page.getByRole("heading",{name:"Usage",exact:true})).toBeVisible();
     await expect(page.getByRole("heading",{name:"Native collectors",exact:true})).toBeVisible();
     await expect(page.locator("body")).not.toContainText("JSON in. JSON out.");
     await page.screenshot({path:testInfo.outputPath("command-line-en.png"),animations:"disabled"});
-    await page.getByRole("button",{name:"Explore",exact:true}).click();
-    await expect(page.getByText("Query stored metrics or a configured datasource.",{exact:true})).toBeVisible();
-    await page.getByRole("button",{name:"Template center",exact:true}).click();
+    await page.getByRole("button",{name:"Search details",exact:true}).click();
+    await expect(page.getByText("Choose a data source to look up metrics, trends, and details.",{exact:true})).toBeVisible();
+    await page.getByRole("button",{name:"Saved views",exact:true}).click();
     await expect(page.locator(".page-heading p")).toHaveText(/^\d+ dashboards · \d+ folders$/);
-    await page.getByRole("button",{name:"Collectors",exact:true}).click();
+    await page.getByRole("button",{name:"Data connections",exact:true}).click();
     await page.getByRole("button",{name:"Switch language",exact:true}).click();
     await page.setViewportSize({width:1536,height:1024});
-    await expect(page.getByRole("heading",{name:"采集器",exact:true})).toBeVisible();
+    await expect(page.getByRole("heading",{name:"数据接入",exact:true})).toBeVisible();
     await page.getByRole("button",{name:"添加采集器",exact:true}).first().click();
     dialog=page.getByRole("dialog",{name:"添加采集器",exact:true});
     await dialog.getByLabel("采集类型",{exact:true}).selectOption("mysql");
@@ -6397,7 +6397,7 @@ test("V2 refresh defaults, URL overrides and bilingual controls schedule and sto
       .click();
     await page.setViewportSize({ width: 1536, height: 1024 });
     await picker.selectOption("7s");
-    await page.getByRole("button", { name: "Template center", exact: true }).click();
+    await page.getByRole("button", { name: "Saved views", exact: true }).click();
     const departedCount = requests;
     await page.waitForTimeout(7400);
     expect(requests).toBe(departedCount);
@@ -6657,7 +6657,7 @@ test("SDK application events refresh real queries, notify ranges and preserve si
       animations: "disabled",
     });
     // Unmount both local panel buses, then mount them again. The global bus survives.
-    await page.getByRole("button", { name: "Template center", exact: true }).click();
+    await page.getByRole("button", { name: "Saved views", exact: true }).click();
     await expect(first).toHaveCount(0);
     await global
       .getByRole("button", { name: "SDK global refresh", exact: true })
@@ -7305,7 +7305,7 @@ test("Official frontend DataSourceWithBackend queries a real Go SDK subprocess",
     const cancelledBefore = (await chunkStats()).cancelled;
     await page.goto(endpoint + "/d/frontend-chunks-cancel/cancel");
     await expect.poll(chunkStats).toMatchObject({ active: 1 });
-    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("button", { name: "Home", exact: true }).click();
     await expect
       .poll(chunkStats)
       .toMatchObject({ active: 0, cancelled: cancelledBefore + 1 });
@@ -7417,7 +7417,7 @@ test("Official frontend DataSourceWithBackend queries a real Go SDK subprocess",
         ),
       )
       .toBeTruthy();
-    await page.getByRole("button", { name: "Overview", exact: true }).click();
+    await page.getByRole("button", { name: "Home", exact: true }).click();
     await expect
       .poll(async () => {
         const state = await channels();
@@ -7961,7 +7961,7 @@ test("Persistent pattern capture, nearest windows, language switch and desktop l
     ).ok(),
   ).toBe(true);
   await page.goto(endpoint);
-  await page.getByRole("button", { name: "Explore", exact: true }).click();
+  await page.getByRole("button", { name: "Search details", exact: true }).click();
   await page
     .getByRole("combobox", { name: "Metric", exact: true })
     .selectOption("vector_e2e");
@@ -8038,7 +8038,7 @@ test("Grafana resource layout, SDK transforms, instant tables, units, repeat and
   });
   expect(ingest.ok()).toBe(true);
   await page.goto(endpoint);
-  await page.getByRole("button", { name: "Template center", exact: true }).click();
+  await page.getByRole("button", { name: "Saved views", exact: true }).click();
   const panel = {
     type: "stat",
     targets: [
@@ -8197,22 +8197,17 @@ test("English and Chinese, panels, PromQL, dashboards and collector forms", asyn
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
   await page.goto(endpoint);
-  if (
-    await page
-      .getByRole("heading", { name: "系统概览", exact: true })
-      .isVisible()
-  )
-    await page.getByRole("button", { name: "Switch language" }).click();
   await expect(
-    page.getByRole("heading", { name: "System overview", exact: true }),
+    page.getByRole("heading", { name: "Home", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Memory usage", exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Switch language" }).click();
   await expect(
-    page.getByRole("heading", { name: "系统概览", exact: true }),
+    page.getByRole("heading", { name: "首页", exact: true }),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "添加面板", exact: true }),
@@ -8233,7 +8228,7 @@ test("English and Chinese, panels, PromQL, dashboards and collector forms", asyn
   await expect(
     page.getByRole("heading", { name: "Persistent uptime", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Explore", exact: true }).click();
+  await page.getByRole("button", { name: "Search details", exact: true }).click();
   await page
     .getByLabel("PromQL expression", { exact: true })
     .fill("sum(metricspanel_goroutines)");
@@ -8245,7 +8240,7 @@ test("English and Chinese, panels, PromQL, dashboards and collector forms", asyn
   await expect(page.getByRole("dialog").getByText("sum(metricspanel_goroutines)", { exact: true })).toBeVisible();
   await page.getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
   await expect(page.locator(".chart-panel .form-error")).toHaveCount(0);
-  await page.getByRole("button", { name: "Template center", exact: true }).click();
+  await page.getByRole("button", { name: "Saved views", exact: true }).click();
   await page
     .getByRole("button", { name: "New dashboard", exact: true })
     .click();
@@ -8258,7 +8253,7 @@ test("English and Chinese, panels, PromQL, dashboards and collector forms", asyn
   await expect(
     page.getByRole("heading", { name: "Backend operations", exact: true }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Collectors", exact: true }).click();
+  await page.getByRole("button", { name: "Data connections", exact: true }).click();
   await page
     .getByRole("button", { name: "Add collector", exact: true })
     .first()
@@ -8275,7 +8270,7 @@ test("English and Chinese, panels, PromQL, dashboards and collector forms", asyn
     .getByRole("button", { name: "Scrape Self test", exact: true })
     .click();
   await expect(page.getByRole("status")).toContainText("Scrape completed");
-  await page.getByRole("button", { name: "Command line", exact: true }).click();
+  await page.getByRole("button", { name: "CLI guide", exact: true }).click();
   await expect(
     page.getByRole("heading", { name: "Usage", exact: true }),
   ).toBeVisible();
@@ -8299,8 +8294,9 @@ test("Grafana template import, variables and desktop navigation", async ({
 }) => {
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
   await page.goto(endpoint);
-  await page.getByRole("button", { name: "Template center", exact: true }).click();
+  await page.getByRole("button", { name: "Saved views", exact: true }).click();
   await page.locator("input[type=file]").setInputFiles({
     name: "grafana.json",
     mimeType: "application/json",
@@ -8348,10 +8344,10 @@ test("Grafana template import, variables and desktop navigation", async ({
   );
   expect(overflow).toBe(false);
   await navigation
-    .getByRole("button", { name: "Overview", exact: true })
+    .getByRole("button", { name: "Home", exact: true })
     .click();
   await expect(
-    page.getByRole("heading", { name: "System overview", exact: true }),
+    page.getByRole("heading", { name: "Home", exact: true }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });
@@ -8369,7 +8365,7 @@ test("Workspace shell collapses the left navigation and keeps content responsive
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto(endpoint + "/#overview");
   await expect(
-    page.getByRole("button", { name: "Overview", exact: true }),
+    page.getByRole("button", { name: "Home", exact: true }),
   ).toBeVisible();
   const shell = page.locator(".app-shell");
   const sidebar = page.locator(".sidebar");
@@ -8382,7 +8378,7 @@ test("Workspace shell collapses the left navigation and keeps content responsive
     .poll(async () => (await sidebar.boundingBox())!.width)
     .toBeLessThanOrEqual(80);
   await expect(
-    page.getByRole("button", { name: "Template center", exact: true }).locator("span"),
+    page.getByRole("button", { name: "Saved views", exact: true }).locator("span"),
   ).toBeHidden();
   expect(
     await page.evaluate(

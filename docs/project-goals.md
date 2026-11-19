@@ -77,7 +77,8 @@ primitives in `web/src/ui`** (buttons, inputs, fields, selects, alerts, badges, 
 layout/CSS. Product features must not import `@grafana/ui` directly. Grafana UI packages are confined to the optional
 import/plugin compatibility layer under `web/src/grafana`.
 
-- `web/src/ui/index.tsx` owns the product primitives and their dark theme tokens.
+- `web/src/ui/index.tsx` owns the product primitives. `web/src/ui/tokens.css` owns the dark theme and fonts.
+- New browser profiles start in Simplified Chinese. A saved language choice takes precedence.
 - Charts and tables are product components in `web/src/render`. The default time-series and table renderers are own
   uPlot/HTML implementations; imported Grafana resources may still use compatibility adapters behind the
   `web/src/grafana` boundary.

@@ -17,8 +17,8 @@ import (
 )
 
 type BusinessDirectoryFilter struct {
-	Query, Environment, Platform, Role, Sort, Cursor string
-	Limit                                            int
+	Query, Environment, Platform, Role, Report, Sort, Cursor string
+	Limit                                                    int
 }
 
 var ErrBusinessNoteConflict = errors.New("instance note changed; reload before saving")
@@ -29,6 +29,7 @@ type BusinessDirectoryPage struct {
 	Matched      int            `json:"matched"`
 	Counts       map[string]int `json:"counts"`
 	Platforms    map[string]int `json:"platforms"`
+	Reports      map[string]int `json:"reports"`
 	Environments []string       `json:"environments"`
 }
 
@@ -39,6 +40,7 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 		BusinessInstancePage: BusinessInstancePage{Items: []model.BusinessInstance{}, Capacity: BusinessInstanceLimit},
 		Counts:               map[string]int{"all": 0, "game": 0, "gateway": 0, "sdk": 0, "center": 0},
 		Platforms:            map[string]int{},
+		Reports:              map[string]int{"recent": 0, "overdue": 0},
 		Environments:         []string{},
 	}
 	if f.Limit < 1 || f.Limit > 100 || !validDirectoryFilter(f.Query, 128) || !validDirectoryFilter(f.Environment, 128) || !validDirectoryFilter(f.Platform, 128+len("custom:")) {
@@ -53,12 +55,18 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 	if f.Role != "all" && f.Role != "game" && f.Role != "gateway" && f.Role != "sdk" && f.Role != "center" {
 		return page, errors.New("invalid directory role")
 	}
+	if f.Report != "" && f.Report != "recent" && f.Report != "overdue" {
+		return page, errors.New("invalid directory report state")
+	}
 	if f.Sort != "server" && f.Sort != "recent" && f.Sort != "host" {
 		return page, errors.New("invalid directory sort")
 	}
 	filters := []string{f.Query, f.Environment, f.Role, f.Sort}
-	if f.Platform != "" {
+	if f.Platform != "" || f.Report != "" {
 		filters = append(filters, f.Platform)
+	}
+	if f.Report != "" {
+		filters = append(filters, f.Report)
 	}
 	scope := sha256.Sum256([]byte(strings.Join(filters, "\x00")))
 	prefix := hex.EncodeToString(scope[:12]) + ":"
@@ -80,6 +88,7 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 	items := []model.BusinessInstance{}
 	environments := map[string]bool{}
 	query := strings.ToLower(strings.TrimSpace(f.Query))
+	now := time.Now().UnixMilli()
 	for rows.Next() {
 		item, e := scanBusiness(rows)
 		if e != nil {
@@ -103,10 +112,21 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 			role = "game"
 		}
 		matchesRole := f.Role == "all" || f.Role == role
+		matchesPlatform := f.Platform == "" || f.Platform == item.Platform
+		report := "overdue"
+		if item.LastSeen > 0 && item.LastSeen <= now+30000 && now-item.LastSeen <= 90000 {
+			report = "recent"
+		}
+		if matchesRole && matchesPlatform {
+			page.Reports[report]++
+		}
+		if f.Report != "" && f.Report != report {
+			continue
+		}
 		if matchesRole {
 			page.Platforms[item.Platform]++
 		}
-		if f.Platform != "" && f.Platform != item.Platform {
+		if !matchesPlatform {
 			continue
 		}
 		page.Counts["all"]++

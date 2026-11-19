@@ -303,7 +303,7 @@ export default function ManagedHosts({
     <div className="managed-hosts">
       <div className="page-heading">
         <div>
-          <h1>{text("Host monitoring", "主机监控")}</h1>
+          <h1>{text("Hosts", "主机")}</h1>
           <p className="subtle">
             {text(
               "Host resources, databases and collection status.",

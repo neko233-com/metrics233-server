@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/neko233-com/metrics233-server/internal/model"
 	"github.com/stretchr/testify/require"
@@ -133,4 +134,15 @@ func TestBusinessDirectoryPlatformFacetsAndPaging(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, page.Items, 1)
 	require.Equal(t, "33", page.Items[0].Identity.ServerID)
+
+	_, err = s.DB.ExecContext(ctx, "UPDATE business_instances SET last_seen = ? WHERE id = ?", time.Now().Add(-2*time.Minute).UnixMilli(), page.Items[0].ID)
+	require.NoError(t, err)
+	filter = BusinessDirectoryFilter{Limit: 24, Environment: "release", Role: "game", Report: "overdue"}
+	page, err = s.BusinessDirectory(ctx, filter)
+	require.NoError(t, err)
+	require.Len(t, page.Items, 1)
+	require.Equal(t, "33", page.Items[0].Identity.ServerID)
+	require.Equal(t, map[string]int{"recent": 2, "overdue": 1}, page.Reports)
+	require.Equal(t, 1, page.Platforms["custom:studio-beta"])
+	require.Equal(t, 0, page.Platforms["taptap"])
 }

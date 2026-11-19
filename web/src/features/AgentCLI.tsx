@@ -106,7 +106,7 @@ export function AgentCLI() {
     <>
       <div className="page-heading">
         <div>
-          <h1>{tr("Command line")}</h1>
+          <h1>{tr("CLI guide")}</h1>
           <p>{tr("Query metrics, manage collectors and export configuration.")}</p>
         </div>
         <Terminal className="heading-symbol" size={36} />

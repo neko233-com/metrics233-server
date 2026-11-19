@@ -83,10 +83,10 @@ export default function BusinessMonitoring({ metrics, dashboards, targets, reloa
   }
 
   return <>
-    <div className="game-monitoring-tabs" role="group" aria-label={text("Dashboard categories", "仪表盘分类")}>
-      <Button aria-pressed={surface === "game"} onClick={() => selectSurface("game")}>{text("Game overview", "游戏监控总览")}</Button>
-      <Button aria-pressed={surface === "services"} onClick={() => selectSurface("services")}>{text("Business services", "业务服务")}</Button>
-      <Button aria-pressed={surface === "resources"} onClick={() => selectSurface("resources")}>{text("Infrastructure", "基础设施")}</Button>
+    <div className="game-monitoring-tabs" role="group" aria-label={text("Server monitoring views", "服务器监控")}>
+      <Button aria-pressed={surface === "services"} onClick={() => selectSurface("services")}>{text("Server list", "服务器列表")}</Button>
+      <Button aria-pressed={surface === "game"} onClick={() => selectSurface("game")}>{text("Game metrics", "游戏数据")}</Button>
+      <Button aria-pressed={surface === "resources"} onClick={() => selectSurface("resources")}>{text("Resources", "资源监控")}</Button>
     </div>
     {surface === "game" ? <Suspense fallback={<p role="status">{text("Loading game overview…", "正在加载游戏监控…")}</p>}>
       <GameOverview tick={tick} openExplore={() => navigate("explore")} />

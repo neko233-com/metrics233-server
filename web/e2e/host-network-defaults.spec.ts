@@ -89,8 +89,8 @@ test("automatic refresh catches up once after a suspended timer without replacin
   await expect.poll(() => requests).toBe(1);
   const first = await page.getByRole("article", { name: "Game server 84", exact: true }).elementHandle();
   const search = page.getByRole("searchbox", { name: "Search all instances", exact: true }); await search.fill("unfinished search");
-  await page.clock.pauseAt(now + 1000);
-  await page.clock.setSystemTime(now + 6000);
+  await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 250);
+  await page.clock.setSystemTime(await page.evaluate(() => Date.now()) + 6000);
   await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
   await expect.poll(() => requests, { timeout: 2000 }).toBe(2);
   await page.evaluate(() => { document.dispatchEvent(new Event("visibilitychange")); window.dispatchEvent(new Event("pageshow")); });
@@ -136,7 +136,7 @@ test("host instruments adapt to their container and keep automatic/manual NIC id
   await page.route("**/api/v1/managed-hosts", route => route.fulfill({ json: [{ id: "host-ui-defaults", name: "Interface fixture", address: "127.0.0.1", port: 22, user: "fixture", enabled: true, version: 1, target: { name: "fixture", kind: "prometheus", url: "http://127.0.0.1/metrics", interval_seconds: 30, enabled: true }, last_seen: Date.now(), agent_state: "collecting", agent_os: "darwin", agent_arch: "arm64", collect_host: true, resources: current }] }));
   await history(page, service, "host-ui-defaults");
   await open(page, service, "hosts");
-  await expect(page.getByRole("heading", { name: "Host monitoring", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hosts", exact: true })).toBeVisible();
   const card = page.getByRole("region", { name: "Interface fixture", exact: true });
   await card.getByText("Network interfaces · receive and send", { exact: true }).click();
   const select = card.getByRole("combobox", { name: "History interface", exact: true });

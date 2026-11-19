@@ -1,5 +1,14 @@
 # Project status and progress protocol
 
+### 2026-11-19 — Chinese-first workspace and reporting status
+
+New browser profiles open in Simplified Chinese. Saved language preferences survive reloads. Home links,
+navigation and page titles use shorter bilingual labels. Geist variable fonts and shared neutral tokens apply
+to first-party chrome, and existing chart palettes stay independent. The directory filters recent or overdue
+reports across all result pages and displays freshness separately from server health.
+The targeted Go tests, all 177 web tests and 22 Edge cases passed against isolated services. The
+suspended-refresh fixture now advances from the browser's current clock, removing its load-time race.
+
 ### 2026-11-19 — Server directory platform and list changes
 
 The directory now groups reported channels, discovers custom channels, and filters by platform and service type

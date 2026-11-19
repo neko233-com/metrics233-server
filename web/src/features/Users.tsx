@@ -122,7 +122,7 @@ export function Users({
     <>
       <div className="page-heading">
         <div>
-          <h1>{tr("Users")}</h1>
+          <h1>{tr("Accounts")}</h1>
           <p>
             {users.length} {tr("accounts")} ·{" "}
             {tr("Roles apply to the whole workspace.")}

@@ -1,17 +1,19 @@
 .business-instance-directory .business-directory-heading { margin-bottom: 20px; }
 .business-title-line { gap: 12px; }
+.business-title-line h1 { font-size: clamp(24px, 3cqw, 34px); letter-spacing: -.85px; }
 .business-title-line > span { font-variant-numeric: tabular-nums; }
 .business-instance-directory .business-directory-tools { gap: 10px; margin-bottom: 8px; }
 .business-instance-directory .business-search-input input { background: var(--surface); }
 .business-directory-search { flex: 1 1 300px; }
-.business-directory-sort, .business-directory-environment {
+.business-directory-search > button { min-height: 42px; }
+.business-directory-sort, .business-directory-environment, .business-directory-report {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: var(--text-secondary);
   font-size: 13px;
 }
-.business-directory-sort select, .business-directory-environment select { width: auto; min-width: 124px; max-width: 220px; height: 42px; font-size: 13px; }
+.business-directory-tools select { width: auto; min-width: 124px; max-width: 220px; height: 42px; font-size: 13px; }
 .business-platform-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
 .business-platform-filters button, .business-platform-filters .business-platform-more {
   min-height: 38px;
@@ -57,7 +59,7 @@
 .business-platform-badge:is([data-platform=qq], [data-platform=steam], [data-platform=web], [data-platform=custom]) { --platform-ink: #b8d1ff; --platform-tint: #4678e4; }
 .business-platform-badge[data-platform=kuaishou] { --platform-ink: #ffcb9e; --platform-tint: #db793b; }
 .business-platform-badge[data-platform=bilibili] { --platform-ink: #ffc5df; --platform-tint: #cf6993; }
-.business-platform-filters .business-platform-badge { padding: 0; border: 0; background: transparent; }
+.business-platform-filters .business-platform-badge { padding: 1px 5px; }
 .business-instance-directory .business-role-tabs { margin-bottom: 14px; gap: 12px; }
 .business-instance-directory .business-role-tabs > button { min-height: 42px; padding-inline: 10px; }
 .business-instance-directory .business-role-tabs > button[aria-pressed=true] { color: var(--text); border-bottom-color: var(--active-indicator); }
@@ -73,7 +75,14 @@
   background: var(--surface);
   min-width: 0;
 }
-.business-server-list.is-windowed { max-height: min(68dvh, 730px); overflow: auto; scrollbar-gutter: stable; overscroll-behavior-y: contain; }
+.business-server-list.is-windowed {
+  max-height: min(68dvh, 730px);
+  overflow: auto;
+  scrollbar-gutter: stable;
+  overscroll-behavior-y: contain;
+  overflow-anchor: none;
+  scroll-padding-top: 42px;
+}
 .business-server-list-heading, .business-instance-card {
   display: grid;
   grid-template-columns: var(--business-row-columns);
@@ -186,8 +195,8 @@
   .business-card-meters { grid-column: 1; grid-row: 3; }
   .business-card-traffic { grid-column: 2; grid-row: 3; }
   .business-instance-card > footer { grid-column: 1 / -1; grid-row: 4; display: flex; flex-wrap: wrap; }
-  .business-directory-sort, .business-directory-environment { flex: 1 1 210px; }
-  .business-directory-sort select, .business-directory-environment select { flex: 1; min-width: 100px; max-width: none; }
+  .business-directory-sort, .business-directory-environment, .business-directory-report { display: grid; flex: 1 1 86px; min-width: 0; gap: 4px; font-size: 11px; }
+  .business-directory-tools select { width: 100%; min-width: 0; max-width: none; height: 36px; font-size: 12px; }
   .business-instance-directory .business-role-tabs { gap: 4px; }
   .business-instance-directory .business-role-tabs > button { padding-inline: 8px; font-size: 12px; }
 }

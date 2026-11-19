@@ -8,7 +8,7 @@ import { Alert, Button, Input } from "../ui";
 import { useSession } from "../ui/session";
 import BusinessNoteEditor from "./BusinessNoteEditor";
 import { pinnedPlatforms, PlatformBadge, platformName } from "./BusinessPlatform";
-import { instanceTitle, reportFresh, type BusinessInstance, type DirectorySort, type InstancePage, type InstanceSummary } from "./business-instance-directory-model";
+import { instanceTitle, reportFresh, type BusinessInstance, type DirectorySort, type InstancePage, type InstanceSummary, type ReportState } from "./business-instance-directory-model";
 import "./business-instance-cards.css";
 
 const text = (en: string, zh: string) => getLocale() === "zh" ? zh : en;
@@ -90,7 +90,7 @@ function InstanceRow({ item, summary, select, edit, canEdit, now }: {
       <span><ArrowUp size={14} aria-hidden="true" /><small>{text("Send", "上行")}</small><strong>{trafficValue(summary?.transmit_per_second)}</strong></span>
     </div>
     <footer className={fresh ? "report-fresh" : "report-old"}>
-      <span><i aria-hidden="true" />{fresh ? text("Last report", "最近上报") : text("Report overdue", "上报待更新")}</span>
+      <span><i aria-hidden="true" />{fresh ? text("Last report", "最近上报") : text("Report overdue", "上报超时")}</span>
       <time dateTime={item.last_seen ? new Date(item.last_seen).toISOString() : undefined}>{formatTimestamp(item.last_seen || undefined)}</time>
     </footer>
   </article>;
@@ -177,10 +177,11 @@ export default function BusinessInstanceDirectory({ active, select, reload, tick
   const [environment, setEnvironment] = useState("");
   const [platform, setPlatform] = useState("");
   const [role, setRole] = useState("all");
+  const [report, setReport] = useState<ReportState | "">("");
   const [sort, setSort] = useState<DirectorySort>("server");
   const [editing, setEditing] = useState<BusinessInstance | null>(null);
 
-  const scope = new URLSearchParams({ limit: "24", cursor, q: query, environment, platform, role, sort }).toString();
+  const scope = new URLSearchParams({ limit: "24", cursor, q: query, environment, platform, role, report, sort }).toString();
   const displayed = result?.scope === scope ? result.page : null;
   const now = useObservationClock(displayed?.items.flatMap(item => [
     item.last_seen - 30000, item.last_seen + 90001, (displayed.summaries?.[item.id]?.host_expires_at || 0) + 1,
@@ -198,6 +199,7 @@ export default function BusinessInstanceDirectory({ active, select, reload, tick
     setEnvironment("");
     setPlatform("");
     setRole("all");
+    setReport("");
     resetPage();
   }
 
@@ -256,6 +258,14 @@ export default function BusinessInstanceDirectory({ active, select, reload, tick
           <option value="host">{text("Host IP", "主机 IP")}</option>
         </select>
       </label>
+      <label className="business-directory-report" title={text("Overdue means no report within 90 seconds.", "超过 90 秒未收到数据即为上报超时。")}>
+        <span>{text("Reporting", "上报状态")}</span>
+        <select value={report} onChange={event => { resetPage(); setReport(event.target.value as ReportState | ""); }}>
+          <option value="">{text("Any status", "全部状态")}</option>
+          <option value="recent">{text("Recent reports", "近期上报")} ({result?.page.reports?.recent ?? "—"})</option>
+          <option value="overdue">{text("Report overdue", "上报超时")} ({result?.page.reports?.overdue ?? "—"})</option>
+        </select>
+      </label>
     </div>
     <div className="business-environment-filter business-role-tabs" role="group" aria-label={text("Service categories", "服务类型")}>
       {serviceRoles.map(([key, en, zh]) => <button key={key} type="button" aria-pressed={role === key}
@@ -270,7 +280,7 @@ export default function BusinessInstanceDirectory({ active, select, reload, tick
     } />}
     {displayed && !displayed.items.length && <div className="business-directory-empty" role="status">
       <Server size={26} aria-hidden="true" /><p>{text("No matching instances.", "没有匹配的实例。")}</p>
-      {(query || platform || environment || role !== "all") && <Button onClick={clearFilters}>{text("Clear filters", "清除筛选")}</Button>}
+      {(query || platform || environment || role !== "all" || report) && <Button onClick={clearFilters}>{text("Clear filters", "清除筛选")}</Button>}
     </div>}
     {displayed && <footer className="business-directory-footer">
       <p><Info size={15} aria-hidden="true" />{text("Last report shows when data arrived. Check server details for health.", "最近上报显示收到数据的时间。运行情况请查看服务器详情。")}</p>

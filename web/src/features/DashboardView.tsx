@@ -1,6 +1,6 @@
 import { getLocale, t as tr } from "../i18n";
 import { lazy, Suspense, useState } from "react";
-import { Plus, RefreshCw, Pencil } from "lucide-react";
+import { ArrowUpRight, ChartNoAxesColumn, Plus, RefreshCw, Pencil, Search, Server } from "lucide-react";
 import {
   api,
   ApiError,
@@ -68,13 +68,18 @@ type DashboardViewProps = {
   tick: number;
   range: TimeSelection;
   onRange: (v: TimeSelection) => void;
-  onNavigate: (view: "collectors" | "explore" | "alerts") => void;
+  onNavigate: (view: "collectors" | "explore" | "alerts" | "business" | "dashboards") => void;
   refresh: () => void;
   refreshChoice: string;
   onRefreshChoice: (value: string) => void;
   reload: () => Promise<void>;
   notify: (s: string, error?: boolean) => void;
 };
+const homeLinks = [
+  { view: "business", label: "Servers", description: "See server reports, platforms, and resources.", icon: Server },
+  { view: "dashboards", label: "Saved views", description: "Find saved charts and templates.", icon: ChartNoAxesColumn },
+  { view: "explore", label: "Search details", description: "Look up metrics from a data source.", icon: Search },
+] as const;
 function DashboardContent({
   dashboard,
   stats,
@@ -190,11 +195,11 @@ function DashboardContent({
     <>
       <div className="page-heading dashboard-heading">
         <div>
-          <h1>{tr(dashboard.name)}</h1>
+          <h1>{tr(dashboard.id === "system" ? "Home" : dashboard.name)}</h1>
           <p>
             {tr(
               dashboard.id === "system"
-                ? "Monitoring service itself. Open Dashboards to inspect reporting servers."
+                ? "Monitor the Metrics233 service and open the tools you need."
                 : "Panels",
             )}
             {dashboard.id !== "system" ? `: ${dashboard.panels.length}` : ""}
@@ -254,6 +259,19 @@ function DashboardContent({
           )}
         </div>
       </div>
+      {dashboard.id === "system" && <nav className="home-links" aria-label={tr("Quick links")}>
+        {homeLinks.map(({ view, label, description, icon: Icon }) =>
+          <a key={view} href={"#" + view} onClick={event => {
+            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            onNavigate(view);
+          }}>
+            <Icon size={18} aria-hidden="true" />
+            <span><strong>{tr(label)}</strong><small>{tr(description)}</small></span>
+            <ArrowUpRight size={15} aria-hidden="true" />
+          </a>
+        )}
+      </nav>}
       {dashboard.id === "system" ? (
         <div className="stats-band">
           <div>

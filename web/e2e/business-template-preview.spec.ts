@@ -107,7 +107,7 @@ test("multi-environment logic preview requires a choice, isolates switches and r
   await page.getByRole("button", { name: "Slow SQL Top10", exact: true }).click(); await expect(page.getByRole("heading", { name: "Slow SQL Top10", exact: true })).toBeVisible();
   await slowResponse; expect(sqlRequests).toBe(1);
   await page.getByRole("combobox", { name: "Auto refresh", exact: true }).selectOption(""); await page.unroute(sqlPattern);
-  await page.getByRole("button", { name: "Dashboards", exact: true }).first().click();
+  await page.getByRole("button", { name: "Servers", exact: true }).first().click();
   await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
   const environment = page.getByRole("combobox", { name: "Environment", exact: true });
   const cards = page.getByRole("article", { name: "Game server 7", exact: true });

@@ -79,11 +79,11 @@ export function Explore({
     <>
       <div className="page-heading">
         <div>
-          <h1>{tr("Explore")}</h1>
+          <h1>{tr("Search details")}</h1>
           <p>
             {getLocale() === "zh"
-              ? "查询已存储的指标或已配置的数据源。"
-              : "Query stored metrics or a configured datasource."}
+              ? "选一个数据源，查找指标、趋势和明细。"
+              : "Choose a data source to look up metrics, trends, and details."}
           </p>
         </div>
       </div>
@@ -293,7 +293,7 @@ export function Explore({
                               });
                             }}
                           >
-                            {tr("Explore")}
+                            {tr("Search details")}
                           </button>
                         </td>
                       </tr>

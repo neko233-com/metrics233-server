@@ -125,7 +125,7 @@ test("retention defaults to fifteen days, persists and rejects a stale administr
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await open(page, service);
-  await page.getByRole("button", { name: "Collectors", exact: true }).click();
+  await page.getByRole("button", { name: "Data connections", exact: true }).click();
   const section = page.getByRole("region", { name: "Storage & retention", exact: true });
   const input = section.getByLabel("Retention days", { exact: true });
   await expect(input).toHaveValue("15");
@@ -169,7 +169,7 @@ test("observed canonical IP can be blocked, unblocked and allowlisted without tr
   expect((await read()).sources).toEqual([]);
   expect((await push()).ok()).toBeTruthy();
   await open(page, service);
-  await expect(page.getByRole("heading", { name: "Reporting sources", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Reporting access", exact: true })).toBeVisible();
   const list = page.getByRole("region", { name: "Source IPs", exact: true });
   const local = list.getByRole("row").filter({ has: page.getByText("127.0.0.1", { exact: true }) });
   await expect(local).toContainText("source-ui-fixture");
@@ -234,7 +234,7 @@ test("source filtering and 50-row pagination remain local and Chinese mobile lay
     await route.fulfill({ json: { version: 1, allowlist_only: false, observation_limit: 1024, policy_limit: 4096, sources } });
   });
   await open(page, service, "zh");
-  await expect(page.getByRole("heading", { name: "上报来源", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "上报管理", exact: true })).toBeVisible();
   const list = page.getByRole("region", { name: "来源 IP 列表", exact: true });
   await expect(list.locator("tbody tr")).toHaveCount(50);
   const loadedReads = reads;

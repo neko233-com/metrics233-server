@@ -72,6 +72,7 @@ const context = await browser.newContext({
   viewport: { width: 1536, height: 1024 },
   locale: "en-US",
 });
+await context.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
 const page = await context.newPage();
 const errors = [];
 page.on("pageerror", (error) => errors.push(`pageerror: ${error}`));
@@ -120,8 +121,8 @@ try {
   check(Boolean(session?.httpOnly), "session cookie is HttpOnly");
   check(session?.sameSite === "Lax", "session cookie is SameSite=Lax");
 
-  await page.getByRole("button", { name: "Users", exact: true }).click();
-  await page.getByRole("heading", { name: "Users", exact: true }).waitFor();
+  await page.getByRole("button", { name: "Accounts", exact: true }).click();
+  await page.getByRole("heading", { name: "Accounts", exact: true }).waitFor();
   await page.getByRole("button", { name: "Create user", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Create user" });
   await dialog.getByLabel("Login").fill("viewer");
@@ -139,10 +140,10 @@ try {
   await page.getByRole("button", { name: "Sign in" }).click();
   await page.waitForSelector(".app-shell", { timeout: 20000 });
   check(true, "viewer signs in");
-  check((await page.getByRole("button", { name: "Users", exact: true }).count()) === 0, "viewer cannot see Users navigation");
+  check((await page.getByRole("button", { name: "Accounts", exact: true }).count()) === 0, "viewer cannot see Users navigation");
   check((await page.getByRole("button", { name: "Add panel", exact: true }).count()) === 0, "viewer cannot see Add panel");
 
-  const businessNavigation = page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Dashboards", exact: true });
+  const businessNavigation = page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Servers", exact: true });
   check((await businessNavigation.count()) === 1, "viewer can access business Dashboards");
   await businessNavigation.click();
   await page.getByRole("heading", { name: "Server directory", exact: true }).waitFor();

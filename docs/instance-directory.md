@@ -1,14 +1,15 @@
 # Instance directory and network observations
 
-The first-party console uses GitHub Dark canvas/surface/control tokens. Visualization palettes stay independent:
+The first-party console uses Geist fonts, neutral dark surfaces, and shared control tokens. Visualization palettes stay independent:
 native time-series retain Grafana classic colors, and gauges keep their numeric threshold bands. Frame-local
 SDK series indexes are normalized across a plot on cloned metadata; authored fixed/threshold colors remain intact.
 
 `GET /api/v1/business/directory` is a Viewer read over at most 4096 observed identities. `q` searches actual identity
 values, reported/observed addresses and operator descriptions. `environment`, `platform`,
-`role=all|game|gateway|sdk|center` and `sort=server|recent|host` apply before pagination. Limits are 1–100.
-`platforms` counts each platform after search, environment and role filtering. Role counts use search,
-environment and platform filtering. Both count the complete filtered catalog. Cursors are tied to filters
+`role=all|game|gateway|sdk|center`, `report=recent|overdue` and `sort=server|recent|host`
+apply before pagination. Limits are 1–100. Platform, role and reporting counts each apply the other filters
+and count the complete filtered catalog. A recent report arrived within 90 seconds. The filter measures report freshness.
+Cursors are tied to filters
 and sort; a live recent-report sort may move
 when new observations arrive. Default natural server sorting is stable. Template-scoped legacy pagination is unchanged.
 
@@ -70,7 +71,7 @@ the row), and one below 600px. The user's Large setting remains one column. This
 sidebar; viewport width alone must not shrink three gauges into an unreadable narrow content area.
 Collectors and historical/custom host dashboards are upgraded separately; provisioning preserves customized boards.
 
-## Rendered acceptance and design comparison
+## 0.2.24 historical rendered acceptance
 
 The console palette uses a darker `#010409` navigation/header against the `#0d1117` page, `#161b22` cards,
 `#21262d` controls and `#30363d` borders. Current locations use a neutral selection with a coral indicator;

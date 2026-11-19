@@ -1,0 +1,56 @@
+/* Geist variable webfonts from geist@1.9.2. The license ships in /licenses/Geist.txt. */
+@font-face {
+  font-family: "Geist";
+  src: url("./fonts/Geist-Variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Geist Mono";
+  src: url("./fonts/GeistMono-Variable.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+:root {
+  --sans: "Geist", system-ui, "Segoe UI", "Microsoft YaHei UI", sans-serif;
+  --mono: "Geist Mono", "Cascadia Code", Consolas, monospace;
+  --canvas: #0a0a0a;
+  --sidebar: #0a0a0a;
+  --surface: #111;
+  --surface-hover: #181818;
+  --elevated: #191919;
+  --control-hover: #272727;
+  --border: #343434;
+  --border-subtle: #262626;
+  --text: #ededed;
+  --text-secondary: #b5b5b5;
+  --muted: #a1a1a1;
+  --accent: #74b9ff;
+  --link: var(--accent);
+  --selection: #ffffff0d;
+  --selection-border: #ffffff26;
+  --active-indicator: #fafafa;
+  --primary: #ededed;
+  --primary-hover: #d4d4d4;
+  --primary-text: #111;
+  --green: #63d88a;
+  --warning: #efb95e;
+  --danger: #ff817f;
+  --radius-control: 7px;
+  --radius-panel: 10px;
+  --mobile-navigation-width: 250px;
+  --workspace-navigation-width: 224px;
+
+  /* Legacy name for interactive chrome. Native charts and risk thresholds own their colors. */
+  --orange: var(--accent);
+
+  color: var(--text);
+  background: var(--canvas);
+  color-scheme: dark;
+  font-family: var(--sans);
+  font-weight: 400;
+  font-synthesis: none;
+}

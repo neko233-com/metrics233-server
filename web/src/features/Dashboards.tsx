@@ -57,7 +57,7 @@ export function Dashboards({
     <>
       <div className="page-heading">
         <div>
-          <h1>{tr("Template center")}</h1>
+          <h1>{tr("Saved views")}</h1>
           <p>{dashboards.length} {tr("dashboards")} · {folders.length} {tr("folders")}</p>
         </div>
         {tab === "dashboards" && canEdit && <div className="toolbar">

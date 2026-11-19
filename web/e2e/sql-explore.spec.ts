@@ -520,7 +520,7 @@ test("Desktop native SQL configuration preserves secrets and Explore executes co
 
     await page.goto(endpoint + "/#explore");
     await expect(
-      page.getByRole("heading", { name: "Explore", exact: true }),
+      page.getByRole("heading", { name: "Search details", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("combobox", { name: "Metric", exact: true }),

@@ -203,11 +203,34 @@ test("platform facets discover new channels and window one server per row", asyn
   await expect(page.getByText("No matching instances.")).toBeVisible();
   await page.getByRole("combobox", { name: "Environment", exact: true }).selectOption("audit");
   await expect(custom).toBeVisible();
+  await page.getByRole("combobox", { name: "Reporting", exact: true }).selectOption("overdue");
+  await expect(page.getByText("No matching instances.")).toBeVisible();
+  await page.getByRole("combobox", { name: "Reporting", exact: true }).selectOption("recent");
+  await expect(custom).toBeVisible();
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
-  await page.screenshot({ path: info.outputPath("server-directory-mobile.png") });
+  await page.screenshot({ path: info.outputPath("server-directory-mobile.png"), animations: "disabled" });
   await custom.getByRole("button", { name: /^Open Control server/ }).click();
   await expect(page.getByRole("region", { name: "Instance dashboard" }).locator(".business-platform-badge")).toHaveText("studio-preview");
   await page.getByRole("button", { name: "All instances", exact: true }).click();
   await expect(custom).toBeVisible();
+});
+
+test("Chinese is the first-visit language and the Home links name the destination", async ({ page, service }, info) => {
+  await page.addInitScript(token => sessionStorage.setItem("metricspanel-token", token), service.token);
+  await page.goto(service.url);
+  await expect(page.locator("html")).toHaveAttribute("lang", "zh-CN");
+  await expect(page.getByRole("heading", { name: "首页", exact: true })).toBeVisible();
+  await page.getByRole("navigation", { name: "常用功能" }).getByRole("link", { name: /^服务器/ }).click();
+  await expect(page.getByRole("heading", { name: "服务器列表", exact: true })).toBeVisible();
+  await page.screenshot({ path: info.outputPath("server-directory-desktop.png") });
+  await page.getByRole("button", { name: "Switch language" }).click();
+  await expect(page.locator("html")).toHaveAttribute("lang", "en");
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
+  const nav = page.getByRole("navigation", { name: "Main navigation" });
+  await nav.getByRole("button", { name: "Saved views", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Saved views", exact: true })).toBeVisible();
+  await nav.getByRole("button", { name: "Search details", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Search details", exact: true })).toBeVisible();
 });

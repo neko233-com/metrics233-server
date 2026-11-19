@@ -1,13 +1,12 @@
 export type Locale = "en" | "zh";
-let locale: Locale =
-  (localStorage.getItem("metricspanel-locale") ||
-    (navigator.language.startsWith("zh") ? "zh" : "en")) === "zh"
-    ? "zh"
-    : "en";
+let locale: Locale = "zh";
+try {
+  if (localStorage.getItem("metricspanel-locale") === "en") locale = "en";
+} catch { /* Storage can be blocked; the default language still works. */ }
 export const getLocale = () => locale;
 export function setLocale(value: Locale) {
   locale = value;
-  localStorage.setItem("metricspanel-locale", value);
+  try { localStorage.setItem("metricspanel-locale", value); } catch { /* Language applies for this visit. */ }
   document.documentElement.lang = value === "zh" ? "zh-CN" : "en";
 }
 const zh: Record<string, string> = {
@@ -28,6 +27,14 @@ const zh: Record<string, string> = {
   "MySQL availability":"MySQL 可用状态", "MySQL uptime":"MySQL 运行时长", "MySQL connection usage":"MySQL 连接使用率", "MySQL active threads":"MySQL 执行中线程", "MySQL queries per second":"MySQL 每秒查询", "MySQL connections":"MySQL 连接数", "MySQL statement throughput":"MySQL SQL 吞吐", "MySQL transaction throughput":"MySQL 显式事务吞吐", "MySQL buffer pool usage":"MySQL 缓冲池占用", "MySQL buffer pool reads":"MySQL 缓冲池读取", "MySQL InnoDB IO":"MySQL InnoDB 读写", "MySQL network traffic":"MySQL 网络流量", "MySQL current row lock waits":"MySQL 当前行锁等待", "MySQL row lock waits":"MySQL 行锁等待次数", "MySQL row lock wait time":"MySQL 行锁累计等待速率", "MySQL aborted connections":"MySQL 异常连接", "MySQL temporary tables":"MySQL 临时表", "MySQL slow query counter":"MySQL 慢查询速率",
   "Running threads":"执行中线程", "Queries /s":"查询 /秒", "Connected":"已连接", "Running":"执行中", "Buffer pool":"缓冲池", "Logical reads":"逻辑读取", "Physical reads":"实际读盘", "Read":"读取", "Written":"写入", "Received":"接收", "Sent":"发送", "Current waits":"当前等待", "Waits /s":"等待 /秒", "Wait seconds /s":"累计等待秒 /秒", "Aborted clients":"异常退出客户端", "Aborted connects":"失败连接", "Temporary tables":"临时表", "On disk":"落盘临时表", "Slow queries /s":"慢查询 /秒",
   "Monitoring": "监控", "Metadata": "元数据", "System settings": "系统设置", "Host management": "主机监控",
+  "Home": "首页", "Servers": "服务器", "Saved views": "监控视图", "Search details": "查数据",
+  "Data connections": "数据接入", "Reporting access": "上报管理", "Hosts": "主机", "CLI guide": "命令行指南",
+  "Accounts": "账号管理", "Data": "数据", "Settings": "设置", "Skip to content": "跳到内容",
+  "Quick links": "常用功能",
+  "See server reports, platforms, and resources.": "查看服务器上报、所属平台和资源用量。",
+  "Find saved charts and templates.": "打开已保存的图表和模板。",
+  "Look up metrics from a data source.": "从数据源查找指标和明细。",
+  "Monitor the Metrics233 service and open the tools you need.": "查看 Metrics233 的运行数据，或打开下方常用功能。",
   "Bar chart": "分类柱图", "Pie chart": "饼图", "State timeline": "状态时间线", "Status history": "状态历史",
   "Heatmap": "热力图", "Histogram": "直方图", "All categories": "全部分类", "All states": "全部状态",
   "Histogram buckets must be non-negative cumulative counts with unique increasing bounds.": "直方图累计桶需为非负递增计数，桶边界不能重复；请检查查询结果。",

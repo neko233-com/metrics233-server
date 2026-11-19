@@ -36,7 +36,7 @@ export function Collectors({
     <>
       <div className="page-heading">
         <div>
-          <h1>{tr("Collectors")}</h1>
+          <h1>{tr("Data connections")}</h1>
           <p>
             {tr(
               "Collect from databases, service metrics APIs or Prometheus exporters.",

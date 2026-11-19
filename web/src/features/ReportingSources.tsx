@@ -121,7 +121,7 @@ export default function ReportingSources({ notify }: { notify: (text: string, er
 
   return <>
     <div className="page-heading">
-      <div><h1>{text("Reporting sources", "上报来源")}</h1><p>{text("Review observed source IPs and control who can push metrics.", "查看已观察到的来源 IP，控制谁可以推送指标。")}</p></div>
+      <div><h1>{text("Reporting access", "上报管理")}</h1><p>{text("See which IPs send data and manage their access.", "查看哪些 IP 正在上报数据，并管理上报权限。")}</p></div>
       <Button onClick={() => setRevision((value) => value + 1)} disabled={loading || busy !== null}><RefreshCw size={16} />{text("Refresh sources", "刷新来源")}</Button>
     </div>
     {error && <Alert severity="error" title={text("Request failed", "操作失败")}>{error}</Alert>}

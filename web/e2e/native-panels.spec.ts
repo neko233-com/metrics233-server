@@ -229,9 +229,9 @@ test("Legacy native PromQL can be changed in the shared query editor", async ({
   ).toContainText("235");
   await page.goto(endpoint + "/d/missing-dashboard/unknown");
   await expect(page.getByRole("alert")).toContainText("Dashboard not found.");
-  await page.getByRole("button", { name: "Template center", exact: true }).click();
+  await page.getByRole("button", { name: "Saved views", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Template center", exact: true }),
+    page.getByRole("heading", { name: "Saved views", exact: true }),
   ).toBeVisible();
 });
 

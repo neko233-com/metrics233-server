@@ -19,7 +19,7 @@ import {
   CircleAlert,
   Info,
   TriangleAlert,
-  LayoutDashboard,
+  House,
   LogOut,
   Menu,
   Monitor,
@@ -95,16 +95,21 @@ type View =
   | "cli";
 type AppView = View | "app";
 const baseNavigation = [
-  { id: "overview", name: "Overview", icon: LayoutDashboard },
-  { id: "business", name: "Dashboards", icon: Activity },
-  { id: "dashboards", name: "Template center", icon: ChartNoAxesColumn },
-  { id: "explore", name: "Explore", icon: Search },
-  { id: "collectors", name: "Collectors", icon: Server },
-  { id: "reporting-sources", name: "Reporting sources", icon: Network },
-  { id: "hosts", name: "Host management", icon: Monitor },
+  { id: "overview", name: "Home", icon: House },
+  { id: "business", name: "Servers", icon: Server },
+  { id: "dashboards", name: "Saved views", icon: ChartNoAxesColumn },
+  { id: "explore", name: "Search details", icon: Search },
+  { id: "collectors", name: "Data connections", icon: Network },
+  { id: "reporting-sources", name: "Reporting access", icon: Activity },
+  { id: "hosts", name: "Hosts", icon: Monitor },
   { id: "alerts", name: "Alerts", icon: Bell },
-  { id: "cli", name: "Command line", icon: Terminal },
+  { id: "cli", name: "CLI guide", icon: Terminal },
 ] as const;
+const navigationGroups = [
+  { name: "Monitoring", items: ["overview", "business", "dashboards", "alerts"] },
+  { name: "Data", items: ["explore", "collectors", "reporting-sources", "hosts"] },
+  { name: "Settings", items: ["cli", "users", "plugins"], showExtensions: true },
+] satisfies { name: string; items: View[]; showExtensions?: boolean }[];
 export default function App() {
   const routeLoaded = useRef(false);
   const [initialRange] = useState(() => {
@@ -200,7 +205,7 @@ export default function App() {
         ...baseNavigation,
         {
           id: "users" as const,
-          name: "Users",
+          name: "Accounts",
           icon: UsersRound,
         },
       ]
@@ -765,6 +770,10 @@ export default function App() {
       <div
         className={`app-shell ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}
       >
+        <a className="skip-to-content" href="#workspace-content" onClick={event => {
+          event.preventDefault();
+          document.getElementById("workspace-content")?.focus();
+        }}>{tr("Skip to content")}</a>
         {sidebarOpen && (
         <button
           className="sidebar-overlay"
@@ -783,17 +792,13 @@ export default function App() {
           aria-label={"Metrics233"}
           title={"Metrics233"}
         >
-          <Activity size={38} strokeWidth={2} />
+          <span className="brand-mark"><Activity size={20} strokeWidth={2} aria-hidden="true" /></span>
           <span>{"Metrics233"}</span>
         </a>
         <nav aria-label={tr("Main navigation")}>
-          {[
-            { name: "Monitoring", items: ["overview", "business", "dashboards"] },
-            { name: "Metadata", items: ["explore", "collectors", "reporting-sources", "hosts"] },
-            { name: "System settings", items: ["alerts", "cli", "users", "plugins"] },
-          ].map(group => <section className="nav-group" key={group.name} aria-label={tr(group.name)}>
+          {navigationGroups.map(group => <section className="nav-group" key={group.name} aria-label={tr(group.name)}>
             <h2 className="nav-group-title">{tr(group.name)}</h2>
-          {navigation.filter(item => group.items.includes(item.id)).map((item) => (
+          {group.items.flatMap(id => navigation.filter(item => item.id === id)).map((item) => (
             <button
               key={item.id}
               aria-label={tr(item.name)}
@@ -807,11 +812,11 @@ export default function App() {
               }
               onClick={() => navigate(item.id)}
             >
-              <item.icon size={23} strokeWidth={1.8} />
+              <item.icon size={17} strokeWidth={1.8} aria-hidden="true" />
               <span>{tr(item.name)}</span>
             </button>
           ))}
-          {group.name === "System settings" && apps.map((app) => (
+          {"showExtensions" in group && group.showExtensions && apps.map((app) => (
             <a
               className="app-nav-link"
               key={app.id}
@@ -824,7 +829,7 @@ export default function App() {
                   : undefined
               }
             >
-              <Puzzle size={23} />
+              <Puzzle size={17} aria-hidden="true" />
               <span>{app.name}</span>
             </a>
           ))}
@@ -895,14 +900,9 @@ export default function App() {
           <div className="topbar-status">
             {languageButton}
             <BrowserClock />
-            <span className="status healthy">
-              <i />
-              {tr("Self-hosted")}
-            </span>
-            <span className="topbar-product">{"Metrics233"}</span>
           </div>
         </header>
-        <main>
+        <main id="workspace-content" tabIndex={-1}>
           <PageRecoveryBoundary key={view}>
           <Suspense fallback={<p role="status">{tr("Loading…")}</p>}>
           {rangeError && (
