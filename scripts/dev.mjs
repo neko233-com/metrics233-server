@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = resolve(scriptDir, "..");
 const webRoot = resolve(repositoryRoot, "web");
-const viteEntry = resolve(webRoot, "node_modules", "vite", "bin", "vite.js");
+const viteEntry = resolve(webRoot, "node_modules", "vite-plus", "bin", "vp");
 
 if (!existsSync(viteEntry)) {
   console.error("Frontend dependencies are missing. Run npm ci in the web directory first.");
@@ -22,6 +22,7 @@ function start(label, command, args, cwd, options = {}) {
     stdio: "inherit",
     detached: process.platform !== "win32",
     windowsHide: false,
+    env: { ...process.env, ...options.env },
   });
   children.push({ label, child, killTree: options.killTree === true });
   child.once("error", (error) => {
@@ -108,11 +109,12 @@ start(
   process.platform === "win32" ? "go.exe" : "go",
   ["run", "./cmd/metricspanel", "serve"],
   repositoryRoot,
-  { killTree: true },
+  { killTree: true, env: { CGO_ENABLED: "0" } },
 );
 start(
-  "Vite",
+  "Vite+",
   process.execPath,
-  [viteEntry, "--host", "127.0.0.1"],
+  [viteEntry, "dev", "--host", "127.0.0.1"],
   webRoot,
+  { killTree: true },
 );

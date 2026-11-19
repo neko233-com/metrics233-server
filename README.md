@@ -6,7 +6,7 @@
 [![Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
 
 A zero-configuration, single-node monitoring appliance: **collection, storage and dashboards in one service**.
-**Go 1.27, Vite 7, React 19 and a native agent CLI**.
+**Go 1.27, Vite+, React 19, React Router and a native agent CLI**.
 Collect Prometheus/OpenMetrics, OTLP/HTTP, MySQL, Redis and other common sources; store time-series samples and local
 metric-window vectors; build dashboards, Explore views and alerts without a Grafana server or plugin ecosystem.
 The product UI supports English and Chinese. Production UI assets are embedded in the Go executable.
@@ -98,8 +98,8 @@ npm ci
 npm run dev:workspace
 ```
 
-This starts the Go API at `http://127.0.0.1:7333` and the Vite development UI at `http://127.0.0.1:5173`.
-Vite proxies API, metrics, Prometheus and plugin asset requests to Go. React changes use Vite HMR; press Ctrl+C once to stop both processes.
+This starts the Go API at `http://127.0.0.1:7333` and the Vite+ development UI at `http://127.0.0.1:5173`.
+Vite+ proxies API, metrics, Prometheus and plugin assets to Go. React changes use HMR. Press Ctrl+C to stop both processes.
 Use `npm run dev` when you want only the frontend server and already have the API running.
 
 ### Single-node binary (default)

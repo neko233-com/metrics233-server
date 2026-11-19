@@ -1,5 +1,4 @@
 import { Component, useEffect, useState, type ReactNode } from "react";
-import { BrowserRouter } from "react-router";
 import {
   CoreApp,
   createTheme,
@@ -153,40 +152,38 @@ export function DatasourceQueryEditor({
     return (
       <EditorBoundary key={`${loaded.datasource.uid}-${editorKey}`}>
         <ThemeContext.Provider value={theme}>
-          <BrowserRouter>
-            <DataSourcePluginContextProvider instanceSettings={loaded.settings}>
-              <fieldset className="query-editor-fields" disabled={disabled}>
-                <Editor
-                  datasource={loaded.datasource}
-                  query={query as DataQuery}
-                  queries={queries as DataQuery[]}
-                  range={range}
-                  data={data}
-                  app={app}
-                  onChange={(next) =>
-                    onChange({
-                      ...query,
-                      ...next,
-                      datasource:
-                        next.datasource === null
-                          ? undefined
-                          : next.datasource || query.datasource,
-                    })
-                  }
-                  onRunQuery={onRunQuery}
-                  onAddQuery={(next) =>
-                    onAddQuery({
-                      ...next,
-                      datasource: next.datasource || {
-                        uid: loaded.datasource.uid,
-                        type: loaded.datasource.type,
-                      },
-                    })
-                  }
-                />
-              </fieldset>
-            </DataSourcePluginContextProvider>
-          </BrowserRouter>
+          <DataSourcePluginContextProvider instanceSettings={loaded.settings}>
+            <fieldset className="query-editor-fields" disabled={disabled}>
+              <Editor
+                datasource={loaded.datasource}
+                query={query as DataQuery}
+                queries={queries as DataQuery[]}
+                range={range}
+                data={data}
+                app={app}
+                onChange={(next) =>
+                  onChange({
+                    ...query,
+                    ...next,
+                    datasource:
+                      next.datasource === null
+                        ? undefined
+                        : next.datasource || query.datasource,
+                  })
+                }
+                onRunQuery={onRunQuery}
+                onAddQuery={(next) =>
+                  onAddQuery({
+                    ...next,
+                    datasource: next.datasource || {
+                      uid: loaded.datasource.uid,
+                      type: loaded.datasource.type,
+                    },
+                  })
+                }
+              />
+            </fieldset>
+          </DataSourcePluginContextProvider>
         </ThemeContext.Provider>
       </EditorBoundary>
     );

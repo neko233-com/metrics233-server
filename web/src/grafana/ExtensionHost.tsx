@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { BrowserRouter } from "react-router";
 import { PluginExtensionPoints, type PluginExtensionLink } from "@grafana/data";
 import { X } from "lucide-react";
 import { Dialog } from "../components/Dialog";
@@ -93,38 +92,34 @@ function Chrome() {
         </div>
       ))}
       {modal && (
-        <BrowserRouter>
-          <Dialog
-            key={modal.provider + modal.hash + modal.title}
-            title={modal.title}
-            onClose={dismissExtensionModal}
-            style={{
-              width: modal.width,
-              maxWidth: "calc(100vw - 32px)",
-              maxHeight: "calc(100vh - 32px)",
-              height: modal.height,
-            }}
-          >
-            <modal.body {...modal.props} onDismiss={dismissExtensionModal} />
-          </Dialog>
-        </BrowserRouter>
+        <Dialog
+          key={modal.provider + modal.hash + modal.title}
+          title={modal.title}
+          onClose={dismissExtensionModal}
+          style={{
+            width: modal.width,
+            maxWidth: "calc(100vw - 32px)",
+            maxHeight: "calc(100vh - 32px)",
+            height: modal.height,
+          }}
+        >
+          <modal.body {...modal.props} onDismiss={dismissExtensionModal} />
+        </Dialog>
       )}
       {sidebar && (
-        <BrowserRouter>
-          <aside className="extension-sidebar" aria-label={sidebar.title}>
-            <div className="dialog-heading">
-              <h2>{sidebar.title}</h2>
-              <button
-                className="icon-button"
-                aria-label={t("Close sidebar")}
-                onClick={dismissExtensionSidebar}
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <sidebar.body {...sidebar.props} />
-          </aside>
-        </BrowserRouter>
+        <aside className="extension-sidebar" aria-label={sidebar.title}>
+          <div className="dialog-heading">
+            <h2>{sidebar.title}</h2>
+            <button
+              className="icon-button"
+              aria-label={t("Close sidebar")}
+              onClick={dismissExtensionSidebar}
+            >
+              <X size={20} />
+            </button>
+          </div>
+          <sidebar.body {...sidebar.props} />
+        </aside>
       )}
       {failure && (
         <div role="alert" className="extension-failure">

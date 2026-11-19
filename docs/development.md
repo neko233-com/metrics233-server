@@ -23,7 +23,13 @@ From the web directory, run:
 npm run dev:workspace
 ```
 
-The command starts go run ./cmd/metricspanel serve and Vite together. Open the UI at http://127.0.0.1:5173; the API listens on http://127.0.0.1:7333. Vite proxies API, metrics, Prometheus and plugin asset requests to the Go service. React and CSS edits use HMR without rebuilding the embedded bundle. Press Ctrl+C to stop both processes.
+The command starts `go run ./cmd/metricspanel serve` with `CGO_ENABLED=0` and Vite+ together. Open the UI at
+`http://127.0.0.1:5173`. Vite+ proxies API, metrics, Prometheus and plugin requests to the Go service at
+`http://127.0.0.1:7333`. React and CSS edits use HMR without rebuilding the embedded bundle. Press Ctrl+C to stop both processes.
+
+`npm run build` runs the TypeScript check and the pinned Vite+ build. The web app uses a shared React Router
+location for navigation and existing `/d/`, `/a/` and hash links. React Compiler optimizes the native
+components that declare `"use memo"`. The externally supplied Grafana plugin runtime is outside that opt-in.
 
 For a frontend-only server, use npm run dev; it expects the Go API to be running separately. The production executable embeds the frontend, so rebuild the web bundle before a webui-tagged Go build.
 

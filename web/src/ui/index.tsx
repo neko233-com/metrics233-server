@@ -78,6 +78,7 @@ export function Button({
   type = "button",
   ...rest
 }: ButtonProps) {
+  "use memo";
   const classes = [
     "mp-button",
     variant === "primary" ? "primary" : "",
@@ -119,6 +120,7 @@ export function Field({
   required?: boolean;
   children: ReactNode;
 }) {
+  "use memo";
   return (
     <label className="mp-field">
       {label ? (
@@ -166,6 +168,7 @@ export function Alert({
 
 type BadgeColor = "blue" | "red" | "green" | "orange" | "purple" | "darkgrey" | "brand";
 export function Badge({ text, color = "blue" }: { text?: ReactNode; color?: BadgeColor }) {
+  "use memo";
   return <span className={`mp-badge ${color}`}>{text}</span>;
 }
 

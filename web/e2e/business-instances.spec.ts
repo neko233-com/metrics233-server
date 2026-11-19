@@ -233,4 +233,10 @@ test("Chinese is the first-visit language and the Home links name the destinatio
   await expect(page.getByRole("heading", { name: "Saved views", exact: true })).toBeVisible();
   await nav.getByRole("button", { name: "Search details", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Search details", exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Saved views", exact: true })).toBeVisible();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
+  await page.goForward();
+  await expect(page.getByRole("heading", { name: "Saved views", exact: true })).toBeVisible();
 });

@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
-import { BrowserRouter } from "react-router";
 import {
   DataSourcePluginContextProvider,
   ThemeContext,
@@ -697,27 +696,25 @@ export default function AnnotationQueriesEditor({
                         <div className="annotation-plugin-editor">
                           <EditorBoundary key={loaded.datasource.uid}>
                             <ThemeContext.Provider value={theme}>
-                              <BrowserRouter>
-                                <DataSourcePluginContextProvider
-                                  instanceSettings={loaded.settings}
-                                >
-                                  <Editor
-                                    datasource={loaded.datasource}
-                                    query={{
-                                      ...loaded.datasource.annotations?.getDefaultQuery?.(),
-                                      ...(config.target || { refId: "Anno" }),
-                                    }}
-                                    annotation={config as AnnotationQuery}
-                                    range={resolved.sdk}
-                                    data={panelData}
-                                    onChange={(target) => patch({ target })}
-                                    onAnnotationChange={(annotation) =>
-                                      change(annotation)
-                                    }
-                                    onRunQuery={run}
-                                  />
-                                </DataSourcePluginContextProvider>
-                              </BrowserRouter>
+                              <DataSourcePluginContextProvider
+                                instanceSettings={loaded.settings}
+                              >
+                                <Editor
+                                  datasource={loaded.datasource}
+                                  query={{
+                                    ...loaded.datasource.annotations?.getDefaultQuery?.(),
+                                    ...(config.target || { refId: "Anno" }),
+                                  }}
+                                  annotation={config as AnnotationQuery}
+                                  range={resolved.sdk}
+                                  data={panelData}
+                                  onChange={(target) => patch({ target })}
+                                  onAnnotationChange={(annotation) =>
+                                    change(annotation)
+                                  }
+                                  onRunQuery={run}
+                                />
+                              </DataSourcePluginContextProvider>
                             </ThemeContext.Provider>
                           </EditorBoundary>
                         </div>

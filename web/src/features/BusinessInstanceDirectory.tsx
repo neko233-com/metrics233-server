@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Box, ChevronRight, Gamepad2, Info, Network, Pencil, RefreshCw, Search, Server } from "lucide-react";
 import { api, formatValue, message } from "../api";
 import { formatTimestamp } from "../display-format";
-import { getLocale } from "../i18n";
+import { getLocale, type Locale } from "../i18n";
 import { useObservationClock } from "../observation-clock";
 import { Alert, Button, Input } from "../ui";
 import { useSession } from "../ui/session";
@@ -121,7 +121,10 @@ function PlatformFilters({ counts, selected, select }: {
 }
 
 // The list owns its scroll position; same-scope refreshes reuse mounted rows.
-function ServerList({ items, render }: { items: BusinessInstance[]; render: (item: BusinessInstance) => ReactNode }) {
+function ServerList({ items, language, render }: {
+  items: BusinessInstance[]; language: Locale; render: (item: BusinessInstance) => ReactNode;
+}) {
+  "use memo";
   const list = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ height: 0, rowHeight: 0 });
   const [scrollTop, setScrollTop] = useState(0);
@@ -144,17 +147,18 @@ function ServerList({ items, render }: { items: BusinessInstance[]; render: (ite
   }, [windowed]);
 
   const { height, rowHeight } = viewport;
+  const zh = language === "zh";
   const overscan = 3;
   const start = windowed && rowHeight ? Math.min(items.length - 1, Math.max(0, Math.floor(scrollTop / rowHeight) - overscan)) : 0;
   const end = windowed && rowHeight ? Math.min(items.length, start + Math.ceil(height / rowHeight) + 2 * overscan) : items.length;
 
   return <div ref={list} className={"business-server-list" + (windowed ? " is-windowed" : "")}
-    role={windowed ? "region" : undefined} aria-label={windowed ? text("Server results", "服务器结果") : undefined}
+    role={windowed ? "region" : undefined} aria-label={windowed ? (zh ? "服务器结果" : "Server results") : undefined}
     tabIndex={windowed ? 0 : undefined} onScroll={event => setScrollTop(event.currentTarget.scrollTop)}>
     <div className="business-server-list-heading" aria-hidden="true">
-      <span>{text("Server", "服务器")}</span><span>{text("Platform / environment", "平台 / 环境")}</span>
-      <span>{text("Host resources", "主机资源")}</span><span>{text("Service traffic", "业务流量")}</span>
-      <span>{text("Last report", "最近上报")}</span>
+      <span>{zh ? "服务器" : "Server"}</span><span>{zh ? "平台 / 环境" : "Platform / environment"}</span>
+      <span>{zh ? "主机资源" : "Host resources"}</span><span>{zh ? "业务流量" : "Service traffic"}</span>
+      <span>{zh ? "最近上报" : "Last report"}</span>
     </div>
     <div style={windowed ? { paddingTop: start * rowHeight, paddingBottom: (items.length - end) * rowHeight } : undefined}>
       {items.slice(start, end).map(render)}
@@ -274,7 +278,7 @@ export default function BusinessInstanceDirectory({ active, select, reload, tick
       </button>)}
     </div>
     {!displayed && !error && <p className="business-directory-empty" role="status">{text("Loading instances…", "正在加载实例…")}</p>}
-    {displayed && displayed.items.length > 0 && <ServerList key={scope} items={displayed.items} render={item =>
+    {displayed && displayed.items.length > 0 && <ServerList key={scope} items={displayed.items} language={getLocale()} render={item =>
       <InstanceRow key={item.id} item={item} summary={displayed.summaries?.[item.id]}
         select={select} edit={setEditing} canEdit={canEdit} now={now} />
     } />}

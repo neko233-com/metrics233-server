@@ -89,6 +89,14 @@ const test = base.extend<{}, { endpoint: string }>({
   ],
 });
 
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem("metricspanel-locale") === null) {
+      localStorage.setItem("metricspanel-locale", "en");
+    }
+  });
+});
+
 test("Builtin Grafana query forms execute all six modes and preserve Classic V1 V2 resources", async ({
   page,
   endpoint,

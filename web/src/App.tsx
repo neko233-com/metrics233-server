@@ -2,6 +2,7 @@ import { BrowserClock } from "./ui/BrowserClock";
 import { PageRecoveryBoundary } from "./ui/PageRecoveryBoundary";
 import { t as tr } from "./i18n";
 import { getLocale, setLocale, type Locale } from "./i18n";
+import { useLocation, useNavigate } from "react-router";
 import {
   lazy,
   Suspense,
@@ -110,7 +111,28 @@ const navigationGroups = [
   { name: "Data", items: ["explore", "collectors", "reporting-sources", "hosts"] },
   { name: "Settings", items: ["cli", "users", "plugins"], showExtensions: true },
 ] satisfies { name: string; items: View[]; showExtensions?: boolean }[];
+
+function routeResourceID(pathname: string, prefix: "d" | "a"): string {
+  const [root, id] = pathname.split("/").slice(1);
+  if (root !== prefix || !id) return "";
+  try { return decodeURIComponent(id); } catch { return ""; }
+}
+
+function workspaceView(pathname: string, hash: string): AppView {
+  if (/^\/a\/[^/]+/.test(pathname)) return "app";
+  if (/^\/d\/[^/]+/.test(pathname)) return "dashboard";
+  const id = hash.slice(1);
+  // These administrative routes remain reachable directly.
+  if (id === "plugins" || id === "users") return id;
+  return baseNavigation.find(item => item.id === id)?.id || "overview";
+}
+
 export default function App() {
+  const { pathname, hash } = useLocation();
+  const navigateURL = useNavigate();
+  const view = workspaceView(pathname, hash);
+  const currentUID = routeResourceID(pathname, "d");
+  const currentAppID = routeResourceID(pathname, "a");
   const routeLoaded = useRef(false);
   const [initialRange] = useState(() => {
     try {
@@ -139,21 +161,7 @@ export default function App() {
       {locale === "en" ? "中文" : "English"}
     </button>
   );
-  const [view, setView] = useState<AppView>(() => {
-      if (/^\/a\/[^/]+/.test(location.pathname)) return "app";
-      if (/^\/d\/[^/]+/.test(location.pathname)) return "dashboard";
-      const hash = location.hash.slice(1);
-      // Compatibility management routes stay reachable by URL but are not
-      // part of the product navigation.
-      if (hash === "plugins") return "plugins";
-      return baseNavigation.some((n) => n.id === hash)
-        ? (hash as View)
-        : "overview";
-    }),
-    [dashboardID, setDashboardID] = useState(() =>
-      /^\/d\/[^/]+/.test(location.pathname) ? "" : "system",
-    ),
-    [sidebarOpen, setSidebarOpen] = useState(false),
+  const [sidebarOpen, setSidebarOpen] = useState(false),
     [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
       try {
         return localStorage.getItem("metricspanel-sidebar") === "collapsed";
@@ -175,7 +183,6 @@ export default function App() {
     [metrics, setMetrics] = useState<Metric[]>([]),
     [stats, setStats] = useState<Stats | null>(null);
   const [hasExtensions, setHasExtensions] = useState(false);
-  const [dashboardRouteMissing, setDashboardRouteMissing] = useState(false);
   const [tick, setTick] = useState(0),
     [range, setRange] = useState<TimeSelection>(initialRange.value),
     [auth, setAuth] = useState(false),
@@ -215,10 +222,10 @@ export default function App() {
       setNotice({ text, severity: error ? "error" : "success" }),
     [],
   );
-  const current = dashboards.find(
-    (d) => d.id === (view === "overview" ? "system" : dashboardID),
-  );
-  const dashboardNavigation = /^conn-[a-f0-9]{32}$/.test(dashboardID) ? "business" : "dashboards";
+  const current = view === "overview" ? dashboards.find(dashboard => dashboard.id === "system")
+    : currentUID ? dashboards.find(dashboard => dashboardUID(dashboard) === currentUID) : undefined;
+  const dashboardRouteMissing = view === "dashboard" && !current && dashboards.length > 0;
+  const dashboardNavigation = /^conn-[a-f0-9]{32}$/.test(current?.id || "") ? "business" : "dashboards";
   const refreshChoice =
     refreshOverride ??
     ((view === "dashboard" || view === "overview") && current?.grafana
@@ -419,14 +426,11 @@ export default function App() {
   useEffect(() => {
     if (routeLoaded.current || !dashboards.length) return;
     routeLoaded.current = true;
-    const uid = /^\/d\/([^/]+)/.exec(location.pathname)?.[1];
+    const uid = routeResourceID(location.pathname, "d");
     const dashboard = uid
-      ? dashboards.find((d) => dashboardUID(d) === decodeURIComponent(uid))
+      ? dashboards.find((d) => dashboardUID(d) === uid)
       : undefined;
-    setDashboardRouteMissing(Boolean(uid && !dashboard));
     if (dashboard) {
-      setDashboardID(dashboard.id);
-      setView("dashboard");
       try {
         const next =
           rangeFromURL(
@@ -445,13 +449,12 @@ export default function App() {
   useEffect(() => {
     const restore = () => {
       setRefreshOverride(new URLSearchParams(location.search).get("refresh"));
-      const uid = /^\/d\/([^/]+)/.exec(location.pathname)?.[1];
+      const uid = routeResourceID(location.pathname, "d");
       const dashboard = uid
         ? dashboards.find(
-            (item) => dashboardUID(item) === decodeURIComponent(uid),
+            (item) => dashboardUID(item) === uid,
           )
         : undefined;
-      setDashboardRouteMissing(Boolean(uid && !dashboard));
       try {
         const fallback = rangeFromDashboard(dashboard?.grafana) || "1h";
         const next =
@@ -463,24 +466,16 @@ export default function App() {
       } catch (error) {
         setRangeError(message(error));
       }
-      if (dashboard) {
-        setDashboardID(dashboard.id);
-        setView("dashboard");
-      } else if (uid) {
-        setDashboardID("");
-        setView("dashboard");
-      } else if (/^\/a\//.test(location.pathname)) setView("app");
-      else if (navigation.some((item) => item.id === location.hash.slice(1)))
-        setView(location.hash.slice(1) as View);
     };
     window.addEventListener("popstate", restore);
     return () => window.removeEventListener("popstate", restore);
   }, [dashboards]);
-  function navigate(next: View) {
-    setView(next);
+  function navigate(next: Exclude<View, "dashboard">) {
     setSidebarOpen(false);
-    if (next !== "dashboard")
-      history.replaceState({}, "", `/${location.search}#${next}`);
+    const destination = "#" + next;
+    if (location.pathname !== "/" || location.hash !== destination) {
+      void navigateURL({ pathname: "/", search: location.search, hash: destination });
+    }
   }
   function toggleSidebar() {
     setSidebarCollapsed((collapsed) => {
@@ -501,14 +496,14 @@ export default function App() {
       try { sessionStorage.setItem("metrics233-dashboard-category", "resources"); } catch { /* Optional navigation preference. */ }
     }
     setRefreshOverride(null);
-    setDashboardID(d.id);
     // Carry an explicit URL/user time choice between dashboards, without
     // carrying another dashboard's scoped variable values.
     const params = new URLSearchParams();
     const currentParams = new URLSearchParams(location.search);
     for (const key of ["from", "to", "time", "time.window", "timezone"])
       if (currentParams.has(key)) params.set(key, currentParams.get(key)!);
-    history.replaceState({}, "", `/d/${encodeURIComponent(dashboardUID(d))}/${encodeURIComponent(d.name)}${params.size ? `?${params}` : ""}`);
+    const destination = `/d/${encodeURIComponent(dashboardUID(d))}/${encodeURIComponent(d.name)}`;
+    void navigateURL({ pathname: destination, search: params.toString() }, { replace: location.pathname === destination });
     try {
       const fallback = rangeFromDashboard(d.grafana) || "1h";
       const next = rangeFromURL(params, fallback) || fallback;
@@ -518,7 +513,7 @@ export default function App() {
     } catch (error) {
       setRangeError(message(error));
     }
-    navigate("dashboard");
+    setSidebarOpen(false);
   }
   const title =
     view === "app"
@@ -824,7 +819,7 @@ export default function App() {
               aria-label={app.name}
               title={app.name}
               aria-current={
-                view === "app" && location.pathname.split("/")[2] === app.id
+                view === "app" && currentAppID === app.id
                   ? "page"
                   : undefined
               }
@@ -994,7 +989,7 @@ export default function App() {
           {view === "app" && (
             <Suspense fallback={<p>{tr("Loading plugin…")}</p>}>
               <AppPluginView
-                id={decodeURIComponent(location.pathname.split("/")[2] || "")}
+                id={currentAppID}
                 tick={tick}
               />
             </Suspense>

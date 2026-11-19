@@ -1,5 +1,6 @@
 import { formatTimestamp } from "../../display-format";
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router";
 import { ArrowDown, ArrowUp, Pencil, Search, Trash2 } from "lucide-react";
 import { t } from "../../i18n";
 import { resolveTimeRange } from "../../grafana/time-range";
@@ -70,6 +71,7 @@ export default function TracesRenderer({
   onEdit,
   onRemove,
 }: RendererProps) {
+  const navigate = useNavigate();
   const config = panel.config;
   const resolved = useMemo(() => resolveTimeRange(range), [range]);
   const rows = useMemo(() => traceRows(frames), [frames]);
@@ -132,7 +134,7 @@ export default function TracesRenderer({
   const chooseTrace = (id: string) => {
     const url = new URL(location.href);
     if (id) url.searchParams.set("traceId", id); else url.searchParams.delete("traceId");
-    history.pushState({}, "", url);
+    void navigate(url.pathname + url.search + url.hash);
     setSelectedTrace(id);
     setQuery(id);
   };

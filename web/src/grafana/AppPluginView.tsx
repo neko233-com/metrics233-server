@@ -1,5 +1,5 @@
 import { Component, useEffect, useState, type ReactNode } from "react";
-import { BrowserRouter, useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import {
   createTheme,
   PluginContextProvider,
@@ -138,13 +138,11 @@ export default function AppPluginView({
   if (!loaded) return <p>{t("Loading plugin…")}</p>;
   return (
     <ThemeContext.Provider value={theme}>
-      <BrowserRouter>
-        <PluginContextProvider meta={loaded.meta}>
-          <AppBoundary key={id + loaded.hash}>
-            <AppShell plugin={loaded.plugin} />
-          </AppBoundary>
-        </PluginContextProvider>
-      </BrowserRouter>
+      <PluginContextProvider meta={loaded.meta}>
+        <AppBoundary key={id + loaded.hash}>
+          <AppShell plugin={loaded.plugin} />
+        </AppBoundary>
+      </PluginContextProvider>
     </ThemeContext.Provider>
   );
 }

@@ -1,5 +1,6 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
 import App from "./App";
 import { AppThemeProvider } from "./ui/theme";
 import "./styles.css";
@@ -11,7 +12,9 @@ window.__grafana_public_path__ = "/";
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AppThemeProvider>
-      <App />
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
     </AppThemeProvider>
   </StrictMode>,
 );

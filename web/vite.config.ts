@@ -1,5 +1,7 @@
-import { defineConfig, type Plugin } from "vite";
-import react from "@vitejs/plugin-react";
+import type { Plugin } from "vite";
+import { defineConfig } from "vite-plus";
+import babel from "@rolldown/plugin-babel";
+import react, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { cpSync, createReadStream, existsSync, statSync } from "node:fs";
 import { extname, normalize, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -62,7 +64,13 @@ function grafanaIconAssets(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), grafanaIconAssets()],
+  plugins: [
+    react(),
+    // Opt in verified native components. The compatibility layer includes
+    // mutable third-party models and remains outside compiler optimization.
+    babel({ presets: [reactCompilerPreset({ compilationMode: "annotation", target: "19" })] }),
+    grafanaIconAssets(),
+  ],
   resolve: {
     // Core boot exports are omitted from the published SDK package exports.
     // Host-only aliases track the pinned 13.2.3 SDK, not plugin imports.

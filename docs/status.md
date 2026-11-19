@@ -1,5 +1,16 @@
 # Project status and progress protocol
 
+### 2026-11-19 — Vite+ and shared browser routing
+
+Vite+ 1.7.0 builds the React 19 console with Rolldown. React Router owns workspace and compatible plugin
+navigation, and the existing dashboard, time-range and trace links remain readable. React Compiler runs for
+opted-in native primitives and the server list. The production bundle shows compiler memo-cache code.
+
+All 177 web units and 27 targeted Edge cases passed, covering the directory, reporting, navigation history,
+dashboard time ranges and Grafana plugin/extension fixtures. Windows and Linux amd64 embedded-UI binaries report
+`CGO_ENABLED=0`. The isolated Windows embedded profile wrote 1,048,576 samples in 3.584 seconds and queried
+32 series over one hour in 0.514 ms, then reopened and verified the fingerprint. This is a single local workload.
+
 ### 2026-11-19 — Startup-selected metric storage
 
 The same reporting and query code now gets its backend from a central startup strategy registry.

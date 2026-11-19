@@ -19,7 +19,6 @@ import {
 } from "@grafana/data";
 
 import { merge } from "lodash";
-import { BrowserRouter } from "react-router";
 import { loadPanelPlugin, setPluginVariables } from "./plugin-runtime";
 import { connectPanelEvents } from "./app-events";
 import { message, type Panel, type InterpolationValues } from "../api";
@@ -203,13 +202,11 @@ export default function PluginPanel({
             size.width > 0 &&
             size.height > 0 && (
               <PluginErrorBoundary key={plugin?.meta.id}>
-                <BrowserRouter>
-                  <ThemeContext.Provider value={theme}>
-                    <PluginContextProvider meta={plugin!.meta}>
-                      <Renderer {...props} />
-                    </PluginContextProvider>
-                  </ThemeContext.Provider>
-                </BrowserRouter>
+                <ThemeContext.Provider value={theme}>
+                  <PluginContextProvider meta={plugin!.meta}>
+                    <Renderer {...props} />
+                  </PluginContextProvider>
+                </ThemeContext.Provider>
               </PluginErrorBoundary>
             )
           ))}
