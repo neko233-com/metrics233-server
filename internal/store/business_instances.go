@@ -100,6 +100,7 @@ func scanBusiness(row interface{ Scan(...any) error }) (model.BusinessInstance, 
 	err := row.Scan(&item.ID, &raw, &item.ReportedIP, &item.ObservedIP, &item.FirstSeen, &item.LastSeen, &item.Binding.Version, &item.Binding.Mode, &item.Binding.DashboardID, &item.Note.Version, &item.Note.Description, &item.Note.UpdatedAt)
 	if err == nil {
 		err = json.Unmarshal([]byte(raw), &item.Identity)
+		item.Platform = model.BusinessPlatform(item.Identity.Channel)
 	}
 	return item, err
 }

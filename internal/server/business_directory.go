@@ -53,7 +53,10 @@ func (s *Server) businessDirectoryRoutes(api routeRegistrar) {
 			fail(w, 400, errors.New("invalid limit"))
 			return
 		}
-		page, err := s.Store.BusinessDirectory(r.Context(), store.BusinessDirectoryFilter{Query: q.Get("q"), Environment: q.Get("environment"), Role: q.Get("role"), Sort: q.Get("sort"), Cursor: q.Get("cursor"), Limit: limit})
+		page, err := s.Store.BusinessDirectory(r.Context(), store.BusinessDirectoryFilter{
+			Query: q.Get("q"), Environment: q.Get("environment"), Platform: q.Get("platform"),
+			Role: q.Get("role"), Sort: q.Get("sort"), Cursor: q.Get("cursor"), Limit: limit,
+		})
 		if err != nil {
 			fail(w, 400, err)
 			return

@@ -145,7 +145,7 @@ try {
   const businessNavigation = page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Dashboards", exact: true });
   check((await businessNavigation.count()) === 1, "viewer can access business Dashboards");
   await businessNavigation.click();
-  await page.getByRole("heading", { name: "Dashboards", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Server directory", exact: true }).waitFor();
   check((await page.getByRole("button", { name: "Create business dashboard", exact: true }).count()) === 0, "viewer cannot see the business dashboard mutation");
   const businessRoleExplanation = page.getByText("Editor or Admin role is required to create dashboards or push metrics.", { exact: true });
   await page.getByText("Connect metrics or create a template", { exact: true }).click();

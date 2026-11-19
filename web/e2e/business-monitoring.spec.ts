@@ -49,7 +49,7 @@ test("Business JSON push creates a scoped dashboard with real gauge and counter 
   expect(ingested.ok()).toBeTruthy();
   expect((await ingested.json()).accepted).toBe(12);
   await page.goto(endpoint + "/#business");
-  await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
   await page.getByText("Connect metrics or create a template", { exact: true }).click();
   await expect(page.getByRole("button", { name: "Create business dashboard", exact: true })).toBeDisabled();
   await page.getByLabel("Metric", { exact: true }).selectOption("business_active_users");
@@ -85,7 +85,7 @@ test("Business onboarding fits mobile/tablet/desktop with the clock and rejects 
   await page.goto(endpoint + "/#business");
   for (const width of [390, 701, 760, 768, 900, 1280]) {
     await page.setViewportSize({ width, height: 900 });
-    await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
     await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await expect(page.locator(".topbar .browser-timezone")).toBeVisible();
     await expect(page.locator(".topbar").getByRole("button", { name: "Switch language", exact: true })).toBeVisible();
@@ -98,5 +98,5 @@ test("Business onboarding fits mobile/tablet/desktop with the clock and rejects 
   await page.getByLabel("Labels (JSON)", { exact: true }).fill('{"bad": 1}');
   await page.getByRole("button", { name: "Create business dashboard", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Labels must be a JSON object with string values");
-  await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
 });

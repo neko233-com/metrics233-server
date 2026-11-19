@@ -5,10 +5,17 @@ native time-series retain Grafana classic colors, and gauges keep their numeric 
 SDK series indexes are normalized across a plot on cloned metadata; authored fixed/threshold colors remain intact.
 
 `GET /api/v1/business/directory` is a Viewer read over at most 4096 observed identities. `q` searches actual identity
-values, reported/observed addresses and operator descriptions; `environment`, `role=all|game|gateway|sdk`, and
-`sort=server|recent|host` apply before pagination. Limits are 1–100. Role counts cover the entire filtered catalog
-before role selection, not just a page. Cursors are tied to filters and sort; a live recent-report sort may move
+values, reported/observed addresses and operator descriptions. `environment`, `platform`,
+`role=all|game|gateway|sdk|center` and `sort=server|recent|host` apply before pagination. Limits are 1–100.
+`platforms` counts each platform after search, environment and role filtering. Role counts use search,
+environment and platform filtering. Both count the complete filtered catalog. Cursors are tied to filters
+and sort; a live recent-report sort may move
 when new observations arrive. Default natural server sorting is stable. Template-scoped legacy pagination is unchanged.
+
+The read-only `platform` field groups known channel aliases (for example `minigame-wechat` and `wechat`),
+keeps original channel labels on the identity, and exposes an unknown channel as `custom:<reported channel>`.
+Missing channels are `unassigned`. The UI discovers additional platforms automatically and offers them under
+More platforms. It uses one row per instance at every width and windows rows within larger result pages.
 
 Cards query bounded numeric summaries in a fixed number of engine queries, independently of card count. Host
 resources require an explicit managed-host or exporter association; NAT/label addresses never infer that association.

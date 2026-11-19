@@ -17,8 +17,8 @@ import (
 )
 
 type BusinessDirectoryFilter struct {
-	Query, Environment, Role, Sort, Cursor string
-	Limit                                  int
+	Query, Environment, Platform, Role, Sort, Cursor string
+	Limit                                            int
 }
 
 var ErrBusinessNoteConflict = errors.New("instance note changed; reload before saving")
@@ -28,14 +28,20 @@ type BusinessDirectoryPage struct {
 	Total        int            `json:"total"`
 	Matched      int            `json:"matched"`
 	Counts       map[string]int `json:"counts"`
+	Platforms    map[string]int `json:"platforms"`
 	Environments []string       `json:"environments"`
 }
 
 // BusinessDirectory filters the bounded catalog before paging. The legacy
 // template-scoped cursor API remains unchanged.
 func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter) (BusinessDirectoryPage, error) {
-	page := BusinessDirectoryPage{BusinessInstancePage: BusinessInstancePage{Items: []model.BusinessInstance{}, Capacity: BusinessInstanceLimit}, Counts: map[string]int{"all": 0, "game": 0, "gateway": 0, "sdk": 0, "center": 0}, Environments: []string{}}
-	if f.Limit < 1 || f.Limit > 100 || len(f.Query) > 128 || len(f.Environment) > 128 || !utf8.ValidString(f.Query+f.Environment) || strings.ContainsAny(f.Query+f.Environment, "\x00\r\n") {
+	page := BusinessDirectoryPage{
+		BusinessInstancePage: BusinessInstancePage{Items: []model.BusinessInstance{}, Capacity: BusinessInstanceLimit},
+		Counts:               map[string]int{"all": 0, "game": 0, "gateway": 0, "sdk": 0, "center": 0},
+		Platforms:            map[string]int{},
+		Environments:         []string{},
+	}
+	if f.Limit < 1 || f.Limit > 100 || !validDirectoryFilter(f.Query, 128) || !validDirectoryFilter(f.Environment, 128) || !validDirectoryFilter(f.Platform, 128+len("custom:")) {
 		return page, errors.New("invalid directory filter")
 	}
 	if f.Role == "" {
@@ -50,7 +56,11 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 	if f.Sort != "server" && f.Sort != "recent" && f.Sort != "host" {
 		return page, errors.New("invalid directory sort")
 	}
-	scope := sha256.Sum256([]byte(strings.Join([]string{f.Query, f.Environment, f.Role, f.Sort}, "\x00")))
+	filters := []string{f.Query, f.Environment, f.Role, f.Sort}
+	if f.Platform != "" {
+		filters = append(filters, f.Platform)
+	}
+	scope := sha256.Sum256([]byte(strings.Join(filters, "\x00")))
 	prefix := hex.EncodeToString(scope[:12]) + ":"
 	after := ""
 	if f.Cursor != "" {
@@ -78,6 +88,9 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 		}
 		page.Total++
 		environments[item.Identity.Environment] = true
+		if _, ok := page.Platforms[item.Platform]; !ok {
+			page.Platforms[item.Platform] = 0
+		}
 		if f.Environment != "" && item.Identity.Environment != f.Environment {
 			continue
 		}
@@ -89,9 +102,16 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 		if role == "logic" {
 			role = "game"
 		}
+		matchesRole := f.Role == "all" || f.Role == role
+		if matchesRole {
+			page.Platforms[item.Platform]++
+		}
+		if f.Platform != "" && f.Platform != item.Platform {
+			continue
+		}
 		page.Counts["all"]++
 		page.Counts[role]++
-		if f.Role == "all" || f.Role == role {
+		if matchesRole {
 			items = append(items, item)
 		}
 	}
@@ -150,6 +170,10 @@ func (s *Store) BusinessDirectory(ctx context.Context, f BusinessDirectoryFilter
 		page.Next = base64.RawURLEncoding.EncodeToString([]byte(prefix + items[end-1].ID))
 	}
 	return page, nil
+}
+
+func validDirectoryFilter(value string, limit int) bool {
+	return len(value) <= limit && utf8.ValidString(value) && !strings.ContainsAny(value, "\x00\r\n")
 }
 
 func naturalBusinessCompare(a, b string) int {

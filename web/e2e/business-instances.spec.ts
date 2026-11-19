@@ -22,7 +22,7 @@ const test = base.extend<{}, { service: Service }>({ service: [async ({}, use) =
 async function open(page: Page, service: Service) {
   await page.addInitScript(token => { sessionStorage.setItem("metricspanel-token", token); localStorage.setItem("metricspanel-locale", "en"); }, service.token);
   await page.goto(service.url + "/#business");
-  await expect(page.getByRole("heading", { name: "Dashboards", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
 }
 const baseLabels = (service: string, environment = "production") => ({ service, role: "logic", serverId: "0", instance: service + "-$serverId-0", environment, channel: "fixture", implementation: "go", ip: "203.0.113.18" });
 const instanceCard = (page: Page, service: string, environment = "production") => page.getByRole("article", { name: "Game server 0", exact: true }).filter({ hasText: service + "-$serverId-0" }).filter({ hasText: environment });
@@ -153,4 +153,61 @@ test("population snapshots exclude old IPs and regions after restart and expose 
   await page.getByRole("button", { name: "All instances", exact: true }).click(); await openInstance(page, "ui-stale");
   await expect(page.getByText("Player data is stale (over 90 seconds)", { exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath("business-population-stale.png"), fullPage: true, animations: "disabled" });
+});
+
+test("platform facets discover new channels and window one server per row", async ({ page, service }, info) => {
+  const headers = { Authorization: "Bearer " + service.token };
+  const samples = Array.from({ length: 32 }, (_, index) => ({
+    name: "game_players_online",
+    label: baseLabels("platform-facet"),
+    value: index,
+  })).map(({ label, ...sample }, index) => ({
+    ...sample,
+    labels: {
+      ...label,
+      serverId: String(index + 101),
+      instance: "platform-facet-" + index,
+      environment: index === 31 ? "audit" : "release",
+      channel: index < 30 ? "minigame-wechat" : index === 30 ? "TapTap" : "studio-preview",
+      role: index === 31 ? "center" : "logic",
+    },
+  }));
+  expect((await page.request.post(service.url + "/api/v1/ingest", { headers, data: { samples } })).ok()).toBeTruthy();
+  await open(page, service);
+  const search = page.getByRole("searchbox", { name: "Search all instances" });
+  await search.fill("platform-facet");
+  await search.press("Enter");
+  const filters = page.getByRole("group", { name: "Platforms" });
+  await filters.getByRole("button", { name: "WeChat", exact: true }).click();
+  const list = page.getByRole("region", { name: "Server results" });
+  await expect(list.getByRole("article", { name: "Game server 101", exact: true })).toBeVisible();
+  expect(await list.getByRole("article").count()).toBeLessThan(24);
+  const first = await list.getByRole("article").nth(0).boundingBox();
+  const second = await list.getByRole("article").nth(1).boundingBox();
+  expect(first?.x).toBe(second?.x);
+  expect(second!.y).toBeGreaterThanOrEqual(first!.y + first!.height - 1);
+  await list.evaluate(element => { element.scrollTop = element.scrollHeight; });
+  await expect(list.getByRole("article", { name: "Game server 124", exact: true })).toBeVisible();
+  await expect(list.getByRole("article", { name: "Game server 101", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByRole("article", { name: "Game server 130", exact: true })).toBeVisible();
+
+  await filters.getByRole("button", { name: "TapTap", exact: true }).click();
+  await expect(page.getByRole("article", { name: "Game server 131", exact: true })).toBeVisible();
+  await expect(page.locator("article [data-platform=taptap]")).toHaveText("TapTap");
+  await filters.getByRole("combobox", { name: "More platforms" }).selectOption("custom:studio-preview");
+  const custom = page.getByRole("article", { name: "Control server 132", exact: true });
+  await expect(custom).toBeVisible();
+  await expect(custom.locator("[data-platform=custom]")).toHaveText("studio-preview");
+  await page.getByRole("combobox", { name: "Environment", exact: true }).selectOption("test");
+  await expect(page.getByText("No matching instances.")).toBeVisible();
+  await page.getByRole("combobox", { name: "Environment", exact: true }).selectOption("audit");
+  await expect(custom).toBeVisible();
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  await page.screenshot({ path: info.outputPath("server-directory-mobile.png") });
+  await custom.getByRole("button", { name: /^Open Control server/ }).click();
+  await expect(page.getByRole("region", { name: "Instance dashboard" }).locator(".business-platform-badge")).toHaveText("studio-preview");
+  await page.getByRole("button", { name: "All instances", exact: true }).click();
+  await expect(custom).toBeVisible();
 });

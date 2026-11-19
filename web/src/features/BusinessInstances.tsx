@@ -10,6 +10,7 @@ import { DashboardVariableBar, useDashboardVariables } from "../components/Dashb
 import { TimeRangePicker } from "../components/TimeRangePicker";
 import { rangeFromURL, writeRangeURL } from "../grafana/time-range";
 import BusinessInstanceDirectory, { environmentName } from "./BusinessInstanceDirectory";
+import { PlatformBadge } from "./BusinessPlatform";
 import { instanceTitle, type BusinessInstance as Instance } from "./business-instance-directory-model";
 import BusinessDataTable, { PopulationNotice, type Population } from "./BusinessDataTable";
 import SlowSQL from "./SlowSQL";
@@ -123,7 +124,14 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
     {error && <Alert severity="error" title={text("Instance operation failed", "实例操作失败")}>{error}</Alert>}
     {error && item && !dashboard && canEdit && item.binding.mode !== "default" && <Button disabled={busy} onClick={() => void bind("default", "")}>{text("Reset built-in view", "恢复内置视图")}</Button>}
     {!resolved && !error && <p role="status">{text("Loading instance…", "正在加载实例…")}</p>}
-    {resolved && item && dashboard && <><header className="business-detail-heading"><div><h1>{instanceTitle(item.identity, getLocale() === "zh")}</h1><p>{item.identity.service} · {item.identity.instance}</p></div><div className="business-detail-meta"><span>{environmentName(item.identity.environment, true)} · {item.identity.channel || "—"}</span><span><Server size={15} />{item.reported_ip || item.observed_ip || "—"}</span></div></header><details className="business-identity-details"><summary>{text("Instance identity and source IPs", "实例身份与来源 IP")}</summary><dl className="business-instance-scope">{Object.entries(item.identity).map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value || text("Not reported", "未上报")}</dd></div>)}<div><dt>{text("Reported host IP (advisory)", "上报宿主 IP（标签）")}</dt><dd>{item.reported_ip || "—"}</dd></div><div><dt>{text("Canonical observed source IP", "服务端规范来源 IP")}</dt><dd>{item.observed_ip || "—"}</dd></div><div><dt>{text("Last report", "最近上报")}</dt><dd>{timeAgo(item.last_seen)}</dd></div></dl>
+    {resolved && item && dashboard && <><header className="business-detail-heading">
+      <div><h1>{instanceTitle(item.identity, getLocale() === "zh")}</h1><p>{item.identity.service} · {item.identity.instance}</p></div>
+      <div className="business-detail-meta">
+        <PlatformBadge platform={item.platform} channel={item.identity.channel} />
+        <span>{environmentName(item.identity.environment, true)}</span>
+        <span><Server size={15} />{item.reported_ip || item.observed_ip || "—"}</span>
+      </div>
+    </header><details className="business-identity-details"><summary>{text("Instance identity and source IPs", "实例身份与来源 IP")}</summary><dl className="business-instance-scope">{Object.entries(item.identity).map(([name, value]) => <div key={name}><dt>{name}</dt><dd>{value || text("Not reported", "未上报")}</dd></div>)}<div><dt>{text("Reported host IP (advisory)", "上报宿主 IP（标签）")}</dt><dd>{item.reported_ip || "—"}</dd></div><div><dt>{text("Canonical observed source IP", "服务端规范来源 IP")}</dt><dd>{item.observed_ip || "—"}</dd></div><div><dt>{text("Last report", "最近上报")}</dt><dd>{timeAgo(item.last_seen)}</dd></div></dl>
       <p className="subtle">{text("The source IP may be a NAT/proxy address. Labels and fixed query variables are display/query scope, never authorization boundaries.", "来源 IP 可能为 NAT 或代理出口。标签和固定变量只限定展示查询，不是权限隔离。")}</p></details>
       {settingsOpen && <section className="business-instance-binding" id="business-instance-settings" aria-label={text("Dashboard settings", "仪表盘设置")}><h2>{text("Dashboard settings", "仪表盘设置")}<span>{mode === "inherit" ? text("Live template", "继承模板") : mode === "independent" ? text("Custom panels", "自定义面板") : text("Built-in panels", "内置面板")}</span></h2>
       {canAdmin && resolved.host && <div className="business-host-association"><Field label={text("Physical host", "所属物理主机")}><select aria-label={text("Physical host", "所属物理主机")} value={hostChoice} onChange={event => setHostChoice(event.target.value)}><option value="">{text("Not associated", "暂不关联")}</option>{hostOptions.map(option => <option key={`${option.kind}:${option.id}`} value={`${option.kind}:${option.id}`}>{option.name} · {option.kind === "managed_host" ? text("Host agent", "主机采集器") : text("Node exporter", "主机指标采集")}</option>)}</select></Field><Button disabled={busy || !hostOptions.length} onClick={() => void bindHost()}>{text("Save host association", "保存主机关联")}</Button><p className="subtle">{text("Choose the actual machine running this instance. Shared egress IPs do not identify a host.", "请选择实际运行此实例的机器，共用公网出口不代表同一台主机。")}</p></div>}

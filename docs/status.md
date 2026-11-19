@@ -1,5 +1,13 @@
 # Project status and progress protocol
 
+### 2026-11-19 — Server directory platform and list changes
+
+The directory now groups reported channels, discovers custom channels, and filters by platform and service type
+before paging. The instance identity and metric scopes retain the original channel. Directory rows use a single
+column at desktop and mobile widths, with windowed rendering for larger pages and matching platform labels on
+the detail page. The targeted Go store/server suite, 177 web units, production Vite build and nine Edge browser
+cases against an isolated webui binary passed. Production deployment is tracked separately.
+
 ### 2026-11-11 — Template center browser smoke
 
 The headless UI smoke now selects Template center by its accessible English or
