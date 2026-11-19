@@ -463,6 +463,7 @@ pre {
 .home-links strong, .home-links small { display: block; }
 .home-links strong { font-size: 13px; }
 .home-links small { margin-top: 4px; color: var(--text-secondary); font-size: 12px; line-height: 1.4; }
+.home-storage-type { display: block; margin-top: 4px; color: var(--text-secondary); }
 @media (max-width: 850px) { .home-links { grid-template-columns: 1fr; } }
 .page-heading {
   display: flex;

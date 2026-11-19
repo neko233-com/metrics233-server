@@ -31,6 +31,7 @@ const zh: Record<string, string> = {
   "Data connections": "数据接入", "Reporting access": "上报管理", "Hosts": "主机", "CLI guide": "命令行指南",
   "Accounts": "账号管理", "Data": "数据", "Settings": "设置", "Skip to content": "跳到内容",
   "Quick links": "常用功能",
+  "Built-in storage": "内置存储",
   "See server reports, platforms, and resources.": "查看服务器上报、所属平台和资源用量。",
   "Find saved charts and templates.": "打开已保存的图表和模板。",
   "Look up metrics from a data source.": "从数据源查找指标和明细。",

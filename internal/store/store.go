@@ -389,9 +389,11 @@ type Stats struct {
 
 func (s *Store) Stats(ctx context.Context) (Stats, error) {
 	if s.Backend != nil {
-		return s.Backend.Stats(ctx)
+		stats, err := s.Backend.Stats(ctx)
+		stats.Backend = s.Kind()
+		return stats, err
 	}
-	var v Stats
+	v := Stats{Backend: s.Kind()}
 	var recent int
 	err := s.DB.QueryRowContext(ctx, `SELECT (SELECT COUNT(*) FROM series),COUNT(*),COALESCE(MAX(timestamp),0),COALESCE(SUM(CASE WHEN timestamp>=? THEN 1 ELSE 0 END),0) FROM samples`, time.Now().Add(-time.Minute).UnixMilli()).Scan(&v.Series, &v.Samples, &v.LastSample, &recent)
 	v.IngestRate = float64(recent) / 60

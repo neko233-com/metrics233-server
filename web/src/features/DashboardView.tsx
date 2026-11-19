@@ -80,6 +80,7 @@ const homeLinks = [
   { view: "dashboards", label: "Saved views", description: "Find saved charts and templates.", icon: ChartNoAxesColumn },
   { view: "explore", label: "Search details", description: "Look up metrics from a data source.", icon: Search },
 ] as const;
+const storageNames: Record<string, string> = { embedded: "Built-in storage", sqlite: "SQLite", clickhouse: "ClickHouse" };
 function DashboardContent({
   dashboard,
   stats,
@@ -297,6 +298,9 @@ function DashboardContent({
                 {tr("d retention")}
               </small>
             </strong>
+            {stats?.backend && <small className="home-storage-type">
+              {tr(Object.hasOwn(storageNames, stats.backend) ? storageNames[stats.backend] : stats.backend)}
+            </small>}
           </div>
           <div>
             <span>{tr("Collectors online")}</span>

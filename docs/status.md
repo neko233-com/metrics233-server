@@ -1,5 +1,13 @@
 # Project status and progress protocol
 
+### 2026-11-19 — Startup-selected metric storage
+
+The same reporting and query code now gets its backend from a central startup strategy registry.
+Embedded remains the default. SQLite and ClickHouse are selected explicitly. The authenticated stats route
+and Home display the running strategy. The store, HTTP server and CLI suites passed with `CGO_ENABLED=0`.
+Local tests exercised real SQLite and embedded ingestion/query and the ClickHouse startup contract over a
+fixture endpoint. This change does not migrate storage.
+
 ### 2026-11-19 — Chinese-first workspace and reporting status
 
 New browser profiles open in Simplified Chinese. Saved language preferences survive reloads. Home links,

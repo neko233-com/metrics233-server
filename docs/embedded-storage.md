@@ -62,8 +62,18 @@ Back up the **complete stopped data directory**, including TSDB `wal`, `wbl`,
 to an older binary which only reads SQLite requires restoring the matching old
 snapshot as well. Do not roll back code alone after legacy reclamation.
 
-Explicit `--storage sqlite` remains a legacy compatibility backend. ClickHouse
-remains an explicitly selected external high-volume option.
+## Storage strategies
+
+The server selects a strategy at startup. `--storage` takes precedence over
+`METRICSPANEL_STORAGE`. The default is `embedded`. `sqlite` opens the legacy
+SQLite metric tables. `clickhouse` uses the configured external ClickHouse
+endpoint. `schema` lists the available strategies, and authenticated
+`GET /api/v1/stats` reports the active strategy on Home.
+
+Every strategy uses the same reporting and query entry points and the SQLite
+control catalog. Selecting a strategy does not move historical samples or
+change their reporting identities. Use the documented offline migration when
+moving from legacy SQLite to embedded storage.
 
 ## Reproducible profile
 

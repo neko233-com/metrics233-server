@@ -139,6 +139,7 @@ export type Target = {
   duration_ms: number;
 };
 export type Stats = {
+  backend?: string;
   series: number;
   samples: number;
   ingest_rate: number;

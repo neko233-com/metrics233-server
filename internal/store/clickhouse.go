@@ -26,6 +26,8 @@ type ClickHouse struct {
 	Client                        *http.Client
 }
 
+func (c *ClickHouse) Kind() string { return "clickhouse" }
+
 func (c *ClickHouse) Ping(ctx context.Context) error {
 	_, err := c.execute(ctx, "SELECT 1", nil, nil, false)
 	return err
