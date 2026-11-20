@@ -100,3 +100,38 @@ test("Business onboarding fits mobile/tablet/desktop with the clock and rejects 
   await expect(page.getByRole("alert")).toContainText("Labels must be a JSON object with string values");
   await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
 });
+
+test("host dashboard actions fit the card and open saved views without a write request", async ({ page, endpoint }) => {
+  await page.addInitScript(() => localStorage.setItem("metricspanel-locale", "en"));
+  const fixture = await page.request.post(endpoint + "/api/v1/managed-hosts", { data: {
+    name: "Fixture host", address: "127.0.0.1", port: 22, user: "fixture", enabled: false,
+    target: { name: "Fixture MySQL", kind: "mysql", url: "mysql://localhost:3306", username: "fixture", tls_mode: "require", interval_seconds: 30, enabled: false },
+  } });
+  expect(fixture.ok()).toBeTruthy();
+
+  let dashboardWrites = 0;
+  page.on("request", request => {
+    if (request.method() === "POST" && /\/managed-hosts\/[^/]+\/dashboard$/.test(new URL(request.url()).pathname)) dashboardWrites++;
+  });
+
+  await page.goto(endpoint + "/#hosts");
+  const card = page.getByRole("region", { name: "Fixture host", exact: true });
+  const generate = card.getByRole("button", { name: "Generate host dashboard", exact: true });
+  await expect(generate).toBeVisible();
+  for (const width of [390, 768, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    const actions = await card.locator(".host-dashboard-actions").boundingBox();
+    const heading = await card.locator(".host-view-nav").boundingBox();
+    expect(actions!.y + actions!.height).toBeLessThan(heading!.y);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  const dashboard = page.getByRole("heading", { name: "Fixture host · Host resources", exact: true });
+  await generate.click();
+  await expect(dashboard).toBeVisible();
+  expect(dashboardWrites).toBe(1);
+  await page.goBack();
+  await card.getByRole("button", { name: "Open host dashboard", exact: true }).click();
+  await expect(dashboard).toBeVisible();
+  expect(dashboardWrites).toBe(1);
+  await expect(page.getByRole("navigation", { name: "Main navigation" }).getByRole("button", { name: "Hosts", exact: true })).toHaveAttribute("aria-current", "page");
+});

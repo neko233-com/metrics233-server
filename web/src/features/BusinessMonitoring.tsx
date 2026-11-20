@@ -1,4 +1,5 @@
 import { lazy, Suspense, useState, type FormEvent } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { Activity, ArrowRight, Copy } from "lucide-react";
 import { api, jsonBody, message, parseLabels, type Dashboard, type Metric, type Panel, type Target } from "../api";
 import { getLocale } from "../i18n";
@@ -25,16 +26,18 @@ export default function BusinessMonitoring({ metrics, dashboards, targets, reloa
 }) {
   const { canEdit } = useSession();
   type Surface = "game" | "services" | "resources";
-  const [surface, setSurface] = useState<Surface>(() => {
-    try {
-      const saved = sessionStorage.getItem("metrics233-dashboard-category");
-      if (saved === "resources" || saved === "services" || saved === "game") return saved;
-    } catch { /* Session preference is optional. */ }
-    return "services";
-  });
+  const location = useLocation();
+  const navigateURL = useNavigate();
+  const requested = new URLSearchParams(location.search).get("surface");
+  const surface = requested === "game" || requested === "resources" ? requested : "services";
   function selectSurface(value: Surface) {
-    setSurface(value);
-    try { sessionStorage.setItem("metrics233-dashboard-category", value); } catch { /* Session preference is optional. */ }
+    if (value === surface) return;
+    const params = new URLSearchParams(window.location.search);
+    params.delete("instance");
+    params.delete("section");
+    if (value === "services") params.delete("surface");
+    else params.set("surface", value);
+    void navigateURL({ pathname: location.pathname, search: params.toString(), hash: location.hash });
   }
   const [selected, setSelected] = useState("");
   const [kind, setKind] = useState<"gauge" | "counter">("gauge");

@@ -887,6 +887,7 @@ Object.assign(zh, {
   Expression: "表达式",
   "Frame JSON": "数据帧 JSON",
   "Showing first 5 rows": "显示前 5 行",
+  "Dashboard tools": "面板工具",
   "Panel queries": "面板查询",
   Panel: "面板",
   "Panel query list": "面板查询列表",

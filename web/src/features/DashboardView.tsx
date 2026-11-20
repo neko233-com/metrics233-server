@@ -1,6 +1,6 @@
 import { getLocale, t as tr } from "../i18n";
 import { lazy, Suspense, useState } from "react";
-import { ArrowUpRight, ChartNoAxesColumn, Plus, RefreshCw, Pencil, Search, Server } from "lucide-react";
+import { ArrowUpRight, ChartNoAxesColumn, Plus, RefreshCw, Pencil, Search, Server, SlidersHorizontal } from "lucide-react";
 import {
   api,
   ApiError,
@@ -192,9 +192,32 @@ function DashboardContent({
         onRemove={() => remove(sourcePanel)}
       />
     );
+  const isHome = dashboard.id === "system";
+  const editActions = canEdit && (
+    <>
+      <DashboardVariablesButton onClick={() => setEditingVariables(true)} />
+      <button disabled={!dashboard.panels.length} onClick={() => setEditingQueries(true)}>
+        <Pencil size={17} />
+        {tr("Panel queries")}
+      </button>
+      <DashboardLayoutButton disabled={!dashboard.panels.length} onClick={() => setEditingLayout(true)} />
+      <DashboardHistoryButton dashboard={dashboard} reload={reload} />
+      <DashboardSnapshotButton
+        dashboard={dashboard}
+        panels={entries.map((entry) => ({
+          ...entry,
+          panel: variableState.variables.length ? nativePanelForSDK(entry.panel) : entry.panel,
+        }))}
+        range={range}
+        reload={reload}
+      />
+      <AnnotationQueriesButton dashboard={dashboard} values={variableState.effective} range={range} reload={reload} />
+    </>
+  );
+
   return (
     <>
-      <div className="page-heading dashboard-heading">
+      <div className={`page-heading dashboard-heading${isHome ? " home-heading" : ""}`}>
         <div>
           <h1>{tr(dashboard.id === "system" ? "Home" : dashboard.name)}</h1>
           <p>
@@ -207,42 +230,7 @@ function DashboardContent({
           </p>
         </div>
         <div className="toolbar">
-          {canEdit && (
-            <>
-              <DashboardVariablesButton
-                onClick={() => setEditingVariables(true)}
-              />
-              <button
-                disabled={!dashboard.panels.length}
-                onClick={() => setEditingQueries(true)}
-              >
-                <Pencil size={17} />
-                {tr("Panel queries")}
-              </button>
-              <DashboardLayoutButton
-                disabled={!dashboard.panels.length}
-                onClick={() => setEditingLayout(true)}
-              />
-              <DashboardHistoryButton dashboard={dashboard} reload={reload} />
-              <DashboardSnapshotButton
-                dashboard={dashboard}
-                panels={entries.map((entry) => ({
-                  ...entry,
-                  panel: variableState.variables.length
-                    ? nativePanelForSDK(entry.panel)
-                    : entry.panel,
-                }))}
-                range={range}
-                reload={reload}
-              />
-              <AnnotationQueriesButton
-                dashboard={dashboard}
-                values={variableState.effective}
-                range={range}
-                reload={reload}
-              />
-            </>
-          )}
+          {!isHome && editActions}
           <TimeRangePicker value={range} onChange={onRange} />
           <RefreshPicker value={refreshChoice} onChange={onRefreshChoice} />
           <button
@@ -252,27 +240,22 @@ function DashboardContent({
           >
             <RefreshCw size={19} />
           </button>
-          {canEdit && (
+          {canEdit && (isHome ? (
+            <details className="home-dashboard-tools">
+              <summary><SlidersHorizontal size={17} aria-hidden="true" />{tr("Dashboard tools")}</summary>
+              <div className="home-dashboard-actions">
+                <button className="primary" onClick={() => openEditor()}><Plus size={18} />{tr("Add panel")}</button>
+                {editActions}
+              </div>
+            </details>
+          ) : (
             <button className="primary" onClick={() => openEditor()}>
               <Plus size={18} />
               {tr("Add panel")}
             </button>
-          )}
+          ))}
         </div>
       </div>
-      {dashboard.id === "system" && <nav className="home-links" aria-label={tr("Quick links")}>
-        {homeLinks.map(({ view, label, description, icon: Icon }) =>
-          <a key={view} href={"#" + view} onClick={event => {
-            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-            event.preventDefault();
-            onNavigate(view);
-          }}>
-            <Icon size={18} aria-hidden="true" />
-            <span><strong>{tr(label)}</strong><small>{tr(description)}</small></span>
-            <ArrowUpRight size={15} aria-hidden="true" />
-          </a>
-        )}
-      </nav>}
       {dashboard.id === "system" ? (
         <div className="stats-band">
           <div>
@@ -313,14 +296,19 @@ function DashboardContent({
           </div>
         </div>
       ) : null}
-      {dashboard.id === "system" ? (
-        <GettingStarted
-          targets={targets}
-          metrics={metrics}
-          tick={tick}
-          onNavigate={onNavigate}
-        />
-      ) : null}
+      {dashboard.id === "system" && <nav className="home-links" aria-label={tr("Quick links")}>
+        {homeLinks.map(({ view, label, description, icon: Icon }) =>
+          <a key={view} href={"#" + view} onClick={event => {
+            if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+            event.preventDefault();
+            onNavigate(view);
+          }}>
+            <Icon size={18} aria-hidden="true" />
+            <span><strong>{tr(label)}</strong><small>{tr(description)}</small></span>
+            <ArrowUpRight size={15} aria-hidden="true" />
+          </a>
+        )}
+      </nav>}
       <DashboardVariableBar state={variableState} />
       <div className="chart-grid dashboard-panel-grid">
         {variableState.ready &&
@@ -342,7 +330,15 @@ function DashboardContent({
             );
           })}
       </div>
-      {!dashboard.panels.length ? (
+      {dashboard.id === "system" ? (
+        <GettingStarted
+          targets={targets}
+          metrics={metrics}
+          tick={tick}
+          onNavigate={onNavigate}
+        />
+      ) : null}
+      {!dashboard.panels.length && canEdit ? (
         <div className="empty-workspace">
           <h2>{tr("Add your first metric panel")}</h2>
           <p>{tr("Select a metric to start plotting live data.")}</p>

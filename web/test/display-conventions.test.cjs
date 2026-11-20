@@ -48,3 +48,11 @@ test("directory ordering is natural, stable under polling and never mutates API 
   assert.equal(directory.reportFresh(9999, 100000), false);
   assert.equal(directory.reportFresh(150000, 100000), false);
 });
+
+test("axis labels shorten only within one local day and keep seconds in close zooms", () => {
+  const start = new Date(2026, 9, 23, 0, 0).getTime();
+  const tick = new Date(2026, 9, 23, 0, 2, 3).getTime();
+  assert.equal(display.formatChartTimestamp(tick, start, start + 3_600_000), "00:02");
+  assert.equal(display.formatChartTimestamp(tick, tick - 10_000, tick + 10_000), "00:02:03");
+  assert.equal(display.formatChartTimestamp(tick, start - 60_000, start + 3_600_000), "2026-10-23\n00:02:03");
+});

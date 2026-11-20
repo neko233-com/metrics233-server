@@ -1,4 +1,4 @@
-import { formatTimestamp } from "../display-format";
+import { formatChartTimestamp, formatTimestamp } from "../display-format";
 import { getLocale, t as tr } from "../i18n";
 import {
   useEffect,
@@ -436,7 +436,7 @@ export function Chart({
                   className="grid-line vertical"
                 />
                 <text x={x} y="202" textAnchor={i === 0 ? "start" : i === ticks - 1 ? "end" : "middle"}>
-                  {timeLabel(chart.start + ((chart.end - chart.start) * i) / (ticks - 1)).split(" ").map((part, line) => <tspan key={line} x={x} dy={line ? 13 : 0}>{part}</tspan>)}
+                  {formatChartTimestamp(chart.start + ((chart.end - chart.start) * i) / (ticks - 1), chart.start, chart.end).split("\n").map((part, line) => <tspan key={line} x={x} dy={line ? 13 : 0}>{part}</tspan>)}
                 </text>
               </g>
             );

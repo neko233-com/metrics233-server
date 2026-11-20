@@ -7,7 +7,7 @@ import {
   type FormEvent,
 } from "react";
 import { Monitor, MoreHorizontal, Pencil, Plus, RefreshCw, ShieldCheck, ArrowUpRight } from "lucide-react";
-import { api, message, timeAgo, type Target } from "../api";
+import { api, message, timeAgo, type Dashboard, type Target } from "../api";
 import { getLocale } from "../i18n";
 import { useObservationClock } from "../observation-clock";
 import { Alert, AppModal, Button, Field, Input } from "../ui";
@@ -104,8 +104,14 @@ const stateText = (host: Host, now: number) =>
 
 export default function ManagedHosts({
   notify,
+  dashboards,
+  open,
+  reloadDashboards,
 }: {
   notify: (value: string, error?: boolean) => void;
+  dashboards: Dashboard[];
+  open: (dashboard: Dashboard) => void;
+  reloadDashboards: () => Promise<void>;
 }) {
   const { canAdmin } = useSession();
   const [hosts, setHosts] = useState<Host[]>([]),
@@ -250,13 +256,12 @@ export default function ManagedHosts({
           ),
         );
       } else if (kind === "dashboard" || kind === "host-dashboard") {
-        const dashboard = await api<{ id: string; name: string }>(
+        const dashboard = await api<Dashboard>(
           `/api/v1/managed-hosts/${host.id}/dashboard`,
           { method: "POST", body: JSON.stringify({ language: getLocale(), kind: kind === "host-dashboard" ? "host" : "mysql" }) },
         );
-        location.assign(
-          `/d/${encodeURIComponent(dashboard.id)}/${encodeURIComponent(dashboard.name)}`,
-        );
+        await reloadDashboards();
+        open(dashboard);
       } else if (kind === "events") {
         const items = await api<
           { at: number; actor: string; action: string; result: string }[]
@@ -299,6 +304,18 @@ export default function ManagedHosts({
       setBusy("");
     }
   };
+  function dashboardAction(host: Host, kind: "host" | "mysql") {
+    const id = `${kind}-${host.id.replaceAll("-", "")}`;
+    const dashboard = dashboards.find(item => item.id === id);
+    const label = kind === "host"
+      ? (dashboard ? text("Open host dashboard", "查看主机看板") : text("Generate host dashboard", "生成主机看板"))
+      : (dashboard ? text("Open MySQL dashboard", "查看 MySQL 看板") : text("Generate MySQL dashboard", "生成 MySQL 看板"));
+    return <Button size="sm" disabled={Boolean(busy)} onClick={() => {
+      if (dashboard) open(dashboard);
+      else void action(host, kind === "host" ? "host-dashboard" : "dashboard");
+    }}><ArrowUpRight size={15} aria-hidden="true" />{label}</Button>;
+  }
+
   return (
     <div className="managed-hosts">
       <div className="page-heading">
@@ -364,10 +381,12 @@ export default function ManagedHosts({
                   <i />
                   {stateText(host, now)}
                 </span>
-                <Button size="sm" disabled={!!busy} onClick={() => void action(host,"host-dashboard")}><ArrowUpRight size={15} />{text("Open dashboard", "打开仪表盘")}</Button>
+                <div className="host-dashboard-actions">
+                  {dashboardAction(host, "host")}
+                  {host.target.kind === "mysql" && dashboardAction(host, "mysql")}
+                </div>
               </div>
-              <div className="host-view-nav"><span aria-current="page">{text("Host resources", "主机资源")}</span>
-                {host.target.kind === "mysql" ? <button disabled={!!busy} onClick={() => void action(host,"dashboard")}>MySQL <ArrowUpRight size={13} /></button> : null}
+              <div className="host-view-nav"><span>{text("Host resources", "主机资源")}</span>
                 <small>{text("Last heartbeat", "最近心跳")} {host.last_seen ? timeAgo(host.last_seen) : "—"}</small>
               </div>
               <HostResources id={host.id} resources={host.resources} enabled={host.enabled && !host.revoked && fresh && host.collect_host !== false} interval={host.target.interval_seconds} rules={rules} rulesState={rulesState} />
@@ -443,14 +462,6 @@ export default function ManagedHosts({
                 >
                   {text("Revoke access", "撤销接入")}
                 </Button>
-                {host.target.kind === "mysql" && (
-                  <Button
-                    disabled={!!busy}
-                    onClick={() => void action(host, "dashboard")}
-                  >
-                    {text("Open dashboard", "查看仪表盘")}
-                  </Button>
-                )}
               </div>
               {!host.host_key && (
                 <Button

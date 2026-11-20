@@ -2703,3 +2703,68 @@ button:disabled { cursor: not-allowed; }
   .business-detail-navigation .business-instance-tabs { gap: 16px; }
   .business-detail-navigation .business-instance-tabs button { font-size: 13px; }
 }
+
+.home-heading .toolbar { gap: 8px; }
+.home-heading .toolbar select { min-width: 0; }
+.home-heading p, .nav-group-title { color: var(--text-secondary); }
+
+.home-dashboard-tools { position: relative; }
+.home-dashboard-tools summary, .home-guide-toggle {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 42px;
+  gap: 8px;
+  cursor: pointer;
+}
+.home-dashboard-tools summary::-webkit-details-marker,
+.home-guide-toggle::-webkit-details-marker { display: none; }
+.home-dashboard-tools summary {
+  padding-inline: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+.home-dashboard-tools[open] summary,
+.home-dashboard-tools summary:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+.home-dashboard-actions {
+  position: absolute;
+  z-index: 8;
+  top: calc(100% + 8px);
+  inset-inline-start: 0;
+  display: grid;
+  gap: 6px;
+  width: max-content;
+  min-width: 175px;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: 0 10px 26px #0008;
+}
+.home-dashboard-actions > button { justify-content: flex-start; }
+.home-getting-started { margin-top: 16px; }
+.home-guide-toggle { min-height: 28px; }
+.home-getting-started[open] .home-guide-toggle { margin-bottom: 12px; }
+.home-getting-started[open] .home-guide-toggle svg { transform: rotate(90deg); }
+
+.stats-band > div { min-width: 0; }
+.stats-band strong { line-height: 1.2; white-space: normal; overflow-wrap: anywhere; }
+.stats-band small { display: inline-block; margin: 3px 0 0; }
+.stats-band .home-storage-type { display: block; }
+.dashboard-panel-grid .panel-heading h2 { min-width: 0; overflow-wrap: anywhere; }
+.dashboard-panel-grid .chart-svg text { fill: var(--text-secondary); }
+
+@media (max-width: 600px) {
+  .home-links { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .home-links a { grid-template-columns: auto minmax(0, 1fr); padding: 8px; min-height: 44px; gap: 5px; }
+  .home-links small, .home-links a > svg:last-child { display: none; }
+  .home-links strong { font-size: 12px; overflow-wrap: anywhere; }
+  .home-heading .toolbar { gap: 6px; }
+  .home-dashboard-actions { inset-inline-start: auto; inset-inline-end: 0; }
+  .stats-band small { display: block; }
+}

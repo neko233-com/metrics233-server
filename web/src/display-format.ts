@@ -12,8 +12,13 @@ export function browserTimezoneLabel(at = new Date()): string {
   return `GMT${minutes < 0 ? "-" : "+"}${Math.floor(absolute / 60)}${absolute % 60 ? `:${String(absolute % 60).padStart(2, "0")}` : ""}`;
 }
 
-export function formatChartTimestamp(value: number): string {
-  return formatTimestamp(value).replace(" ", "\n");
+export function formatChartTimestamp(value: number, start?: number, end?: number): string {
+  const formatted = formatTimestamp(value);
+  if (formatted !== "—" && start !== undefined && end !== undefined
+      && formatTimestamp(start).slice(0, 10) === formatTimestamp(end).slice(0, 10)) {
+    return formatted.slice(11, end - start < 120_000 ? 19 : 16);
+  }
+  return formatted.replace(" ", "\n");
 }
 
 export function formatBytes(value: number): string {

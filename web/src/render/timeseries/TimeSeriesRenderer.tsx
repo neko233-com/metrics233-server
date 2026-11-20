@@ -263,10 +263,10 @@ export default function TimeSeriesRenderer({
       axes: [
         {
           scale: "x",
-          stroke: "rgba(180, 190, 205, 0.65)",
+          stroke: "#b5b5b5",
           grid: { stroke: "rgba(180, 190, 205, 0.10)", width: 1 },
           ticks: { stroke: "rgba(180, 190, 205, 0.16)", width: 1 },
-          values: (_plot, ticks) => ticks.map((value) => formatChartTimestamp(value)),
+          values: (plot, ticks) => ticks.map((value) => formatChartTimestamp(value, plot.scales.x.min ?? undefined, plot.scales.x.max ?? undefined)),
           size: 48, space: 120,
         },
         {
@@ -274,7 +274,7 @@ export default function TimeSeriesRenderer({
           label: leftLabel,
           labelSize: 18,
           size: 64,
-          stroke: "rgba(180, 190, 205, 0.65)",
+          stroke: "#b5b5b5",
           grid: { stroke: "rgba(180, 190, 205, 0.10)", width: 1 },
           ticks: { stroke: "rgba(180, 190, 205, 0.16)", width: 1 },
           values: (_plot: uPlot, ticks: number[]) => axisValues("y", ticks),
@@ -287,7 +287,7 @@ export default function TimeSeriesRenderer({
               labelSize: 18,
               size: 64,
               values: (_plot: uPlot, ticks: number[]) => axisValues("y2", ticks),
-              stroke: "rgba(180, 190, 205, 0.65)",
+              stroke: "#b5b5b5",
               grid: { show: false },
               ticks: { stroke: "rgba(180, 190, 205, 0.16)", width: 1 },
             }]

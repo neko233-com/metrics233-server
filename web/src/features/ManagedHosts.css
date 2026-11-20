@@ -4,16 +4,23 @@
   gap: 18px;
 }
 .managed-host-card { padding: 0; overflow: visible; }
-.managed-host-card > .panel-heading { padding: 20px 22px; margin: 0; gap: 14px; border-bottom: 1px solid var(--border); }
+.managed-hosts > .page-heading .actions { gap: 8px; flex-wrap: wrap; }
+.managed-host-card > .panel-heading {
+  height: auto;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 22px;
+  border-bottom: 1px solid var(--border);
+}
 .host-icon { color: #b5c9d9; }
-.host-identity { flex: 1; min-width: 0; }
+.host-identity { flex: 1 1 160px; min-width: 0; }
 .host-identity h2 { margin: 0 0 6px; font-size: 19px; }
 .host-identity p { margin: 0; color: var(--muted); font-size: 12px; }
 .host-enrollment-help { margin: 0 0 18px; font-size: 12px; color: var(--muted); }
 .host-enrollment-help summary { cursor: pointer; width: fit-content; }
 .host-view-nav { display: flex; align-items: center; gap: 24px; padding: 0 22px; min-height: 52px; border-bottom: 1px solid var(--border); }
 .host-view-nav > span { align-self: stretch; display: flex; align-items: center; border-bottom: 2px solid var(--accent); font-size: 13px; font-weight: 600; }
-.host-view-nav button { border: 0; background: transparent; padding: 8px 0; min-height: 36px; color: var(--muted); }
 .host-view-nav small { margin-left: auto; color: var(--muted); font-size: 11px; }
 .host-resources { padding: 12px; container: host-resources / inline-size; }
 .host-instruments, .host-trends { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -123,10 +130,16 @@
   .managed-host-form .form-grid {
     grid-template-columns: 1fr;
   }
-  .managed-host-card .panel-heading {
-    flex-wrap: wrap;
-  }
   .managed-host-card dl {
     grid-template-columns: 85px minmax(0, 1fr);
   }
+}
+
+.managed-host-card > .panel-heading .host-identity h2 { font-size: 18px; }
+.host-identity h2, .host-identity p { overflow-wrap: anywhere; }
+.host-identity p, .host-view-nav small, .host-more > summary { color: var(--text-secondary); }
+.host-view-nav > span { border-bottom: 0; color: var(--text-secondary); }
+.host-dashboard-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 640px) {
+  .host-dashboard-actions { flex-basis: 100%; }
 }

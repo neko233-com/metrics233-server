@@ -2,12 +2,13 @@ import { BrowserClock } from "./ui/BrowserClock";
 import { PageRecoveryBoundary } from "./ui/PageRecoveryBoundary";
 import { t as tr } from "./i18n";
 import { getLocale, setLocale, type Locale } from "./i18n";
-import { useLocation, useNavigate } from "react-router";
+import { useLocation, useNavigate, useNavigationType } from "react-router";
 import {
   lazy,
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type FormEvent,
@@ -107,8 +108,8 @@ const baseNavigation = [
   { id: "cli", name: "CLI guide", icon: Terminal },
 ] as const;
 const navigationGroups = [
-  { name: "Monitoring", items: ["overview", "business", "dashboards", "alerts"] },
-  { name: "Data", items: ["explore", "collectors", "reporting-sources", "hosts"] },
+  { name: "Monitoring", items: ["overview", "business", "hosts", "dashboards", "alerts"] },
+  { name: "Data", items: ["explore", "collectors", "reporting-sources"] },
   { name: "Settings", items: ["cli", "users", "plugins"], showExtensions: true },
 ] satisfies { name: string; items: View[]; showExtensions?: boolean }[];
 
@@ -128,7 +129,11 @@ function workspaceView(pathname: string, hash: string): AppView {
 }
 
 export default function App() {
-  const { pathname, hash } = useLocation();
+  const { pathname, hash, state: routeState } = useLocation();
+  const navigationType = useNavigationType();
+  useLayoutEffect(() => {
+    if (navigationType !== "POP") window.scrollTo(0, 0);
+  }, [pathname, hash, navigationType]);
   const navigateURL = useNavigate();
   const view = workspaceView(pathname, hash);
   const currentUID = routeResourceID(pathname, "d");
@@ -225,7 +230,10 @@ export default function App() {
   const current = view === "overview" ? dashboards.find(dashboard => dashboard.id === "system")
     : currentUID ? dashboards.find(dashboard => dashboardUID(dashboard) === currentUID) : undefined;
   const dashboardRouteMissing = view === "dashboard" && !current && dashboards.length > 0;
-  const dashboardNavigation = /^conn-[a-f0-9]{32}$/.test(current?.id || "") ? "business" : "dashboards";
+  const dashboardNavigation = routeState?.fromSavedViews === true ? "dashboards"
+    : (!user || user.isServerAdmin) && /^(host|mysql)-[a-f0-9]{32}$/.test(current?.id || "")
+    ? "hosts"
+    : /^conn-[a-f0-9]{32}$/.test(current?.id || "") ? "business" : "dashboards";
   const refreshChoice =
     refreshOverride ??
     ((view === "dashboard" || view === "overview") && current?.grafana
@@ -473,8 +481,13 @@ export default function App() {
   function navigate(next: Exclude<View, "dashboard">) {
     setSidebarOpen(false);
     const destination = "#" + next;
-    if (location.pathname !== "/" || location.hash !== destination) {
-      void navigateURL({ pathname: "/", search: location.search, hash: destination });
+    const params = new URLSearchParams(location.search);
+    const clearBusinessSelection = view === "business";
+    if (clearBusinessSelection) {
+      for (const key of ["surface", "instance", "section"]) params.delete(key);
+    }
+    if (location.pathname !== "/" || location.hash !== destination || params.toString() !== new URLSearchParams(location.search).toString()) {
+      void navigateURL({ pathname: "/", search: params.toString(), hash: destination });
     }
   }
   function toggleSidebar() {
@@ -492,9 +505,6 @@ export default function App() {
     });
   }
   function openDashboard(d: Dashboard) {
-    if (/^conn-[a-f0-9]{32}$/.test(d.id)) {
-      try { sessionStorage.setItem("metrics233-dashboard-category", "resources"); } catch { /* Optional navigation preference. */ }
-    }
     setRefreshOverride(null);
     // Carry an explicit URL/user time choice between dashboards, without
     // carrying another dashboard's scoped variable values.
@@ -503,7 +513,10 @@ export default function App() {
     for (const key of ["from", "to", "time", "time.window", "timezone"])
       if (currentParams.has(key)) params.set(key, currentParams.get(key)!);
     const destination = `/d/${encodeURIComponent(dashboardUID(d))}/${encodeURIComponent(d.name)}`;
-    void navigateURL({ pathname: destination, search: params.toString() }, { replace: location.pathname === destination });
+    void navigateURL({ pathname: destination, search: params.toString() }, {
+      replace: location.pathname === destination,
+      state: { fromSavedViews: view === "dashboards" || routeState?.fromSavedViews === true },
+    });
     try {
       const fallback = rangeFromDashboard(d.grafana) || "1h";
       const next = rangeFromURL(params, fallback) || fallback;
@@ -983,7 +996,7 @@ export default function App() {
             <Collectors targets={targets} reload={load} notify={notify} open={openDashboard} />
           )}
           {view === "reporting-sources" && <ReportingSources notify={notify} />}
-          {view === "hosts" && <ManagedHosts notify={notify} />}
+          {view === "hosts" && <ManagedHosts notify={notify} dashboards={dashboards} open={openDashboard} reloadDashboards={load} />}
           {view === "cli" && <AgentCLI />}
           {view === "plugins" && <Plugins notify={notify} />}
           {view === "app" && (

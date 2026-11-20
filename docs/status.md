@@ -1,5 +1,20 @@
 # Project status and progress protocol
 
+### 2026-11-20 — 服务器监控 UI 本地预览
+
+目标是让值班人员打开首页即可看到趋势，并能从服务器列表回到刚才的搜索结果。
+以生产 0.2.37 的固定源码 `2cb310069ccb136bf02d97b51b339b3ff74e7154` 为基线。
+保留深色主题，首页默认显示时间和刷新控件，面板工具及快速开始可折叠。
+同日趋势轴缩短时间标签，悬停继续显示完整时间。主机卡片的标题和操作随内容换行。
+服务器页面通过 `surface` 表示游戏数据和资源监控，通过 `instance` 和 `section` 表示实例及区块。
+返回服务器列表保留当前搜索。已有主机看板通过工作区路由打开，首次生成走原有管理接口。
+
+线上登录只读核对了首页、服务器、主机和监控视图。1440×900 下，预览首页图表起点从线上
+832 px 提前至 449 px。通过 `npm run test:unit` 的 178 项单测、`npm run build`、
+`go build -tags webui` 和 12 项定向 Playwright/Edge 用例。浏览器覆盖旧地址、时间窗口、刷新、
+实例详情深链、浏览器返回、窄屏和主机看板生成后的只读打开。预览使用独立 SQLite 和演示数据。
+本轮待业务验收，生产发布及发布后复测仍待执行。沿用下方工作流权重，项目加权总进度为 96%。
+
 ### 2026-11-19 — Vite+ and shared browser routing
 
 Vite+ 1.7.0 builds the React 19 console with Rolldown. React Router owns workspace and compatible plugin

@@ -1,4 +1,5 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router";
 import { ArrowLeft, Copy, Pencil, RefreshCw, Settings2, Server } from "lucide-react";
 import { api, ApiError, jsonBody, message, timeAgo, type Dashboard, type Panel } from "../api";
 import { getLocale } from "../i18n";
@@ -45,15 +46,44 @@ type InstanceHost = { binding: HostBinding; name: string; enabled: boolean; avai
 type HostOption = { kind: "managed_host" | "collector"; id: string; name: string };
 type Resolved = { instance: Instance; dashboard: Dashboard; process_dashboard?: Dashboard; population?: Population; host?: InstanceHost; host_error?: boolean };
 type Props = { dashboards: Dashboard[]; open: (dashboard: Dashboard) => void; reload: () => Promise<void>; tick?: number };
+const instanceSections = ["overview", "network", "regions", "sql"] as const;
+type InstanceSection = typeof instanceSections[number];
+
 export default function BusinessInstances({ dashboards, open, reload, tick = 0 }: Props) {
-  const [selected, setSelected] = useState<string | null>(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const value = new URLSearchParams(location.search).get("instance");
+  const selected = value && /^[a-f0-9]{64}$/.test(value) ? value : null;
+  const directoryScroll = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    if (selected) window.scrollTo(0, 0);
+    else if (directoryScroll.current !== null) window.scrollTo(0, directoryScroll.current);
+  }, [selected]);
+  function changeSelection(id: string | null) {
+    if (id === null && location.state?.fromInstanceDirectory === true) {
+      void navigate(-1);
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    params.delete("section");
+    if (id) {
+      directoryScroll.current = window.scrollY;
+      params.set("instance", id);
+    } else params.delete("instance");
+    void navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, {
+      replace: id === null,
+      state: id ? { fromInstanceDirectory: true } : null,
+    });
+  }
   return <>
-    <div hidden={selected !== null}><BusinessInstanceDirectory active={selected === null} select={setSelected} reload={reload} tick={tick} /></div>
-    {selected && <BusinessInstanceDetail key={selected} id={selected} dashboards={dashboards} open={open} reload={reload} tick={tick} back={() => setSelected(null)} />}
+    <div hidden={selected !== null}><BusinessInstanceDirectory active={selected === null} select={changeSelection} reload={reload} tick={tick} /></div>
+    {selected && <BusinessInstanceDetail key={selected} id={selected} dashboards={dashboards} open={open} reload={reload} tick={tick} back={() => changeSelection(null)} />}
   </>;
 }
 
 function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }: Props & { id: string; back: () => void }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { canEdit, canAdmin } = useSession();
   const [resolved, setResolved] = useState<Resolved | null>(null);
   const [record, setRecord] = useState<Instance | null>(null);
@@ -67,7 +97,22 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
   const [large, setLarge] = useBusinessPanelSize();
   const [range, setRange] = useState<TimeSelection>(() => { try { return rangeFromURL() || "1h"; } catch { return "1h"; } });
   const changeRange = (value: TimeSelection) => { setRange(value); writeRangeURL(value); };
-  const [tab, setTab] = useState<"overview" | "network" | "regions" | "sql">("overview");
+  const requestedTab = new URLSearchParams(location.search).get("section");
+  const requestedSection = instanceSections.find(section => section === requestedTab) || "overview";
+  const role = (resolved?.instance || record)?.identity.role;
+  const sectionAvailable = (section: InstanceSection) =>
+    (role !== "gateway" || section === "overview" || section === "network") &&
+    (role !== "sdk" || section !== "regions");
+  const tab = sectionAvailable(requestedSection) ? requestedSection : "overview";
+  function setTab(section: InstanceSection) {
+    const params = new URLSearchParams(window.location.search);
+    if (section === "overview") params.delete("section");
+    else params.set("section", section);
+    void navigate({ pathname: location.pathname, search: params.toString(), hash: location.hash }, {
+      replace: true,
+      state: location.state,
+    });
+  }
   const [noteOpen, setNoteOpen] = useState(false);
   const mutation = useRef<AbortController | null>(null);
   const templateVersion = useRef("");
@@ -117,7 +162,7 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
   const item = resolved?.instance || record, dashboard = resolved?.dashboard;
   const mode = item?.binding.mode;
   return <section className="business-instance-detail" aria-label={text("Instance dashboard", "实例仪表盘")}>
-    <div className="business-detail-topline"><Button fill="text" onClick={back}><ArrowLeft size={15} />{text("All instances", "全部实例")}</Button><div><Button disabled={busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15} />{text("Refresh", "刷新")}</Button><Button aria-expanded={settingsOpen} aria-controls="business-instance-settings" onClick={() => {
+    <div className="business-detail-topline"><Button fill="text" onClick={back}><ArrowLeft size={15} />{text("Back to server list", "返回服务器列表")}</Button><div><Button disabled={busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={15} />{text("Refresh", "刷新")}</Button><Button aria-expanded={settingsOpen} aria-controls="business-instance-settings" onClick={() => {
       if (!settingsOpen && canAdmin) { const binding = resolved?.host?.binding; setHostChoice(binding?.kind ? `${binding.kind}:${binding.id}` : ""); void api<HostOption[]>("/business/host-options").then(setHostOptions).catch(cause => setError(message(cause))); }
       setSettingsOpen(value => !value);
     }}><Settings2 size={15} />{text("Dashboard settings", "仪表盘设置")}</Button></div></div>
@@ -138,7 +183,7 @@ function BusinessInstanceDetail({ id, dashboards, open, reload, back, tick = 0 }
       {canEdit && <div className="business-instance-actions"><Button disabled={busy} onClick={() => void copy()}><Copy size={15} />{text("Save independent copy", "另存独立副本")}</Button>{mode === "independent" && <Button disabled={busy} onClick={() => open(dashboard)}>{text("Edit independent dashboard", "编辑独立仪表盘")}</Button>}{mode === "inherit" && <Button disabled={busy} onClick={() => { const source = dashboards.find(value => value.id === item.binding.dashboard_id); if (source) open(source); }}>{text("Edit shared template", "编辑共享模板")}</Button>}<details><summary>{text("Template binding", "模板绑定")}</summary><p className="subtle">{text("Inheritance follows the latest template. Save a copy for independent panel edits.", "继承会跟随模板最新版，另存副本后可独立编辑图表。")}</p><Field label={text("Native dashboard template", "原生仪表盘模板")}><select value={template} aria-label={text("Native dashboard template", "原生仪表盘模板")} onChange={event => setTemplate(event.target.value)}><option value="">{text("Choose a dashboard", "选择仪表盘")}</option>{dashboards.filter(value => !value.grafana).map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></Field><Button disabled={busy || !template} onClick={() => void bind("inherit", template)}>{text("Use live template", "使用实时模板")}</Button><Button disabled={busy || mode === "default"} onClick={() => void bind("default", "")}>{text("Reset built-in view", "恢复内置视图")}</Button></details></div>}</section>}
       <div className="business-instance-description"><p>{item.note?.description || text("No note", "暂无备注")}</p>{canEdit && <Button fill="text" onClick={() => setNoteOpen(true)}><Pencil size={14} />{text("Edit note", "编辑备注")}</Button>}</div>
       {noteOpen && <BusinessNoteEditor item={item} close={() => setNoteOpen(false)} saved={note => { setRecord(value => value ? { ...value, note } : value); setResolved(value => value ? { ...value, instance: { ...value.instance, note } } : value); setRevision(value => value + 1); }} />}
-      <div className="business-detail-navigation"><div className="business-instance-tabs" role="group" aria-label={text("Instance sections", "实例区块")}>{([ ["overview", text("Overview", "总览")], ["network", text("Network traffic", "网络流量")], ["regions", text("Player regions · all", "玩家地区 · 全部")], ["sql", text("SQL diagnostics", "SQL 诊断")]] as const).filter(([key]) => (item.identity.role !== "gateway" || key === "overview" || key === "network") && (item.identity.role !== "sdk" || key !== "regions")).map(([key, label]) => <Button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</Button>)}</div>{tab === "overview" && <div className="business-range-controls"><TimeRangePicker value={range} onChange={changeRange} /><label className="business-panel-size"><span>{text("Panels", "面板大小")}</span><select aria-label={text("Panel size", "面板大小")} value={large ? "large" : "normal"} onChange={event => setLarge(event.target.value === "large")}><option value="normal">{text("Comfortable", "舒适")}</option><option value="large">{text("Large", "大面板")}</option></select></label></div>}</div>
+      <div className="business-detail-navigation"><div className="business-instance-tabs" role="group" aria-label={text("Instance sections", "实例区块")}>{([ ["overview", text("Overview", "总览")], ["network", text("Network traffic", "网络流量")], ["regions", text("Player regions · all", "玩家地区 · 全部")], ["sql", text("SQL diagnostics", "SQL 诊断")]] as const).filter(([key]) => sectionAvailable(key)).map(([key, label]) => <Button key={key} aria-pressed={tab === key} onClick={() => setTab(key)}>{label}</Button>)}</div>{tab === "overview" && <div className="business-range-controls"><TimeRangePicker value={range} onChange={changeRange} /><label className="business-panel-size"><span>{text("Panels", "面板大小")}</span><select aria-label={text("Panel size", "面板大小")} value={large ? "large" : "normal"} onChange={event => setLarge(event.target.value === "large")}><option value="normal">{text("Comfortable", "舒适")}</option><option value="large">{text("Large", "大面板")}</option></select></label></div>}</div>
       {Date.now() - item.last_seen > 90000 && <Alert severity="warning" title={text("Instance reporting is stale", "实例上报已超过90秒")}>
         {text("The last samples may belong to an earlier process. Historical curves do not establish current server availability.", `最近上报：${timeAgo(item.last_seen)}。当前值等待新采样，历史曲线不代表服务仍在线，请检查上报链路。`)}
       </Alert>}

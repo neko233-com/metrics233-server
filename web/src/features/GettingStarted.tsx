@@ -1,5 +1,6 @@
 import { css } from "@emotion/css";
 import { useEffect, useState } from "react";
+import { ChevronRight } from "lucide-react";
 import { api, type Metric, type Target } from "../api";
 import { t as tr } from "../i18n";
 import {
@@ -17,7 +18,6 @@ type Step = {
   title: string;
   description: string;
   done: boolean;
-  action: string;
   view: "collectors" | "explore" | "alerts";
 };
 
@@ -58,7 +58,6 @@ export function GettingStarted({
         "Scrape a Prometheus exporter or connect MySQL, Redis or PostgreSQL directly.",
       ),
       done: targets.length > 0,
-      action: tr("Add collector"),
       view: "collectors",
     },
     {
@@ -68,7 +67,6 @@ export function GettingStarted({
         "Explore the metrics this workspace is already collecting.",
       ),
       done: metrics.length > 0,
-      action: tr("Open Explore"),
       view: "explore",
     },
     {
@@ -78,17 +76,20 @@ export function GettingStarted({
         "Turn a PromQL query into a durable alert with a pending period.",
       ),
       done: (alerts || 0) > 0,
-      action: tr("Create alert"),
       view: "alerts",
     },
   ];
   const complete = steps.filter((step) => step.done).length;
 
   return (
-    <section className={styles.panel} aria-labelledby="getting-started-title">
+    <details className={`home-getting-started ${styles.panel}`}>
+      <summary className="home-guide-toggle">
+        <ChevronRight size={16} aria-hidden="true" />
+        <strong>{tr("Getting started")}</strong>
+        <Badge text={`${complete}/${steps.length}`} color={complete === steps.length ? "green" : "orange"} />
+      </summary>
       <header className={styles.header}>
         <div>
-          <h2 id="getting-started-title">{tr("Getting started")}</h2>
           <p>
             {complete === steps.length
               ? tr("Everything is connected. This checklist can be dismissed.")
@@ -96,10 +97,6 @@ export function GettingStarted({
           </p>
         </div>
         <div className={styles.headerActions}>
-          <Badge
-            text={`${complete}/${steps.length}`}
-            color={complete === steps.length ? "green" : "orange"}
-          />
           <Button
             size="sm"
             fill="text"
@@ -131,12 +128,12 @@ export function GettingStarted({
               fill={step.done ? "text" : "solid"}
               onClick={() => onNavigate(step.view)}
             >
-              {step.done ? tr("Review") : step.action}
+              {tr(step.view === "collectors" ? "Data connections" : step.view === "explore" ? "Search details" : "Alerts")}
             </Button>
           </li>
         ))}
       </ol>
-    </section>
+    </details>
   );
 }
 

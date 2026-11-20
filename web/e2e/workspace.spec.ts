@@ -8217,6 +8217,11 @@ test("English and Chinese, panels, PromQL, dashboards and collector forms", asyn
   await expect(
     page.getByRole("heading", { name: "首页", exact: true }),
   ).toBeVisible();
+  const tools = page.locator(".home-dashboard-tools");
+  await expect(tools).not.toHaveAttribute("open", "");
+  await expect(page.locator(".dashboard-panel-grid")).toBeInViewport();
+  await expect(page.locator(".home-getting-started")).not.toHaveAttribute("open", "");
+  await tools.locator("summary").click();
   await expect(
     page.getByRole("button", { name: "添加面板", exact: true }),
   ).toBeVisible();

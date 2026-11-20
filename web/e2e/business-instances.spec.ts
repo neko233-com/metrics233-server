@@ -103,6 +103,12 @@ test("all regions stay virtualized while SQL shows only the slowest ten in the l
   await expect(page.getByRole("link", { name: "IP location data: DB-IP Lite", exact: true })).toHaveAttribute("href", "https://db-ip.com");
   await page.screenshot({ path: info.outputPath("business-regions-all.png"), fullPage: true });
   await page.getByRole("button", { name: "SQL diagnostics", exact: true }).click();
+  await expect(page).toHaveURL(/instance=[a-f0-9]{64}&section=sql#business$/);
+  const sqlLink = page.url();
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
+  await page.goto(sqlLink);
+  await expect(page.getByRole("button", { name: "SQL diagnostics", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("Recent window", { exact: true })).toHaveValue("1h");
   const sql = page.getByRole("table", { name: "Slow SQL Top10", exact: true });
   await expect(sql.locator("tbody tr")).toHaveCount(10);
@@ -150,7 +156,7 @@ test("population snapshots exclude old IPs and regions after restart and expose 
   await expect(page.getByRole("region", { name: "Online players", exact: true }).getByText("3", { exact: true })).toBeVisible();
   const staleLabels = baseLabels("ui-stale");
   await push([{ name: "game_players_online", labels: staleLabels, value: 2, timestamp: now - 120000 }, { name: "game_players_online_by_region", labels: { ...staleLabels, country: "Fixture", city: "Stale" }, value: 2, timestamp: now - 120000 }]);
-  await page.getByRole("button", { name: "All instances", exact: true }).click(); await openInstance(page, "ui-stale");
+  await page.getByRole("button", { name: "Back to server list", exact: true }).click(); await openInstance(page, "ui-stale");
   await expect(page.getByText("Player data is stale (over 90 seconds)", { exact: true })).toBeVisible();
   await page.screenshot({ path: info.outputPath("business-population-stale.png"), fullPage: true, animations: "disabled" });
 });
@@ -212,7 +218,7 @@ test("platform facets discover new channels and window one server per row", asyn
   await page.screenshot({ path: info.outputPath("server-directory-mobile.png"), animations: "disabled" });
   await custom.getByRole("button", { name: /^Open Control server/ }).click();
   await expect(page.getByRole("region", { name: "Instance dashboard" }).locator(".business-platform-badge")).toHaveText("studio-preview");
-  await page.getByRole("button", { name: "All instances", exact: true }).click();
+  await page.getByRole("button", { name: "Back to server list", exact: true }).click();
   await expect(custom).toBeVisible();
 });
 
@@ -227,6 +233,12 @@ test("Chinese is the first-visit language and the Home links name the destinatio
   await page.getByRole("button", { name: "Switch language" }).click();
   await expect(page.locator("html")).toHaveAttribute("lang", "en");
   await page.reload();
+  await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Resources", exact: true }).click();
+  await expect(page).toHaveURL(/\?surface=resources#business$/);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Resources", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await page.goBack();
   await expect(page.getByRole("heading", { name: "Server directory", exact: true })).toBeVisible();
   const nav = page.getByRole("navigation", { name: "Main navigation" });
   await nav.getByRole("button", { name: "Saved views", exact: true }).click();
